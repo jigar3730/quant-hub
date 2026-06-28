@@ -3,7 +3,7 @@
 **Version:** 1.1  
 **Product:** Quant Hub homelab stock scanner (breakout + swing + Lynch)  
 **Audience:** Traders, analysts, and operators who run scans and use the dashboard  
-**Last updated:** 2026-06-28 (Lynch pipeline reference added)
+**Last updated:** 2026-06-28 (Breakout pipeline reference added)
 
 ---
 
@@ -20,7 +20,7 @@
 9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
 
-**Deep dive:** [Lynch Scanner — data pipeline](LYNCH_SCANNER.md) (how fundamentals are pulled, calculated, and stored)
+**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md)
 
 ---
 
@@ -121,6 +121,8 @@ All scan tables show a **Ticker** column linking to **Yahoo Finance** quotes (op
 | **Compare** | Side-by-side radar for 2–3 tickers |
 | **System** | Scan counts and job status (collapsed admin) |
 
+Three layers on every breakout result: **eligibility** (hard gate) → **score** (9 factors + regime) → **tier** (Tier 1/2/3). See [Breakout Scanner reference](BREAKOUT_SCANNER.md).
+
 ### Swing tabs
 
 | Tab | Description |
@@ -129,6 +131,8 @@ All scan tables show a **Ticker** column linking to **Yahoo Finance** quotes (op
 | **Full Universe** | Every ticker with weekly indicators, rules passed, and score |
 | **Ticker Detail** | Setup score breakdown: base components, penalties, rule checklist |
 | **Rejection Breakdown** | Why setups failed (aggregate counts) |
+
+On **Ticker Detail**, see [Swing Scanner reference](SWING_SCANNER.md) for how **Score** (quality) differs from the **setup gate** (all 5 rules must pass).
 
 ### Lynch tabs
 
@@ -190,6 +194,8 @@ quant-scan --universe sp500 --cache
 | `--report none` | Skip JSON/MD file export (Postgres still updated unless `--no-persist`) |
 | `--no-persist` | Skip writing to Postgres (CSV only) |
 
+Scheduled job equivalent: `quant-daily --universe sp500` (email on by default). Factor and tier reference: **[BREAKOUT_SCANNER.md](BREAKOUT_SCANNER.md)**.
+
 ### Scan specific tickers
 
 ```bash
@@ -235,6 +241,8 @@ quant-swing --universe dividend_growers --no-email   # skip email
 | **Grade** | A (85+), B (70+), C (55+), D (&lt;55) |
 
 A confirmed setup can score below 100 (e.g. 82, grade B) if structure is valid but chase, RSI stretch, or MACD overextension penalties apply. Use the score to **rank** setups and review near-misses in **Full Universe**.
+
+Full reference (indicators, partial-credit tables, dashboard columns): **[SWING_SCANNER.md](SWING_SCANNER.md)**.
 
 Open **Swing setup score rubric** in the sidebar or Weekly Setups tab for the full penalty list.
 
@@ -317,6 +325,8 @@ Scores are combined into:
 
 Sort and filter primarily on **final adjusted score**.
 
+Full pipeline (eligibility thresholds, factor math, tier rules, dashboard columns): **[BREAKOUT_SCANNER.md](BREAKOUT_SCANNER.md)**.
+
 ### Eligibility filters
 
 Tickers marked **filtered** failed checks such as:
@@ -330,7 +340,7 @@ The **Ticker Detail** tab and **Full Universe** table show the filter reason.
 
 ### Swing quality score (weekly strategy)
 
-Fine-grained scoring lives in `setup_detail` on each ticker:
+Fine-grained scoring lives in `setup_detail` on each ticker. **Important:** the **setup gate** (all 5 hard rules pass → `SETUP_LONG` / `SETUP_SHORT`) is separate from the **quality score** (0–100 partial credit minus penalties). A name can score 70+ and still be “No setup” if one rule failed.
 
 | Component | Max | Notes |
 |-----------|-----|-------|
@@ -343,6 +353,8 @@ Fine-grained scoring lives in `setup_detail` on each ticker:
 **Penalties** (examples): chase/extended entry, RSI extreme, MACD overextension, structure break (below EMA50 on longs), wrong-side dominance, weak weekly close.
 
 **Final score** = clamp(base − penalties, 0, 100). Dashboard shows base, each penalty, and per-rule partial credit on **Ticker Detail**.
+
+Full pipeline, indicator formulas, and column-by-column dashboard guide: **[SWING_SCANNER.md](SWING_SCANNER.md)**.
 
 ### Lynch fundamentals (weekly strategy)
 

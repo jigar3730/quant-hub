@@ -23,7 +23,7 @@
 12. [Migration from quant-platform](#12-migration-from-quant-platform)
 13. [Emergency procedures](#13-emergency-procedures)
 
-**Related:** [Lynch Scanner — data pipeline](LYNCH_SCANNER.md)
+**Related:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md)
 
 ---
 
@@ -268,6 +268,8 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 7. Record `job_runs` row (`breakout-sp500-daily`)
 8. **Send breakout email** to all `EMAIL_TO` addresses (always sent when SMTP is configured, even if zero actionable tickers)
 
+**Reference:** [Breakout Scanner — data pipeline](BREAKOUT_SCANNER.md) (eligibility, 9 factors, regime multiplier, tiers, Postgres `detail` JSON, near-miss logic).
+
 #### Swing — `quant-swing --universe sp500`
 
 1. Resolve universe tickers
@@ -279,6 +281,8 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 7. Write `setups.csv` under `data/output/swing/{universe}/`
 8. Record `job_runs` row (`swing-weekly`)
 9. **Send swing email** (always sent when SMTP is configured, even if zero setups)
+
+**Reference:** [Swing Scanner — data pipeline](SWING_SCANNER.md) (setup gate vs quality score, indicator formulas, partial credit, penalties, Postgres `detail` JSON, dashboard columns).
 
 Rescan all universes after scoring changes:
 
