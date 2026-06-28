@@ -36,7 +36,11 @@ DEFAULT_SWING_OUTPUT_CSV = OUTPUT_DIR / "swing_setups.csv"
 DEFAULT_LYNCH_CSV = OUTPUT_DIR / "lynch_scan_results.csv"
 DEFAULT_LYNCH_JSON = OUTPUT_DIR / "lynch_scan_report.json"
 DEFAULT_LYNCH_MD = OUTPUT_DIR / "lynch_scan_summary.md"
-LYNCH_FETCH_WORKERS = 8
+LYNCH_FETCH_WORKERS = 3
+LYNCH_FETCH_BATCH_SIZE = 20
+LYNCH_FETCH_BATCH_DELAY_SEC = 2.0
+LYNCH_FETCH_RETRIES = 4
+LYNCH_FETCH_RETRY_BASE_SEC = 1.0
 
 LEGACY_BREAKOUT_OUTPUTS = {
     "csv": DEFAULT_OUTPUT_CSV,
@@ -52,9 +56,15 @@ LEGACY_LYNCH_OUTPUTS = {
 }
 
 
-def scan_output_paths(strategy_id: str, universe_id: str) -> dict[str, Path]:
-    """Per-strategy/universe export paths under data/output/."""
-    base = OUTPUT_DIR / strategy_id / universe_id
+def scan_output_paths(
+    strategy_id: str,
+    universe_id: str,
+    *,
+    dry_run: bool = False,
+) -> dict[str, Path]:
+    """Per-strategy/universe export paths under data/output/ (or dry_run/)."""
+    root = DRY_RUN_OUTPUT_DIR if dry_run else OUTPUT_DIR
+    base = root / strategy_id / universe_id
     names = {
         "breakout": ("scan_results.csv", "report.json", "summary.md"),
         "swing": ("setups.csv", "report.json", "summary.md"),

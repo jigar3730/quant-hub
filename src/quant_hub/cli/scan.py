@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 
 from quant_hub.application.scan_service import ScanService
-from quant_hub.config import DEFAULT_OUTPUT_CSV, DEFAULT_OUTPUT_JSON, DEFAULT_OUTPUT_MD
 from quant_hub.logging_setup import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -21,15 +20,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cache", action="store_true", help="Use parquet price cache")
     parser.add_argument("--force-refresh", action="store_true", help="Bypass cache")
     parser.add_argument("--dry-run", action="store_true", help="Synthetic data, no network")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_CSV)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="CSV path (default: per-universe under data/output/)",
+    )
     parser.add_argument(
         "--report",
         choices=["json", "md", "both", "none"],
         default="json",
         help="Report format (default: json)",
     )
-    parser.add_argument("--report-json", type=Path, default=DEFAULT_OUTPUT_JSON)
-    parser.add_argument("--report-md", type=Path, default=DEFAULT_OUTPUT_MD)
+    parser.add_argument(
+        "--report-json",
+        type=Path,
+        default=None,
+        help="JSON report path (default: per-universe)",
+    )
+    parser.add_argument(
+        "--report-md",
+        type=Path,
+        default=None,
+        help="Markdown report path (default: per-universe)",
+    )
     parser.add_argument("--no-persist", action="store_true", help="Skip Postgres persist")
     args = parser.parse_args(argv)
 
@@ -42,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     persist = not args.no_persist
 
     service = ScanService()
-    service.run(
+    result = service.run(
         universe_id=args.universe,
         tickers=args.tickers,
         tickers_file=args.tickers_file,
@@ -54,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         report_md=args.report_md,
         persist=persist,
     )
-    return 0
+    return result.exit_code()
 
 
 if __name__ == "__main__":

@@ -3,37 +3,31 @@
 from __future__ import annotations
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
 
-from quant_hub.config import LYNCH_FETCH_WORKERS
-from quant_hub.data.fundamentals_helpers import cagr, quarterly_series
-from quant_hub.data.quality import sanitize_growth_rate
+from quant_hub.config import (
+    LYNCH_FETCH_BATCH_DELAY_SEC,
+    LYNCH_FETCH_BATCH_SIZE,
+    LYNCH_FETCH_RETRIES,
+    LYNCH_FETCH_RETRY_BASE_SEC,
+    LYNCH_FETCH_WORKERS,
+)
+from quant_hub.data.quality import (
+    growth_to_percent,
+    normalize_debt_to_equity,
+    normalize_dividend_yield,
+    normalize_rate_decimal,
+    sanitize_growth_rate,
+)
 
 logger = logging.getLogger(__name__)
 
 PEG_SANITY_MAX = 5.0
-
-
-def normalize_debt_to_equity(value: float | None) -> float | None:
-    if value is None or pd.isna(value):
-        return None
-    ratio = float(value)
-    if ratio > 1.0:
-        ratio /= 100.0
-    return ratio
-
-
-def normalize_dividend_yield(value: float | None) -> float | None:
-    if value is None or pd.isna(value):
-        return None
-    v = float(value)
-    if v > 0.20:
-        v /= 100.0
-    return v
 
 
 def compute_peg(pe: float | None, growth: float | None) -> float | None:
@@ -41,8 +35,8 @@ def compute_peg(pe: float | None, growth: float | None) -> float | None:
         return None
     if float(pe) <= 0:
         return None
-    growth_pct = float(growth) * 100 if abs(float(growth)) <= 1.5 else float(growth)
-    if growth_pct <= 0:
+    growth_pct = growth_to_percent(growth)
+    if growth_pct is None or growth_pct <= 0:
         return None
     peg = float(pe) / growth_pct
     if peg <= 0 or peg > PEG_SANITY_MAX:
@@ -86,7 +80,7 @@ def _revenue_coefficient_of_variation(ticker: yf.Ticker) -> float | None:
             revenue = quarterly_series(income, "Revenue")
         if len(revenue) < 4:
             return None
-        recent = revenue.head(8).astype(float)
+        recent = revenue.tail(8).astype(float)
         mean = recent.mean()
         if mean <= 0:
             return None
@@ -151,14 +145,15 @@ def _pick_growth_for_peg(
     return None, "", "No reliable positive earnings growth — PEG cannot be computed."
 
 
-def fetch_lynch_metrics(ticker: str) -> dict:
-    try:
-        yt = yf.Ticker(ticker)
-        info = yt.info or {}
-    except Exception:
-        logger.warning("Could not fetch Lynch metrics for %s", ticker)
-        return {"ticker": ticker, "error": "fetch_failed"}
+def _info_looks_valid(info: dict) -> bool:
+    if not info:
+        return False
+    # Rate-limited Yahoo responses are often empty or missing core quote fields.
+    keys = ("regularMarketPrice", "currentPrice", "marketCap", "shortName", "longName")
+    return any(info.get(k) is not None and not pd.isna(info.get(k)) for k in keys)
 
+
+def _build_lynch_metrics(ticker: str, yt: yf.Ticker, info: dict) -> dict:
     trailing_pe = info.get("trailingPE")
     forward_pe = info.get("forwardPE")
     pe = trailing_pe if trailing_pe is not None and not pd.isna(trailing_pe) else forward_pe
@@ -194,16 +189,26 @@ def fetch_lynch_metrics(ticker: str) -> dict:
         net_cash_price_ratio = net_cash_per_share / float(price)
 
     de = normalize_debt_to_equity(info.get("debtToEquity"))
-    inst = info.get("heldPercentInstitutions")
+    inst = normalize_rate_decimal(info.get("heldPercentInstitutions"))
     analysts = info.get("numberOfAnalystOpinions")
     insider_purchases = _insider_purchases_6m(yt)
     shares_change = _shares_outstanding_change_yoy(yt)
     revenue_cv = _revenue_coefficient_of_variation(yt)
-    roe = info.get("returnOnEquity")
+    roe = normalize_rate_decimal(info.get("returnOnEquity"))
     div_yield = normalize_dividend_yield(info.get("dividendYield"))
     rev_growth = info.get("revenueGrowth")
     if rev_growth is not None and not pd.isna(rev_growth):
-        rev_growth = sanitize_growth_rate(float(rev_growth))
+        rev_growth = sanitize_growth_rate(normalize_rate_decimal(float(rev_growth)))
+
+    core_fields = (
+        pe,
+        peg,
+        eps_growth_for_peg,
+        de,
+        roe,
+        inst,
+    )
+    data_complete = all(v is not None and not (isinstance(v, float) and pd.isna(v)) for v in core_fields)
 
     return {
         "ticker": ticker,
@@ -228,26 +233,68 @@ def fetch_lynch_metrics(ticker: str) -> dict:
         "net_cash": net_cash,
         "net_cash_per_share": net_cash_per_share,
         "net_cash_price_ratio": net_cash_price_ratio,
-        "institutional_ownership": float(inst) if inst is not None else None,
+        "institutional_ownership": inst,
         "analyst_count": int(analysts) if analysts is not None else None,
         "insider_purchases_6m": insider_purchases,
         "shares_outstanding_change_yoy": shares_change,
         "dividend_yield": div_yield,
         "price_to_book": info.get("priceToBook"),
         "trailing_eps": info.get("trailingEps"),
-        "return_on_equity": float(roe) if roe is not None and not pd.isna(roe) else None,
+        "return_on_equity": roe,
         "revenue_cv": revenue_cv,
         "revenue_growth": rev_growth,
+        "fetched_at": datetime.now(tz=UTC).isoformat(),
+        "data_quality": {
+            "complete": data_complete,
+            "missing_fields": [
+                name
+                for name, val in (
+                    ("pe_ratio", pe),
+                    ("peg_ratio", peg),
+                    ("eps_growth_for_peg", eps_growth_for_peg),
+                    ("debt_to_equity", de),
+                    ("return_on_equity", roe),
+                    ("institutional_ownership", inst),
+                )
+                if val is None or (isinstance(val, float) and pd.isna(val))
+            ],
+        },
     }
 
 
-def fetch_lynch_metrics_batch(
+def fetch_lynch_metrics(
+    ticker: str,
+    *,
+    retries: int = LYNCH_FETCH_RETRIES,
+) -> dict:
+    """Fetch Lynch fundamentals with retry/backoff for Yahoo rate limits."""
+    last_error: Exception | None = None
+    for attempt in range(retries):
+        try:
+            yt = yf.Ticker(ticker)
+            info = yt.info or {}
+            if not _info_looks_valid(info):
+                raise ValueError("empty_or_invalid_yahoo_info")
+            return _build_lynch_metrics(ticker, yt, info)
+        except Exception as exc:
+            last_error = exc
+            if attempt < retries - 1:
+                delay = LYNCH_FETCH_RETRY_BASE_SEC * (2**attempt)
+                time.sleep(delay)
+    logger.warning(
+        "Could not fetch Lynch metrics for %s after %d attempts: %s",
+        ticker,
+        retries,
+        last_error,
+    )
+    return {"ticker": ticker, "error": "fetch_failed"}
+
+
+def _fetch_parallel_chunk(
     tickers: list[str],
     *,
-    max_workers: int = LYNCH_FETCH_WORKERS,
+    max_workers: int,
 ) -> list[dict]:
-    if not tickers:
-        return []
     if len(tickers) == 1:
         return [fetch_lynch_metrics(tickers[0])]
 
@@ -257,5 +304,30 @@ def fetch_lynch_metrics_batch(
         futures = {pool.submit(fetch_lynch_metrics, symbol): symbol for symbol in tickers}
         for future in as_completed(futures):
             symbol = futures[future]
-            results[symbol] = future.result()
+            try:
+                results[symbol] = future.result()
+            except Exception:
+                logger.exception("Lynch metrics worker failed for %s", symbol)
+                results[symbol] = {"ticker": symbol, "error": "fetch_failed"}
     return [results[symbol] for symbol in tickers]
+
+
+def fetch_lynch_metrics_batch(
+    tickers: list[str],
+    *,
+    max_workers: int = LYNCH_FETCH_WORKERS,
+    batch_size: int = LYNCH_FETCH_BATCH_SIZE,
+    batch_delay_sec: float = LYNCH_FETCH_BATCH_DELAY_SEC,
+) -> list[dict]:
+    if not tickers:
+        return []
+    if len(tickers) <= batch_size:
+        return _fetch_parallel_chunk(tickers, max_workers=max_workers)
+
+    combined: list[dict] = []
+    for start in range(0, len(tickers), batch_size):
+        chunk = tickers[start : start + batch_size]
+        combined.extend(_fetch_parallel_chunk(chunk, max_workers=max_workers))
+        if start + batch_size < len(tickers):
+            time.sleep(batch_delay_sec)
+    return combined

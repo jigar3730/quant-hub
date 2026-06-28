@@ -84,23 +84,6 @@ def scores_to_dataframe(ticker: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _top_signal(scores: dict) -> str:
-    if not scores:
-        return ""
-    best_key = ""
-    best_score = -1.0
-    for key, comp in scores.items():
-        if not comp:
-            continue
-        score = float(comp.get("score", 0))
-        if score > best_score:
-            best_score = score
-            best_key = key
-    if best_score < 0 or not best_key:
-        return ""
-    return f"{SCORE_LABELS.get(best_key, best_key)} ({best_score:.0f})"
-
-
 def _component_total(scores: dict, keys: tuple[str, ...]) -> float | None:
     values = []
     for key in keys:
@@ -112,6 +95,8 @@ def _component_total(scores: dict, keys: tuple[str, ...]) -> float | None:
 
 def full_universe_dataframe(tickers: list[dict]) -> pd.DataFrame:
     """Full scan table with summary, component scores, and fundamental metrics."""
+    from quant_hub.dashboard.viz.signals import top_signals_short, top_signals_tooltip
+
     rows = []
     for t in tickers:
         summary = t.get("summary") or {}
@@ -127,7 +112,8 @@ def full_universe_dataframe(tickers: list[dict]) -> pd.DataFrame:
             "normalized_score": round(summary.get("normalized_score", 0), 1),
             "raw_score": round(summary.get("raw_score", 0), 1),
             "tier_reason": t.get("tier_reason", ""),
-            "top_signal": _top_signal(scores),
+            "top_signal": top_signals_short(scores),
+            "signal_tooltip": top_signals_tooltip(scores),
             "tech_score": _component_total(scores, TECHNICAL_KEYS),
             "fund_score": _component_total(scores, FUNDAMENTAL_KEYS),
             "filter_reason": fail_reason,

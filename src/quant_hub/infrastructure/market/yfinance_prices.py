@@ -71,7 +71,9 @@ def download_prices(
     """Download daily OHLCV; per-ticker parquet cache with chunked yfinance fetch."""
     tickers = sorted(set(tickers))
     cache = cache or ParquetCache()
-    cached_tickers, stale_tickers = cache.partition(tickers, use_cache=use_cache)
+    cached_tickers, stale_tickers = cache.partition(
+        tickers, use_cache=use_cache, max_bar_age_days=5
+    )
 
     frames: list[pd.DataFrame] = []
     if cached_tickers:

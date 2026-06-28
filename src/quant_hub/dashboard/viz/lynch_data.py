@@ -34,10 +34,17 @@ def list_lynch_report_paths() -> dict[str, str]:
     return options
 
 
+def _lynch_score_display(value) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
 def lynch_tickers_to_dataframe(tickers: list[dict]) -> pd.DataFrame:
     rows = []
     for t in tickers:
         cats = t.get("categories") or []
+        score = t.get("lynch_score")
         rows.append(
             {
                 "ticker": t["ticker"],
@@ -45,7 +52,8 @@ def lynch_tickers_to_dataframe(tickers: list[dict]) -> pd.DataFrame:
                 "sector": t.get("sector"),
                 "passed": bool(t.get("passed")),
                 "categories": ", ".join(cats) if cats else "base",
-                "lynch_score": t.get("lynch_score", 0),
+                "lynch_score": _lynch_score_display(score),
+                "data_status": "unavailable" if (t.get("metrics") or {}).get("error") else "ok",
                 "pe_ratio": t.get("pe_ratio"),
                 "peg_ratio": t.get("peg_ratio"),
                 "eps_growth_5y_pct": t.get("eps_growth_5y_pct"),

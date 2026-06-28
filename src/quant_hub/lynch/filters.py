@@ -50,14 +50,14 @@ def apply_anti_filters(metrics: dict) -> tuple[bool, list[dict], str | None]:
     )
 
     roe = metrics.get("return_on_equity")
-    roe_ok = roe is None or float(roe) >= cfg.ROE_MIN_ANTI
+    roe_ok = roe is not None and float(roe) >= cfg.ROE_MIN_ANTI
     checks.append(
         _check(
             "return_on_equity",
             roe_ok,
             value=roe,
-            threshold=f">= {cfg.ROE_MIN_ANTI:.0%} when reported",
-            detail="Weak returns on equity often mean a mediocre business model.",
+            threshold=f">= {cfg.ROE_MIN_ANTI:.0%} (required when screening)",
+            detail="Weak or missing ROE often means a mediocre business model.",
         )
     )
 
@@ -144,8 +144,8 @@ def apply_base_screen(metrics: dict) -> tuple[bool, list[dict], str | None]:
     inst = metrics.get("institutional_ownership")
     analysts = metrics.get("analyst_count")
     if inst is None and analysts is None:
-        neglected = True
-        neglect_detail = "Coverage data missing — not penalized."
+        neglected = False
+        neglect_detail = "Coverage data missing — cannot confirm neglect."
     else:
         neglected = False
         if inst is not None and float(inst) < cfg.INSTITUTIONAL_OWNERSHIP_MAX:
@@ -160,7 +160,7 @@ def apply_base_screen(metrics: dict) -> tuple[bool, list[dict], str | None]:
             value={"institutional_pct": _pct(inst), "analysts": analysts},
             threshold=(
                 f"inst < {cfg.INSTITUTIONAL_OWNERSHIP_MAX:.0%} "
-                f"OR analysts <= {cfg.ANALYST_COVERAGE_MAX} (or data missing)"
+                f"OR analysts <= {cfg.ANALYST_COVERAGE_MAX} (data required)"
             ),
             detail=neglect_detail,
         )
@@ -169,8 +169,8 @@ def apply_base_screen(metrics: dict) -> tuple[bool, list[dict], str | None]:
     insider_buy = metrics.get("insider_purchases_6m")
     shares_chg = metrics.get("shares_outstanding_change_yoy")
     if insider_buy is None and shares_chg is None:
-        alignment = True
-        align_detail = "Insider/share data missing — not penalized."
+        alignment = False
+        align_detail = "Insider/share data missing — cannot confirm alignment."
     else:
         alignment = False
         if insider_buy is not None and float(insider_buy) > 0:
@@ -183,7 +183,7 @@ def apply_base_screen(metrics: dict) -> tuple[bool, list[dict], str | None]:
             "insider_or_buyback",
             alignment,
             value={"insider_purchases_6m": insider_buy, "shares_change_yoy": _pct(shares_chg)},
-            threshold="insider buying > 0 OR shares outstanding declining (or data missing)",
+            threshold="insider buying > 0 OR shares outstanding declining (data required)",
             detail=align_detail,
         )
     )
@@ -206,8 +206,8 @@ def _pct(value) -> str | float | None:
         return value
 
 
-def lynch_score(checks: list[dict]) -> float:
+def lynch_score(checks: list[dict]) -> float | None:
     if not checks:
-        return 0.0
+        return None
     passed = sum(1 for c in checks if c["passed"])
     return round(passed / len(checks) * 100, 1)

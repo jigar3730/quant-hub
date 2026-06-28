@@ -6,8 +6,11 @@ from pathlib import Path
 
 import pandas as pd
 
+from quant_hub.application.run_result import ServiceRunResult
 from quant_hub.application.universe_service import UniverseService
 from quant_hub.config import LEGACY_BREAKOUT_OUTPUTS, scan_output_paths
+from quant_hub.data.provenance import build_data_provenance
+from quant_hub.data.quality import max_bar_date
 from quant_hub.engine.export import ticker_results_to_legacy_scores
 from quant_hub.engine.runner import StrategyEngine
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
@@ -50,7 +53,7 @@ class ScanService:
         scan_date: date | None = None,
         job_name: str | None = None,
         persist: bool = True,
-    ) -> pd.DataFrame:
+    ) -> ServiceRunResult:
         scan_date = scan_date or date.today()
         resolved_id, universe = self.universe_service.resolve(
             universe_id=universe_id,
@@ -58,7 +61,7 @@ class ScanService:
             tickers_file=tickers_file,
         )
 
-        paths = scan_output_paths(self.strategy_id, resolved_id)
+        paths = scan_output_paths(self.strategy_id, resolved_id, dry_run=dry_run)
         output = output or paths["csv"]
         report_json = report_json or paths["json"]
         report_md = report_md or paths["md"]
@@ -83,6 +86,8 @@ class ScanService:
             ctx = engine._context
             assert ctx is not None
             scores_by_ticker = ticker_results_to_legacy_scores(scan_result.tickers)
+            cache_mode = "parquet" if use_cache else "live"
+            as_of = max_bar_date(ctx.spy_df)
             scan_report = build_scan_report(
                 results_df=results,
                 universe=scan_result.universe,
@@ -95,6 +100,15 @@ class ScanService:
                 scores_by_ticker=scores_by_ticker,
                 strategy_id=scan_result.strategy_id,
                 fundamentals_quality=ctx.extras.get("fundamentals_quality"),
+                data_provenance=build_data_provenance(
+                    strategy_id=scan_result.strategy_id,
+                    universe_id=resolved_id,
+                    scan_date=scan_date,
+                    price_cache=cache_mode,
+                    fundamentals_cache=cache_mode,
+                    as_of_price=str(as_of) if as_of else None,
+                    extra={"dry_run": True} if dry_run else None,
+                ),
             )
 
             if report in ("json", "both"):
@@ -104,7 +118,7 @@ class ScanService:
                 export_markdown_report(scan_report, report_md)
                 logger.info("Wrote markdown report to %s", report_md)
 
-            if self.strategy_id == "breakout" and resolved_id == "sp500":
+            if self.strategy_id == "breakout" and resolved_id == "sp500" and not dry_run:
                 copy_to_legacy(output, LEGACY_BREAKOUT_OUTPUTS["csv"])
                 if report in ("json", "both"):
                     copy_to_legacy(report_json, LEGACY_BREAKOUT_OUTPUTS["json"])
@@ -120,13 +134,15 @@ class ScanService:
                 )
                 logger.info("Persisted scan to Postgres run_id=%s", run_id)
 
+            email_sent = False
             if send_email:
-                    if send_scan_email(scan_report, scan_date=scan_date):
-                        logger.info("Actionable tickers email sent")
-                    else:
-                        logger.warning(
-                            "Email not sent — configure SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_TO"
-                        )
+                email_sent = send_scan_email(scan_report, scan_date=scan_date)
+                if email_sent:
+                    logger.info("Actionable tickers email sent")
+                else:
+                    logger.warning(
+                        "Email not sent — configure SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_TO"
+                    )
 
             if job_id is not None:
                 fetched = len([t for t in scan_result.tickers if t.eligible or t.filter_reason != "no_price_data"])
@@ -138,7 +154,11 @@ class ScanService:
                     tickers_failed=max(failed, 0),
                 )
 
-            return results
+            return ServiceRunResult(
+                dataframe=results,
+                email_requested=send_email,
+                email_sent=email_sent if send_email else False,
+            )
 
         except Exception as exc:
             if job_id is not None:

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -27,12 +26,20 @@ class ParquetCache:
     def path_for(self, ticker: str) -> Path:
         return self.base_dir / f"{ticker.upper()}.parquet"
 
-    def is_fresh(self, ticker: str) -> bool:
+    def is_fresh(self, ticker: str, *, max_bar_age_days: int | None = None) -> bool:
         path = self.path_for(ticker)
         if not path.exists():
             return False
         mtime = datetime.fromtimestamp(path.stat().st_mtime)
-        return datetime.now() - mtime < self.ttl
+        if datetime.now() - mtime >= self.ttl:
+            return False
+        if max_bar_age_days is not None:
+            from quant_hub.data.quality import ohlcv_is_stale
+
+            df = self.read(ticker)
+            if ohlcv_is_stale(df, max_age_days=max_bar_age_days):
+                return False
+        return True
 
     def read(self, ticker: str) -> pd.DataFrame | None:
         path = self.path_for(ticker)
@@ -56,13 +63,19 @@ class ParquetCache:
             out["ticker"] = ticker.upper()
         out.to_parquet(path, index=False)
 
-    def partition(self, tickers: list[str], *, use_cache: bool) -> tuple[list[str], list[str]]:
+    def partition(
+        self,
+        tickers: list[str],
+        *,
+        use_cache: bool,
+        max_bar_age_days: int | None = None,
+    ) -> tuple[list[str], list[str]]:
         if not use_cache:
             return tickers, []
         cached: list[str] = []
         stale: list[str] = []
         for ticker in tickers:
-            if self.is_fresh(ticker):
+            if self.is_fresh(ticker, max_bar_age_days=max_bar_age_days):
                 cached.append(ticker)
             else:
                 stale.append(ticker)

@@ -8,9 +8,12 @@ import streamlit as st
 
 from quant_hub.application.universe_service import UniverseService
 from quant_hub.dashboard.viz.breakout_filters import BreakoutFilters
-from quant_hub.dashboard.viz.navigation import set_detail_ticker, sync_detail_ticker
-from quant_hub.dashboard.viz.styles import COMPONENT_HELP
+from quant_hub.dashboard.viz.labels import format_universe_option
+from quant_hub.dashboard.viz.navigation import apply_pending_navigation, sync_detail_ticker
+from quant_hub.dashboard.viz.score_guide import render_score_component_guide
+from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
 from quant_hub.dashboard.viz.swing_filters import SwingFilters
+from quant_hub.dashboard.viz.ux_helpers import scanned_universe_ids, sorted_universe_ids
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 STRATEGY_LABELS = {
@@ -23,19 +26,35 @@ STRATEGY_LABELS = {
 def render_sidebar_controls(
     repo: ScanRepository,
 ) -> tuple[str, str, date | None, BreakoutFilters | SwingFilters]:
+    apply_pending_navigation()
     st.sidebar.title("Quant Hub")
+
+    if "sidebar_strategy" not in st.session_state:
+        st.session_state["sidebar_strategy"] = "breakout"
 
     strategy_id = st.sidebar.selectbox(
         "Strategy",
         options=list(STRATEGY_LABELS.keys()),
         format_func=lambda k: STRATEGY_LABELS[k],
+        key="sidebar_strategy",
     )
 
     universes = UniverseService().list_universes()
+    scanned = scanned_universe_ids(repo, strategy_id)
+    universe_options = sorted_universe_ids(list(universes.keys()), scanned)
+
+    if "sidebar_universe" not in st.session_state:
+        st.session_state["sidebar_universe"] = (
+            next((u for u in universe_options if u in scanned), universe_options[0])
+        )
+    if st.session_state["sidebar_universe"] not in universe_options:
+        st.session_state["sidebar_universe"] = universe_options[0]
+
     universe_id = st.sidebar.selectbox(
         "Universe",
-        options=list(universes.keys()),
-        format_func=lambda k: f"{k} — {universes[k]}",
+        options=universe_options,
+        format_func=lambda k: format_universe_option(k, universes[k], has_scan=k in scanned),
+        key="sidebar_universe",
     )
 
     runs = repo.list_runs(strategy_id=strategy_id, limit=30, exclude_fixtures=True)
@@ -59,6 +78,8 @@ def render_sidebar_controls(
             min_rsi=st.sidebar.slider("Min RSI", 0.0, 100.0, 0.0, 1.0),
             search=st.sidebar.text_input("Search ticker", "").strip().upper(),
         )
+        with st.sidebar.expander("Swing setup score rubric", expanded=False):
+            render_swing_score_guide(in_sidebar=True)
     elif strategy_id == "lynch":
         st.sidebar.header("Lynch filters")
         filters = BreakoutFilters(
@@ -83,14 +104,8 @@ def render_sidebar_controls(
             min_score=st.sidebar.slider(min_label, 0.0, 100.0, 0.0, 5.0),
             search=st.sidebar.text_input("Search ticker", "").strip().upper(),
         )
-        with st.sidebar.expander("Score component guide"):
-            st.caption(
-                "RS, accumulation, and relative volume ranks are **within-universe** percentiles. "
-                "The same ticker may score differently across universes."
-            )
-            for key, text in COMPONENT_HELP.items():
-                label = key.replace("_", " ").title()
-                st.markdown(f"**{label}** — {text}")
+        with st.sidebar.expander("Stock metrics cheat sheet (?)", expanded=False):
+            render_score_component_guide(in_sidebar=True)
 
     return strategy_id, universe_id, scan_date, filters
 
@@ -106,9 +121,13 @@ def render_sidebar_ticker_picker(all_symbols: list[str]) -> str | None:
         format_func=lambda value: "Select a ticker..." if value == "" else value,
     )
     if sidebar_pick and sidebar_pick != detail_ticker:
+        from quant_hub.dashboard.viz.navigation import set_detail_ticker
+
         set_detail_ticker(sidebar_pick)
         detail_ticker = sidebar_pick
     if detail_ticker and st.sidebar.button("Clear ticker selection"):
+        from quant_hub.dashboard.viz.navigation import set_detail_ticker
+
         set_detail_ticker(None)
         detail_ticker = None
     return detail_ticker

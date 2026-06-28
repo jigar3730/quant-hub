@@ -20,14 +20,14 @@ def run_daily_scan(
 ) -> int:
     setup_logging("scan.log")
     service = ScanService()
-    service.run(
+    result = service.run(
         universe_id=universe_id,
         use_cache=use_cache,
         report="both",
         send_email=send_email,
         job_name=job_name,
     )
-    return 0
+    return result.exit_code()
 
 
 def main(argv: list[str] | None = None) -> int:

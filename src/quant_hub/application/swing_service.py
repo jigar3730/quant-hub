@@ -6,12 +6,20 @@ from pathlib import Path
 
 import pandas as pd
 
+from quant_hub.application.run_result import ServiceRunResult
 from quant_hub.application.universe_service import UniverseService
 from quant_hub.config import SWING_MIN_BARS, scan_output_paths
+from quant_hub.data.provenance import build_data_provenance
+from quant_hub.data.quality import validate_ohlcv
 from quant_hub.infrastructure.market.weekly_prices import download_weekly_prices
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.notify.email import send_swing_email
-from quant_hub.strategies.swing.scanner import SwingSetup, scan_ticker
+from quant_hub.strategies.swing.scanner import (
+    SWING_FILTER_LABELS,
+    SwingSetup,
+    analysis_to_report,
+    analyze_swing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,44 +45,34 @@ def setups_to_dataframe(setups: list[SwingSetup]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _data_error_report(ticker: str, reason: str) -> dict:
+    label = SWING_FILTER_LABELS.get(reason, reason.replace("_", " ").title())
+    return {
+        "ticker": ticker,
+        "eligible": False,
+        "tier": "filtered",
+        "sector_etf": None,
+        "tier_reason": label,
+        "summary": {},
+        "scores": {},
+        "eligibility": {"passed": False, "fail_reason": reason, "checks": []},
+        "setup_detail": {"notes": label},
+        "swing_checks": [],
+    }
+
+
 def build_swing_report(
     *,
     universe: list[str],
+    tickers_report: list[dict],
     setups: list[SwingSetup],
     rejection_counts: dict[str, int],
+    data_provenance: dict | None = None,
 ) -> dict:
     longs = [s for s in setups if s.setup_type == "SETUP_LONG"]
     shorts = [s for s in setups if s.setup_type == "SETUP_SHORT"]
 
-    tickers_report = []
-    for s in setups:
-        tickers_report.append(
-            {
-                "ticker": s.ticker,
-                "eligible": True,
-                "tier": s.setup_type,
-                "sector_etf": None,
-                "tier_reason": s.notes,
-                "summary": {
-                    "final_adjusted_score": s.rsi,
-                    "normalized_score": s.rsi,
-                    "raw_score": s.rsi,
-                },
-                "scores": {
-                    "ema20": {"score": s.ema20, "max": 0, "meaning": "20-week EMA"},
-                    "ema50": {"score": s.ema50, "max": 0, "meaning": "50-week EMA"},
-                    "rsi": {"score": s.rsi, "max": 100, "meaning": "14-period RSI"},
-                    "atr": {"score": s.atr, "max": 0, "meaning": "14-period ATR"},
-                },
-                "eligibility": {"passed": True, "fail_reason": None},
-                "setup_detail": {
-                    "close": s.close,
-                    "notes": s.notes,
-                },
-            }
-        )
-
-    return {
+    report = {
         "strategy_id": "swing",
         "scan_summary": {
             "universe_size": len(universe),
@@ -98,6 +96,9 @@ def build_swing_report(
         },
         "tickers": tickers_report,
     }
+    if data_provenance:
+        report["data_provenance"] = data_provenance
+    return report
 
 
 class SwingScanService:
@@ -125,7 +126,7 @@ class SwingScanService:
         send_email: bool = False,
         scan_date: date | None = None,
         job_name: str | None = None,
-    ) -> pd.DataFrame:
+    ) -> ServiceRunResult:
         scan_date = scan_date or date.today()
         resolved_id, universe = self.universe_service.resolve(
             universe_id=universe_id,
@@ -142,6 +143,7 @@ class SwingScanService:
 
         rejection_counts: dict[str, int] = {}
         setups: list[SwingSetup] = []
+        ticker_reports: list[dict] = []
 
         try:
             logger.info(
@@ -158,18 +160,39 @@ class SwingScanService:
             for ticker in universe:
                 df = price_map.get(ticker)
                 if df is None or df.empty:
-                    rejection_counts["no_price_data"] = rejection_counts.get("no_price_data", 0) + 1
+                    reason = "no_price_data"
+                    ticker_reports.append(_data_error_report(ticker, reason))
+                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
+                    continue
+                validation = validate_ohlcv(
+                    df,
+                    min_rows=SWING_MIN_BARS,
+                    max_staleness_days=14,
+                )
+                if not validation.ok:
+                    reason = validation.issues[0] if validation.issues else "invalid_ohlcv"
+                    ticker_reports.append(_data_error_report(ticker, reason))
+                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
                     continue
                 if len(df) < SWING_MIN_BARS:
-                    rejection_counts["insufficient_data"] = (
-                        rejection_counts.get("insufficient_data", 0) + 1
-                    )
+                    reason = "insufficient_data"
+                    ticker_reports.append(_data_error_report(ticker, reason))
+                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
                     continue
-                setup = scan_ticker(df, ticker, min_bars=SWING_MIN_BARS)
-                if setup:
-                    setups.append(setup)
-                else:
-                    rejection_counts["no_setup"] = rejection_counts.get("no_setup", 0) + 1
+                try:
+                    analysis = analyze_swing(df, ticker, min_bars=SWING_MIN_BARS)
+                    ticker_reports.append(analysis_to_report(analysis))
+                    if analysis.setup:
+                        setups.append(analysis.setup)
+                    elif analysis.fail_reason:
+                        rejection_counts[analysis.fail_reason] = (
+                            rejection_counts.get(analysis.fail_reason, 0) + 1
+                        )
+                except Exception:
+                    logger.exception("Swing scan failed for %s", ticker)
+                    reason = "scan_error"
+                    ticker_reports.append(_data_error_report(ticker, reason))
+                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
 
             df_out = setups_to_dataframe(setups)
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -178,8 +201,16 @@ class SwingScanService:
 
             report = build_swing_report(
                 universe=universe,
+                tickers_report=ticker_reports,
                 setups=setups,
                 rejection_counts=rejection_counts,
+                data_provenance=build_data_provenance(
+                    strategy_id="swing",
+                    universe_id=resolved_id,
+                    scan_date=scan_date,
+                    price_cache="parquet" if use_cache and not force_refresh else "live",
+                    extra={"interval": "1wk", "period": "10y"},
+                ),
             )
 
             if persist:
@@ -191,8 +222,10 @@ class SwingScanService:
                 )
                 logger.info("Persisted swing scan to Postgres run_id=%s", run_id)
 
+            email_sent = False
             if send_email:
-                if send_swing_email(report, scan_date=scan_date):
+                email_sent = send_swing_email(report, scan_date=scan_date)
+                if email_sent:
                     logger.info("Swing setups email sent")
                 else:
                     logger.warning(
@@ -213,7 +246,11 @@ class SwingScanService:
                 report["scan_summary"]["setup_long_count"],
                 report["scan_summary"]["setup_short_count"],
             )
-            return df_out
+            return ServiceRunResult(
+                dataframe=df_out,
+                email_requested=send_email,
+                email_sent=email_sent if send_email else False,
+            )
 
         except Exception as exc:
             if job_id is not None:

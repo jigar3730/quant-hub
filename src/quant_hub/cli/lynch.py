@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = None if args.report == "none" else args.report
     service = LynchScanService()
-    service.run(
+    result = service.run(
         universe_id=args.universe,
         tickers=args.tickers,
         tickers_file=args.tickers_file,
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         send_email=not args.no_email,
         job_name=f"lynch-{args.preset}-{args.universe}",
     )
-    return 0
+    return result.exit_code()
 
 
 if __name__ == "__main__":

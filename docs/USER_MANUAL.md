@@ -1,7 +1,7 @@
 # Quant Hub — User Manual
 
-**Version:** 1.0  
-**Product:** Quant Hub homelab stock scanner (breakout + swing)  
+**Version:** 1.1  
+**Product:** Quant Hub homelab stock scanner (breakout + swing + Lynch)  
 **Audience:** Traders, analysts, and operators who run scans and use the dashboard  
 **Last updated:** 2026-06-28
 
@@ -29,10 +29,10 @@ Quant Hub is a **stock scanner** for a homelab environment. It runs two strategi
 | Strategy | Cadence | What it finds |
 |----------|---------|---------------|
 | **Breakout** | Daily (weekdays) | Tier 1 / 2 / 3 names with relative strength, compression, volume, and pattern scores |
-| **Swing** | Weekly (Friday) | Long/short pullback setups vs 20-week EMA on weekly charts |
+| **Swing** | Weekly (Friday) | Long/short pullback setups vs 20-week EMA; **quality score 0–100** ranks setups |
 | **Lynch** | Weekly (Saturday) | Peter Lynch categories: fast growers, stalwarts, asset plays (P/E, PEG, balance sheet) |
 
-Both strategies:
+All strategies:
 
 - Load a **named universe** of tickers (e.g. large-cap core list `sp500`)
 - Download price data from Yahoo Finance (daily for breakout, weekly for swing)
@@ -96,27 +96,46 @@ Docker deployment: `http://<host>:5002`
 
 | Control | Purpose |
 |---------|---------|
-| **Strategy** | Breakout (daily) or Swing (weekly) |
-| **Universe** | Select which ticker list to view (`sp500`, `most_actives`, etc.) |
+| **Strategy** | Breakout (daily), Swing (weekly), or Lynch (fundamental) |
+| **Universe** | Select which ticker list to view (`sp500`, `most_actives`, etc.); universes with scans are listed first |
 | **Scan date** | Pick a historical run for that universe (most recent at top) |
-| **Tier** | Filter by Tier 1, Tier 2, Tier 3, or filtered |
-| **Eligible only** | Hide tickers that failed eligibility filters |
-| **Actionable only** | Show Tier 1 + Tier 2 only |
-| **Min normalized score** | When *Actionable only* is checked, filters on normalized score (tier threshold). Otherwise filters on final adjusted score (includes regime discount). |
-| **Search ticker** | Jump to a symbol |
-| **Score component guide** | Explains RS, compression, volume, etc. |
-| **Ticker Detail picker** | Open a single-ticker profile |
+| **Filters** | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only) |
+| **Score / rubric guides** | Breakout: stock metrics cheat sheet. Swing: setup quality rubric (partial credit + penalties) |
+| **Search ticker** | Filter tables by symbol |
+| **Ticker Detail picker** | Open a single-ticker profile (in-app; separate from Yahoo links in tables) |
 
-### Main tabs
+### Ticker links
+
+All scan tables show a **Ticker** column linking to **Yahoo Finance** quotes (opens in a new tab). Row selection or **Ticker Detail** opens the full scan breakdown (scores, checks, news).
+
+### Breakout tabs
 
 | Tab | Description |
 |-----|-------------|
-| **Overview** | Summary metrics, regime, tier distribution, heatmaps |
-| **Full Universe** | Sortable table of all tickers with scores |
-| **Ticker Detail** | Deep dive: fundamentals, technical scores, eligibility |
+| **Overview** | Today's takeaway, regime, tier charts, near-miss panel, scatter plot |
+| **Full Universe** | Sortable table + side panel preview; top signal tags |
+| **Ticker Detail** | Fundamentals, component scores, eligibility, live snapshot |
 | **Actionable Watchlist** | Tier 1 and Tier 2 candidates |
-| **Compare** | Side-by-side ticker comparison |
-| **System** | Scan counts, recent runs, latest scheduled job status |
+| **Compare** | Side-by-side radar for 2–3 tickers |
+| **System** | Scan counts and job status (collapsed admin) |
+
+### Swing tabs
+
+| Tab | Description |
+|-----|-------------|
+| **Weekly Setups** | Confirmed `SETUP_LONG` / `SETUP_SHORT` ranked by **quality score** and grade |
+| **Full Universe** | Every ticker with weekly indicators, rules passed, and score |
+| **Ticker Detail** | Setup score breakdown: base components, penalties, rule checklist |
+| **Rejection Breakdown** | Why setups failed (aggregate counts) |
+
+### Lynch tabs
+
+| Tab | Description |
+|-----|-------------|
+| **Candidates** | Names that passed the screen (default landing tab) |
+| **Overview** | Category charts, data-quality panel |
+| **All Tickers** | Full universe with Lynch score and data status |
+| **Ticker Detail** | Plain-English summary, fundamentals table, quantitative checks |
 
 ### Market regime banner
 
@@ -193,11 +212,23 @@ You must provide at least one of the above.
 quant-swing --universe sp500
 ```
 
-Uses 10 years of **weekly** OHLCV. Email is sent by default. Results appear under the **Swing** strategy in the dashboard and at `data/output/swing/{universe}/scan_results.csv`.
+Uses 10 years of **weekly** OHLCV. Email is sent by default. Every ticker is persisted with indicators and scoring — not just setups. Results appear under the **Swing** strategy in the dashboard and at `data/output/swing/{universe}/setups.csv`.
 
 ```bash
 quant-swing --universe dividend_growers --no-email   # skip email
 ```
+
+#### Swing setup gate vs quality score
+
+| Concept | Meaning |
+|---------|---------|
+| **Setup gate** | Hard rule: all 5 long or short checks must pass → `SETUP_LONG` / `SETUP_SHORT` |
+| **Quality score (0–100)** | **Base** partial credit on 5 rules (20 pts each max) **minus penalties** (capped at −25) |
+| **Grade** | A (85+), B (70+), C (55+), D (&lt;55) |
+
+A confirmed setup can score below 100 (e.g. 82, grade B) if structure is valid but chase, RSI stretch, or MACD overextension penalties apply. Use the score to **rank** setups and review near-misses in **Full Universe**.
+
+Open **Swing setup score rubric** in the sidebar or Weekly Setups tab for the full penalty list.
 
 ### Scan all universes (breakout batch)
 
@@ -287,6 +318,22 @@ Tickers marked **filtered** failed checks such as:
 
 The **Ticker Detail** tab and **Full Universe** table show the filter reason.
 
+### Swing quality score (weekly strategy)
+
+Fine-grained scoring lives in `setup_detail` on each ticker:
+
+| Component | Max | Notes |
+|-----------|-----|-------|
+| Trend alignment | 20 | EMA20 vs EMA50 spread (partial if flat) |
+| EMA50 slope | 20 | Rising/falling vs prior week |
+| Pullback zone | 20 | Partial credit by ATR distance from EMA20 band |
+| RSI band | 20 | Partial credit near band edges |
+| MACD momentum | 20 | Two 10-pt sub-parts (week-over-week + overextension trim) |
+
+**Penalties** (examples): chase/extended entry, RSI extreme, MACD overextension, structure break (below EMA50 on longs), wrong-side dominance, weak weekly close.
+
+**Final score** = clamp(base − penalties, 0, 100). Dashboard shows base, each penalty, and per-rule partial credit on **Ticker Detail**.
+
 ---
 
 ## 6. Universes
@@ -345,7 +392,8 @@ Postgres is the **source of truth**. File exports are optional convenience copie
 | Breakout CSV | `data/output/breakout/{universe}/scan_results.csv` | Every breakout scan |
 | Breakout JSON | `data/output/breakout/{universe}/report.json` | `quant-daily`, `--report json/both` |
 | Breakout Markdown | `data/output/breakout/{universe}/summary.md` | `quant-daily`, `--report md/both` |
-| Swing CSV | `data/output/swing/{universe}/scan_results.csv` | Every swing scan |
+| Swing setups CSV | `data/output/swing/{universe}/setups.csv` | Every swing scan |
+| Lynch CSV / JSON | `data/output/lynch/{universe}/` | Every Lynch scan |
 | Legacy sp500 copies | `data/output/breakout_scan_*` | sp500 breakout only (backward compatible) |
 
 `quant-daily` produces CSV + JSON + MD by default.
@@ -506,7 +554,10 @@ A: Email notifications include TradingView chart links for actionable tickers an
 | **Scan run** | One complete execution for (date, strategy, universe) |
 | **Regime** | SPY-based market environment multiplier |
 | **Actionable** | Tier 1 or Tier 2 (breakout) |
-| **Setup** | Swing `SETUP_LONG` or `SETUP_SHORT` |
+| **Setup** | Swing `SETUP_LONG` or `SETUP_SHORT` (all 5 rules pass) |
+| **Swing quality score** | 0–100 setup grade: partial rule credit minus penalties |
+| **Grade** | A/B/C/D band derived from quality score |
+| **Near-miss** | Breakout eligible name close to watchlist threshold (Overview tab) |
 | **Cache hit** | Price loaded from local parquet file (< 24h daily / weekly cache) |
 
 ---

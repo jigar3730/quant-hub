@@ -47,8 +47,11 @@ def _build_scan_metadata(report: dict) -> dict[str, Any]:
                 "passed_count": summary.get("passed_count"),
                 "category_counts": summary.get("category_counts"),
                 "qualitative_overlay": report.get("qualitative_overlay"),
+                "metrics_quality": summary.get("metrics_quality"),
             }
         )
+    if report.get("data_provenance"):
+        metadata["data_provenance"] = report["data_provenance"]
     return metadata
 
 
@@ -315,6 +318,7 @@ class ScanRepository:
                     ),
                     "category_counts": metadata.get("category_counts", tier_counts),
                     "scanner": "peter_lynch",
+                    "metrics_quality": metadata.get("metrics_quality"),
                 }
             )
 
@@ -331,7 +335,7 @@ class ScanRepository:
             passed = [t for t in tickers if t.get("passed")]
             result["candidates"] = sorted(
                 passed,
-                key=lambda t: (t.get("lynch_score", 0), -(t.get("peg_ratio") or 99)),
+                key=lambda t: (t.get("lynch_score") or 0, -(t.get("peg_ratio") or 99)),
                 reverse=True,
             )
             from quant_hub.lynch.categories import QUALITATIVE_OVERLAY
@@ -340,6 +344,41 @@ class ScanRepository:
                 "qualitative_overlay", QUALITATIVE_OVERLAY
             )
         return result
+
+    def lynch_ticker_history(self, ticker: str, *, limit: int = 24) -> list[dict[str, Any]]:
+        """Prior Lynch scan snapshots for a ticker (for dashboard score history)."""
+        symbol = ticker.upper()
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT sr.scan_date, tr.detail
+                    FROM ticker_results tr
+                    JOIN scan_runs sr ON sr.id = tr.run_id
+                    WHERE sr.strategy_id = 'lynch'
+                      AND tr.ticker = %s
+                      AND sr.scan_date <= CURRENT_DATE
+                    ORDER BY sr.scan_date DESC
+                    LIMIT %s
+                    """,
+                    (symbol, limit),
+                )
+                rows = cur.fetchall()
+
+        history: list[dict[str, Any]] = []
+        for scan_date, detail in rows:
+            if isinstance(detail, str):
+                detail = json.loads(detail)
+            history.append(
+                {
+                    "scan_date": str(scan_date),
+                    "lynch_score": detail.get("lynch_score"),
+                    "passed": detail.get("passed"),
+                    "peg_ratio": detail.get("peg_ratio"),
+                    "categories": detail.get("categories") or [],
+                }
+            )
+        return history
 
     def list_runs(
         self,

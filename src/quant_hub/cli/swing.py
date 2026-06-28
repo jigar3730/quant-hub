@@ -6,7 +6,6 @@ import argparse
 import logging
 
 from quant_hub.application.swing_service import SwingScanService
-from quant_hub.config import DEFAULT_SWING_OUTPUT_CSV
 from quant_hub.logging_setup import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -22,14 +21,14 @@ def run_swing_scan(
 ) -> int:
     setup_logging("swing.log")
     service = SwingScanService()
-    service.run(
+    result = service.run(
         universe_id=universe_id,
         use_cache=use_cache,
         force_refresh=force_refresh,
         send_email=send_email,
         job_name=job_name,
     )
-    return 0
+    return result.exit_code()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,7 +42,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-cache", action="store_true", help="Disable weekly parquet cache")
     parser.add_argument("--force-refresh", action="store_true", help="Bypass cache")
     parser.add_argument("--no-persist", action="store_true", help="Skip Postgres persist")
-    parser.add_argument("--output", default=str(DEFAULT_SWING_OUTPUT_CSV))
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="CSV path (default: per-universe under data/output/swing/)",
+    )
     args = parser.parse_args(argv)
 
     setup_logging("swing.log")
@@ -55,18 +58,18 @@ def main(argv: list[str] | None = None) -> int:
     from pathlib import Path
 
     service = SwingScanService()
-    service.run(
+    result = service.run(
         universe_id=args.universe,
         tickers=args.tickers,
         tickers_file=Path(args.tickers_file) if args.tickers_file else None,
         use_cache=use_cache,
         force_refresh=args.force_refresh,
-        output=Path(args.output),
+        output=Path(args.output) if args.output else None,
         persist=not args.no_persist,
         send_email=not args.no_email,
         job_name="swing-weekly-manual",
     )
-    return 0
+    return result.exit_code()
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ def _schema():
 
 def test_scan_service_dry_run_persists(tmp_path):
     service = ScanService()
-    df = service.run(
+    result = service.run(
         tickers=["AAA", "BBB", "CCC"],
         use_cache=False,
         dry_run=True,
@@ -32,7 +32,7 @@ def test_scan_service_dry_run_persists(tmp_path):
         output=tmp_path / "out.csv",
         report_json=tmp_path / "out.json",
     )
-    assert len(df) == 3
+    assert len(result.dataframe) == 3
 
     report = service.scan_repo.load_report(universe_id="custom", exclude_fixtures=False)
     assert report is not None

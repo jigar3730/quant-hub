@@ -1,5 +1,10 @@
 """Dashboard styling and chart defaults."""
 
+PLOTLY_CONFIG = {
+    "displayModeBar": False,
+    "scrollZoom": False,
+}
+
 PLOTLY_LAYOUT = {
     "template": "plotly_white",
     "font": {"family": "system-ui, sans-serif", "size": 12, "color": "#334155"},
@@ -36,6 +41,25 @@ CUSTOM_CSS = """
         margin-bottom: 0.75rem;
     }
     .info-card h4 { margin: 0 0 0.5rem 0; color: #0f172a; font-size: 0.95rem; }
+    .takeaway-card {
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.75rem;
+    }
+    .scan-as-of {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+        color: #1e3a5f;
+    }
+    .live-data-label {
+        color: #64748b;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
     .tier-badge {
         display: inline-block;
         padding: 0.15rem 0.55rem;
@@ -69,19 +93,3 @@ CUSTOM_CSS = """
     }
 </style>
 """
-
-COMPONENT_HELP = {
-    "rs_market": "Relative strength vs SPY over 63d and 126d. Higher = outperforming the market.",
-    "rs_sector": "Relative strength vs sector ETF peers. Ranked within sector group.",
-    "accumulation": "Up-day volume divided by down-day volume (20d). Above 1 = buying pressure.",
-    "relative_volume": "Today's or 3-day avg volume vs 20-day average. Surges signal demand.",
-    "compression": (
-        "Bollinger Band width percentile (120d). "
-        "Low = volatility squeeze before breakout."
-    ),
-    "pattern": "Five-point base quality checklist near 52-week highs.",
-    "resistance": "Distance to 50/65-day high resistance. Closer = nearer breakout.",
-    "revenue": "Year-over-year quarterly revenue growth.",
-    "eps": "Blended recent EPS growth and 3-year CAGR.",
-}
-

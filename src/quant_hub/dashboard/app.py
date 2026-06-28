@@ -5,8 +5,9 @@ from __future__ import annotations
 import streamlit as st
 
 from quant_hub.dashboard.viz.data import tickers_to_dataframe
-from quant_hub.dashboard.viz.navigation import sync_detail_ticker
+from quant_hub.dashboard.viz.labels import format_report_label
 from quant_hub.dashboard.viz.lynch_components import render_lynch_tab
+from quant_hub.dashboard.viz.navigation import sync_detail_ticker
 from quant_hub.dashboard.viz.pages.breakout import (
     render_all_tickers_tab,
     render_breakout_header,
@@ -15,10 +16,17 @@ from quant_hub.dashboard.viz.pages.breakout import (
     render_ticker_detail_tab,
     render_watchlist_tab,
 )
-from quant_hub.dashboard.viz.pages.swing import render_swing_header, render_swing_setups_tab
+from quant_hub.dashboard.viz.pages.swing import (
+    render_swing_detail_tab,
+    render_swing_header,
+    render_swing_rejection_tab,
+    render_swing_setups_tab,
+    render_swing_universe_tab,
+)
 from quant_hub.dashboard.viz.sidebar import render_sidebar_controls, render_sidebar_ticker_picker
 from quant_hub.dashboard.viz.styles import CUSTOM_CSS
 from quant_hub.dashboard.viz.swing_filters import SwingFilters
+from quant_hub.dashboard.viz.ux_helpers import render_disclaimer, render_scan_provenance_footer
 from quant_hub.infrastructure.postgres.connection import ping
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 
@@ -26,7 +34,7 @@ st.set_page_config(
     page_title="Quant Hub",
     page_icon="QH",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -106,26 +114,63 @@ summary = report["scan_summary"]
 tickers = report["tickers"]
 df = tickers_to_dataframe(tickers)
 all_symbols = sorted(df["ticker"].tolist())
-report_label = f"{strategy_id}/{universe_id} — {report.get('scan_date', 'latest')}"
+scan_date_str = str(report.get("scan_date", scan_date or ""))
+report_label = format_report_label(
+    strategy_id=strategy_id,
+    universe_id=universe_id,
+    scan_date=scan_date_str,
+)
+provenance = report.get("data_provenance")
 
 detail_ticker = render_sidebar_ticker_picker(all_symbols) if all_symbols else sync_detail_ticker()
 
 if strategy_id == "swing":
-    render_swing_header(summary, regime, report_label)
-    tab_names = ["Setups", "System"]
+    render_swing_header(summary, regime, report_label, scan_date=scan_date_str)
+    render_scan_provenance_footer(
+        strategy_id=strategy_id,
+        universe_id=universe_id,
+        scan_date=scan_date_str,
+        provenance=provenance,
+    )
+    tab_names = ["Setups", "Full Universe", "Ticker Detail", "Rejection Breakdown"]
     tabs = st.tabs(tab_names)
     tab_map = dict(zip(tab_names, tabs, strict=True))
     assert isinstance(filters, SwingFilters)
     with tab_map["Setups"]:
-        render_swing_setups_tab(tickers, filters)
-    with tab_map["System"]:
+        render_swing_setups_tab(
+            tickers,
+            filters,
+            summary=summary,
+            repo=repo,
+            universe_id=universe_id,
+            scan_date=scan_date,
+        )
+    with tab_map["Full Universe"]:
+        detail_ticker = render_swing_universe_tab(
+            tickers,
+            filters,
+            detail_ticker=detail_ticker,
+        )
+    with tab_map["Ticker Detail"]:
+        render_swing_detail_tab(tickers, all_symbols, detail_ticker)
+    with tab_map["Rejection Breakdown"]:
+        render_swing_rejection_tab(summary)
+    with st.expander("System status (admin)"):
         _render_system_panel(job_repo, repo)
+    render_disclaimer()
     st.stop()
 
 if strategy_id == "lynch":
     render_lynch_tab(report, report_label)
-    with st.expander("System status"):
+    render_scan_provenance_footer(
+        strategy_id=strategy_id,
+        universe_id=universe_id,
+        scan_date=scan_date_str,
+        provenance=provenance,
+    )
+    with st.expander("System status (admin)"):
         _render_system_panel(job_repo, repo)
+    render_disclaimer()
     st.stop()
 
 render_breakout_header(
@@ -133,9 +178,16 @@ render_breakout_header(
     summary=summary,
     regime=regime,
     detail_ticker=detail_ticker,
+    scan_date=scan_date_str,
+)
+render_scan_provenance_footer(
+    strategy_id=strategy_id,
+    universe_id=universe_id,
+    scan_date=scan_date_str,
+    provenance=provenance,
 )
 
-tab_names = ["Overview", "Full Universe", "Ticker Detail", "Actionable Watchlist", "Compare", "System"]
+tab_names = ["Overview", "Full Universe", "Ticker Detail", "Actionable Watchlist", "Compare"]
 tabs = st.tabs(tab_names)
 tab_map = dict(zip(tab_names, tabs, strict=True))
 
@@ -147,6 +199,9 @@ with tab_map["Overview"]:
         df=df,
         tickers=tickers,
         filters=filters,
+        repo=repo,
+        universe_id=universe_id,
+        scan_date=scan_date,
     )
 
 with tab_map["Full Universe"]:
@@ -159,15 +214,27 @@ with tab_map["Full Universe"]:
 with tab_map["Ticker Detail"]:
     render_ticker_detail_tab(
         tickers=tickers,
+        all_symbols=all_symbols,
         detail_ticker=detail_ticker,
-        filters=filters,
+        scan_date=scan_date_str,
     )
 
 with tab_map["Actionable Watchlist"]:
-    render_watchlist_tab(tickers=tickers, filters=filters)
+    render_watchlist_tab(
+        df=df,
+        tickers=tickers,
+        filters=filters,
+        repo=repo,
+        universe_id=universe_id,
+        scan_date=scan_date,
+        summary=summary,
+        regime=regime,
+    )
 
 with tab_map["Compare"]:
-    render_compare_tab(tickers=tickers, filters=filters)
+    render_compare_tab(df=df, tickers=tickers, filters=filters)
 
-with tab_map["System"]:
+with st.expander("System status (admin)"):
     _render_system_panel(job_repo, repo)
+
+render_disclaimer()

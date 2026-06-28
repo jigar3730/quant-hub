@@ -8,6 +8,7 @@ from quant_hub.lynch.filters import apply_anti_filters, apply_base_screen, lynch
 from quant_hub.lynch.metrics import compute_peg, normalize_debt_to_equity
 from quant_hub.lynch.runner import LynchScannerRunner
 from quant_hub.notify.email import build_lynch_email
+import pandas as pd
 
 
 def _ideal_metrics(**overrides) -> dict:
@@ -39,6 +40,7 @@ def _ideal_metrics(**overrides) -> dict:
 def test_normalize_debt_to_equity_percent():
     assert normalize_debt_to_equity(35.0) == 0.35
     assert normalize_debt_to_equity(0.25) == 0.25
+    assert normalize_debt_to_equity(1.35) == 1.35
 
 
 def test_compute_peg():
@@ -76,6 +78,28 @@ def test_assign_categories_multiple():
     assert "asset_play" in cats
 
 
+def test_lynch_score_empty_checks_returns_none():
+    assert lynch_score([]) is None
+
+
+def test_runner_fetch_failed_marks_score_unavailable(monkeypatch, tmp_path):
+    output = tmp_path / "lynch.csv"
+    runner = LynchScannerRunner(
+        universe=["BAD"],
+        preset="summary",
+        output=output,
+        report=None,
+    )
+    monkeypatch.setattr(
+        "quant_hub.lynch.runner.fetch_lynch_metrics_batch",
+        lambda _: [{"ticker": "BAD", "error": "fetch_failed"}],
+    )
+    df, report = runner.run()
+    assert df.iloc[0]["lynch_score"] is None or pd.isna(df.iloc[0]["lynch_score"])
+    assert report["tickers"][0]["lynch_score"] is None
+    assert report["scan_summary"]["metrics_quality"]["fetch_errors"] == 1
+
+
 def test_runner_evaluate_summary_preset(monkeypatch, tmp_path):
     metrics = _ideal_metrics(ticker="LYNCH")
     output = tmp_path / "lynch.csv"
@@ -104,8 +128,8 @@ def test_base_screen_passes_with_manageable_debt_not_net_cash():
     assert fail is None
 
 
-def test_missing_coverage_not_penalized():
-    passed, checks, _ = apply_base_screen(
+def test_missing_coverage_fails_base_screen():
+    passed, checks, fail = apply_base_screen(
         _ideal_metrics(
             institutional_ownership=None,
             analyst_count=None,
@@ -113,9 +137,10 @@ def test_missing_coverage_not_penalized():
             shares_outstanding_change_yoy=None,
         )
     )
-    assert passed is True
+    assert passed is False
+    assert fail in ("wall_street_neglect", "insider_or_buyback")
     neglect = next(c for c in checks if c["rule"] == "wall_street_neglect")
-    assert neglect["passed"] is True
+    assert neglect["passed"] is False
 
 
 def test_enrich_checks_adds_plain_language():

@@ -17,7 +17,10 @@ from quant_hub.dashboard.viz.data import (
     scores_to_dataframe,
 )
 from quant_hub.dashboard.viz.navigation import ticker_link_html
-from quant_hub.dashboard.viz.styles import COMPONENT_HELP, PLOTLY_LAYOUT, TIER_BADGE_CSS
+from quant_hub.dashboard.viz.labels import tier_friendly
+from quant_hub.dashboard.viz.score_guide import COMPONENT_HELP, COMPONENT_SUMMARY
+from quant_hub.dashboard.viz.signals import component_action, render_signal_insights_panel
+from quant_hub.dashboard.viz.styles import PLOTLY_LAYOUT, TIER_BADGE_CSS
 from quant_hub.dashboard.viz.validation import regime_looks_synthetic
 
 
@@ -28,13 +31,22 @@ def apply_chart_style(fig: go.Figure, *, height: int | None = None) -> go.Figure
     return fig
 
 
-def tier_badge_html(tier: str) -> str:
+def tier_badge_html(tier: str, *, friendly: bool = True) -> str:
     style = TIER_BADGE_CSS.get(tier, TIER_BADGE_CSS["Tier 3"])
-    return f"<span class='tier-badge' style='{style}'>{tier}</span>"
+    label = tier_friendly(tier, short=True) if friendly else tier
+    return f"<span class='tier-badge' style='{style}' title='{tier}'>{label}</span>"
 
 
-def render_scan_header(report_path: str, summary: dict, regime: dict) -> None:
+def render_scan_header(
+    report_path: str,
+    summary: dict,
+    regime: dict,
+    *,
+    scan_date: str | None = None,
+) -> None:
     tiers = summary["tier_counts"]
+    t1 = tiers.get("Tier 1", 0)
+    t2 = tiers.get("Tier 2", 0)
     st.markdown(
         f"""
         <div class="scan-header">
@@ -42,8 +54,8 @@ def render_scan_header(report_path: str, summary: dict, regime: dict) -> None:
             <p>
               {summary['universe_size']} tickers scanned
               &nbsp;|&nbsp; {summary['eligible_count']} eligible
-              &nbsp;|&nbsp; {tiers['Tier 1']} Tier 1
-              &nbsp;|&nbsp; {tiers['Tier 2']} Tier 2
+              &nbsp;|&nbsp; {t1} high conviction
+              &nbsp;|&nbsp; {t2} watchlist
               &nbsp;|&nbsp; Regime: <strong>{regime['label'].title()}</strong>
               (×{regime['multiplier']})
             </p>
@@ -51,7 +63,10 @@ def render_scan_header(report_path: str, summary: dict, regime: dict) -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.caption(f"Report: `{report_path}`")
+    if scan_date:
+        st.caption(f"Report: {report_path}")
+    else:
+        st.caption(f"Report: `{report_path}`")
 
 
 def render_regime_panel(regime: dict) -> None:
@@ -171,7 +186,14 @@ def render_scatter(scatter_df: pd.DataFrame) -> go.Figure:
     return apply_chart_style(fig, height=400)
 
 
-def render_score_bars(scores_df: pd.DataFrame, ticker: str) -> go.Figure:
+def render_score_bars(scores_df: pd.DataFrame, ticker: str, scores: dict | None = None) -> go.Figure:
+    custom = []
+    if scores is not None and "key" in scores_df.columns:
+        for _, row in scores_df.iterrows():
+            comp = scores.get(row["key"], {})
+            custom.append(
+                f"<b>{row['component']}</b><br>{component_action(row['key'], comp)}"
+            )
     fig = px.bar(
         scores_df,
         x="score",
@@ -184,6 +206,8 @@ def render_score_bars(scores_df: pd.DataFrame, ticker: str) -> go.Figure:
         labels={"score": "Score", "component": "", "pct": "% of max"},
     )
     fig.update_traces(textposition="outside")
+    if custom:
+        fig.update_traces(customdata=custom, hovertemplate="%{customdata}<extra></extra>")
     fig.update_layout(title=f"{ticker} — Component Scores", showlegend=False)
     return apply_chart_style(fig, height=360)
 
@@ -282,6 +306,7 @@ def _render_score_cards(ticker_data: dict, keys: tuple[str, ...], title: str) ->
         max_pts = comp.get("max", 0)
         pct = (score / max_pts * 100) if max_pts else 0
         help_text = COMPONENT_HELP.get(key, "")
+        summary_text = COMPONENT_SUMMARY.get(key, "")
         st.markdown(
             f"""
             <div class="component-card">
@@ -291,13 +316,13 @@ def _render_score_cards(ticker_data: dict, keys: tuple[str, ...], title: str) ->
                 <div style="background:#3b82f6;width:{pct:.0f}%;
                      height:6px;border-radius:4px;"></div>
               </div>
-              <small style="color:#64748b">{comp.get('meaning', '')}</small>
+              <small style="color:#64748b">{comp.get('meaning', '') or summary_text}</small>
             </div>
             """,
             unsafe_allow_html=True,
         )
         if help_text:
-            st.caption(help_text)
+            st.caption(f"What to look for: {help_text}")
         raw = comp.get("raw", {})
         if raw:
             with st.expander(f"Raw data — {label}"):
@@ -334,8 +359,18 @@ def _format_market_cap(value: float | None) -> str:
     return f"${value:,.0f}"
 
 
-def render_ticker_news_panel(ticker: str, *, compact: bool = False) -> None:
-    st.markdown("#### Latest News & Market Update")
+def render_ticker_news_panel(
+    ticker: str,
+    *,
+    compact: bool = False,
+    scan_date: str | None = None,
+) -> None:
+    st.markdown("#### Live market data")
+    if scan_date:
+        st.markdown(
+            f'<div class="live-data-label">Yahoo Finance — may differ from scan on {scan_date}</div>',
+            unsafe_allow_html=True,
+        )
 
     snapshot = _load_ticker_snapshot(ticker)
     if snapshot:
@@ -352,8 +387,9 @@ def render_ticker_news_panel(ticker: str, *, compact: bool = False) -> None:
             currency = snapshot.get("currency", "USD")
             st.caption(f"Today's range: ${day_lo:,.2f} – ${day_hi:,.2f} ({currency})")
     else:
-        st.caption("Live market data unavailable.")
+        st.caption("Live market data unavailable — scores below reflect the scan date.")
 
+    st.markdown("#### Latest news")
     news = _load_ticker_news(ticker, count=3 if compact else 8)
     if not news:
         st.info("No recent news found for this ticker.")
@@ -439,7 +475,10 @@ def render_technical_panel(ticker_data: dict, ticker: str) -> None:
     technical_df = scores_to_dataframe(ticker_data)
     technical_df = technical_df[technical_df["key"].isin(TECHNICAL_KEYS)]
     if not technical_df.empty:
-        st.plotly_chart(render_score_bars(technical_df, ticker), use_container_width=True)
+        st.plotly_chart(
+            render_score_bars(technical_df, ticker, scores=ticker_data.get("scores") or {}),
+            use_container_width=True,
+        )
         st.plotly_chart(render_radar(technical_df, ticker), use_container_width=True)
     _render_score_cards(ticker_data, TECHNICAL_KEYS, "Technical Scores")
 
@@ -450,6 +489,7 @@ def render_ticker_detail(
     *,
     compact_news: bool = False,
     show_history: bool = True,
+    scan_date: str | None = None,
 ) -> None:
     """Unified detail: news, fundamentals, technical scores, eligibility, history."""
     tier = ticker_data.get("tier", "filtered")
@@ -457,16 +497,24 @@ def render_ticker_detail(
         f"## {ticker_link_html(ticker)} {tier_badge_html(tier)}",
         unsafe_allow_html=True,
     )
+    if scan_date:
+        st.markdown(
+            f'<div class="scan-as-of">Scores and eligibility as of scan date <strong>{scan_date}</strong></div>',
+            unsafe_allow_html=True,
+        )
     st.info(ticker_data.get("tier_reason", ""))
 
     summary = ticker_data.get("summary", {})
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Final Score", f"{summary.get('final_adjusted_score', 0):.1f}")
-    m2.metric("Normalized", f"{summary.get('normalized_score', 0):.1f}")
+    m2.metric("Universe Rank", f"{summary.get('normalized_score', 0):.1f}")
     m3.metric("Raw Score", f"{summary.get('raw_score', 0):.1f}")
     m4.metric("Sector ETF", ticker_data.get("sector_etf") or "—")
 
-    render_ticker_news_panel(ticker, compact=compact_news)
+    if ticker_data.get("scores"):
+        render_signal_insights_panel(ticker_data)
+
+    render_ticker_news_panel(ticker, compact=compact_news, scan_date=scan_date)
 
     # Score history from Postgres deferred to a future release (v1 uses latest run only).
 

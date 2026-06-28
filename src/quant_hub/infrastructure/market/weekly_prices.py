@@ -73,7 +73,9 @@ def download_weekly_prices(
     tickers = sorted(set(tickers))
     cache = ParquetCache(base_dir=WEEKLY_CACHE_SUBDIR, ttl_hours=CACHE_TTL_WEEKLY_HOURS)
     use_cache = use_cache and not force_refresh
-    cached_tickers, stale_tickers = cache.partition(tickers, use_cache=use_cache)
+    cached_tickers, stale_tickers = cache.partition(
+        tickers, use_cache=use_cache, max_bar_age_days=10
+    )
 
     out: dict[str, pd.DataFrame] = {}
     for ticker in cached_tickers:

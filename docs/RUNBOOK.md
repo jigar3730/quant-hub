@@ -1,6 +1,6 @@
 # Quant Hub — Administrator Runbook
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Audience:** Homelab / platform administrators  
 **Install path:** `/opt/stacks/quant-hub`  
 **Last updated:** 2026-06-28
@@ -268,13 +268,27 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 
 #### Swing — `quant-swing --universe sp500`
 
-1. Resolve `sp500` universe
+1. Resolve universe tickers
 2. Download **weekly** OHLCV (10y history; parquet cache ON by default)
-3. Detect EMA pullback setups (`SETUP_LONG`, `SETUP_SHORT`)
-4. Upsert Postgres for `(today, swing, sp500)`
-5. Write CSV under `data/output/swing/sp500/`
-6. Record `job_runs` row (`swing-weekly`)
-7. **Send swing email** (always sent when SMTP is configured, even if zero setups)
+3. For **every ticker:** compute RSI, EMA20/50, ATR, MACD, long/short rule checklists
+4. Detect setups when all 5 rules pass on one side (`SETUP_LONG`, `SETUP_SHORT`)
+5. Compute **quality score** (partial credit per rule − capped penalties) — see `strategies/swing/scoring.py`
+6. Upsert Postgres for `(today, swing, universe)` — full `detail` JSON per ticker
+7. Write `setups.csv` under `data/output/swing/{universe}/`
+8. Record `job_runs` row (`swing-weekly`)
+9. **Send swing email** (always sent when SMTP is configured, even if zero setups)
+
+Rescan all universes after scoring changes:
+
+```bash
+bash /opt/stacks/quant-hub/scripts/full-rescan.sh          # breakout + swing + Lynch (truncates DB)
+# or swing only:
+for u in sp500 large_cap_growth small_cap_growth mid_cap_growth dividend_growers fintech_growth most_actives; do
+  docker exec quant-hub quant-swing --universe "$u" --no-email
+done
+```
+
+Log: `/mnt/fast/quant-data/logs/swing_rescan.log` (if run manually with tee).
 
 #### Lynch — `quant-lynch --universe sp500`
 
@@ -552,6 +566,26 @@ Uses `CREATE TABLE IF NOT EXISTS` — idempotent.
 ---
 
 ## 8. Common procedures
+
+### Full rescan (all strategies × all universes)
+
+**Destructive:** truncates `scan_runs` / `ticker_results` / `job_runs` and clears file exports under `data/output/`.
+
+```bash
+bash /opt/stacks/quant-hub/scripts/full-rescan.sh
+```
+
+Log: `/mnt/fast/quant-data/logs/full_rescan.log`
+
+### Rebuild dashboard after code changes
+
+```bash
+cd /opt/stacks/quant-hub
+docker compose build quant-hub
+docker compose up -d quant-hub
+```
+
+Use `--no-cache` if the container still serves stale Python (Docker layer cache).
 
 ### Add a file-based universe
 

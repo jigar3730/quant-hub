@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from quant_hub.application.run_result import ServiceRunResult
 from quant_hub.application.universe_service import UniverseService
 from quant_hub.config import LEGACY_LYNCH_OUTPUTS, scan_output_paths
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
@@ -43,7 +44,7 @@ class LynchScanService:
         send_email: bool = True,
         scan_date: date | None = None,
         job_name: str | None = "lynch-weekly",
-    ) -> pd.DataFrame:
+    ) -> ServiceRunResult:
         scan_date = scan_date or date.today()
         resolved_id, universe = self.universe_service.resolve(
             universe_id=universe_id,
@@ -86,8 +87,10 @@ class LynchScanService:
                 )
                 logger.info("Persisted Lynch scan to Postgres run_id=%s", run_id)
 
+            email_sent = False
             if send_email:
-                if send_lynch_email(scan_report, scan_date=scan_date):
+                email_sent = send_lynch_email(scan_report, scan_date=scan_date)
+                if email_sent:
                     logger.info("Lynch candidates email sent")
                 else:
                     logger.warning(
@@ -111,9 +114,13 @@ class LynchScanService:
                 len(universe),
                 preset,
             )
-            return df
+            return ServiceRunResult(
+                dataframe=df,
+                email_requested=send_email,
+                email_sent=email_sent if send_email else False,
+            )
 
-        except Exception:
+        except Exception as exc:
             if job_id is not None:
-                self.job_repo.finish_job(job_id, status="error", error_message="lynch scan failed")
+                self.job_repo.finish_job(job_id, status="failed", error_message=str(exc))
             raise

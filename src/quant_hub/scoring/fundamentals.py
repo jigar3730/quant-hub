@@ -16,6 +16,8 @@ class ScoredMetric:
 def score_revenue(growth: float | None, *, status: MetricStatus = "OK") -> ScoredMetric:
     if status in ("MISSING", "NOT_APPLICABLE") or growth is None:
         return ScoredMetric(0.0, status if status != "OK" else "MISSING", None)
+    if status == "CAPPED" and growth is not None:
+        growth = min(growth, 0.30)
     if growth >= 0.40:
         return ScoredMetric(15.0, status, growth)
     if growth >= 0.25:
@@ -32,6 +34,8 @@ def score_revenue(growth: float | None, *, status: MetricStatus = "OK") -> Score
 def score_eps(combined: float | None, *, status: MetricStatus = "OK") -> ScoredMetric:
     if status in ("MISSING", "NOT_APPLICABLE") or combined is None:
         return ScoredMetric(0.0, status if status != "OK" else "MISSING", None)
+    if status == "CAPPED" and combined is not None:
+        combined = min(combined, 0.30)
     if combined >= 0.50:
         return ScoredMetric(15.0, status, combined)
     if combined >= 0.30:

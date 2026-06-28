@@ -14,10 +14,10 @@ def test_score_revenue_negative_status():
     assert scored.score == 0.0
 
 
-def test_score_eps_capped_still_scores():
+def test_score_eps_capped_scores_at_cap_tier():
     scored = score_eps(3.0, status="CAPPED")
     assert scored.status == "CAPPED"
-    assert scored.score == 15.0
+    assert scored.score == 12.0
 
 
 def test_score_eps_missing():

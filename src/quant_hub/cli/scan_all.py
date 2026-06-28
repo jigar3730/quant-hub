@@ -38,22 +38,28 @@ def main(argv: list[str] | None = None) -> int:
 
     service = ScanService()
     failed: list[str] = []
+    email_failed: list[str] = []
     for uid in universe_ids:
         logger.info("=== Scanning universe: %s ===", uid)
         try:
-            service.run(
+            result = service.run(
                 universe_id=uid,
                 use_cache=use_cache,
                 report=None if args.report == "none" else args.report,
                 send_email=args.email,
                 job_name=f"breakout-{uid}-batch",
             )
+            if args.email and not result.ok:
+                email_failed.append(uid)
         except Exception:
             logger.exception("Scan failed for universe %s", uid)
             failed.append(uid)
 
     if failed:
         logger.error("Failed universes: %s", ", ".join(failed))
+        return 1
+    if email_failed:
+        logger.error("Email not sent for universes: %s", ", ".join(email_failed))
         return 1
 
     logger.info("Completed scans for %d universes", len(universe_ids))

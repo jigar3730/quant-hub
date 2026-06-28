@@ -31,9 +31,15 @@ class RsMarketFactor:
             },
             dtype=float,
         )
-        scores = score_rs_market(ratios)
+        scores, rs_status = score_rs_market(ratios)
         return {
-            t: make_factor_result(self.name, scores.get(t, 0), 20.0, ratio=ratios.get(t))
+            t: make_factor_result(
+                self.name,
+                scores.get(t, 0),
+                20.0,
+                ratio=ratios.get(t),
+                rs_status=rs_status.get(t, "missing"),
+            )
             for t in tickers
         }
 
@@ -57,8 +63,14 @@ class RsSectorFactor:
             dtype=float,
         )
         sector_etf_series = pd.Series({t: ctx.sector_etfs.get(t) for t in tickers})
-        scores = score_rs_sector(ratios, sector_etf_series)
+        scores, rs_status = score_rs_sector(ratios, sector_etf_series)
         return {
-            t: make_factor_result(self.name, scores.get(t, 0), 15.0, ratio=ratios.get(t))
+            t: make_factor_result(
+                self.name,
+                scores.get(t, 0),
+                15.0,
+                ratio=ratios.get(t),
+                rs_status=rs_status.get(t, "missing"),
+            )
             for t in tickers
         }

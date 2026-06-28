@@ -19,6 +19,8 @@ from quant_hub.lynch.explain import build_fundamental_snapshot, build_investor_s
 from quant_hub.lynch.filters import apply_anti_filters, apply_base_screen, lynch_score
 from quant_hub.lynch.metrics import fetch_lynch_metrics_batch
 from quant_hub.lynch.report import export_json, export_markdown
+from quant_hub.data.provenance import build_data_provenance
+from quant_hub.data.quality import lynch_metrics_quality_summary
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,7 @@ class LynchScannerRunner:
         )
 
         metrics_list = fetch_lynch_metrics_batch(self.universe)
+        metrics_quality = lynch_metrics_quality_summary(metrics_list)
         rows: list[dict] = []
         candidates: list[dict] = []
 
@@ -75,7 +78,7 @@ class LynchScannerRunner:
         df.to_csv(self.output, index=False)
         logger.info("Wrote %d rows to %s", len(df), self.output)
 
-        scan_report = self._build_report(self.universe, rows, candidates)
+        scan_report = self._build_report(self.universe, rows, candidates, metrics_quality)
 
         if self.report and self.report_json:
             if self.report in ("json", "both"):
@@ -89,6 +92,9 @@ class LynchScannerRunner:
 
     def _evaluate(self, metrics: dict) -> dict:
         ticker = metrics.get("ticker", "?")
+        if metrics.get("error"):
+            return _fetch_failed_detail(ticker, metrics)
+
         anti_ok, anti_checks, anti_fail = apply_anti_filters(metrics)
         all_checks = list(anti_checks)
 
@@ -181,6 +187,7 @@ class LynchScannerRunner:
         universe: list[str],
         rows: list[dict],
         candidates: list[dict],
+        metrics_quality: dict,
     ) -> dict:
         cat_counts = {
             "fast_grower": sum(1 for r in rows if "fast_grower" in r.get("categories", [])),
@@ -190,7 +197,7 @@ class LynchScannerRunner:
         passed_count = sum(1 for r in rows if r["passed"])
         sorted_candidates = sorted(
             candidates,
-            key=lambda r: (r.get("lynch_score", 0), -(r.get("peg_ratio") or 99)),
+            key=lambda r: (r.get("lynch_score") or 0, -(r.get("peg_ratio") or 99)),
             reverse=True,
         )
         return {
@@ -212,16 +219,71 @@ class LynchScannerRunner:
                     "asset_play": cat_counts["asset_play"],
                     "filtered": len(universe) - passed_count,
                 },
+                "metrics_quality": metrics_quality,
             },
             "market_regime": {
                 "label": "fundamental",
                 "multiplier": 1.0,
                 "preset": self.preset,
             },
+            "data_provenance": build_data_provenance(
+                strategy_id="lynch",
+                universe_id=self.universe_id,
+                price_source="yfinance",
+                price_cache="live",
+                fundamentals_cache="live",
+                extra={"preset": self.preset},
+            ),
             "qualitative_overlay": QUALITATIVE_OVERLAY,
             "tickers": rows,
             "candidates": sorted_candidates,
         }
+
+
+def _fetch_failed_detail(ticker: str, metrics: dict) -> dict:
+    err = metrics.get("error", "fetch_failed")
+    reason = (
+        "Yahoo Finance data fetch failed — Lynch score unavailable. "
+        "Re-run the scan; scores of 0 here are not real failures."
+    )
+    return {
+        "ticker": ticker,
+        "company_name": None,
+        "sector": None,
+        "sector_etf": None,
+        "passed": False,
+        "eligible": False,
+        "preset": "",
+        "categories": [],
+        "lynch_score": None,
+        "fail_reason": err,
+        "tier_reason": reason,
+        "investor_summary": reason,
+        "fundamental_snapshot": [],
+        "tier": "filtered",
+        "pe_ratio": None,
+        "peg_ratio": None,
+        "eps_growth_5y_pct": None,
+        "eps_growth_ttm_pct": None,
+        "debt_to_equity": None,
+        "institutional_pct": None,
+        "analyst_count": None,
+        "market_cap": None,
+        "dividend_yield": None,
+        "price_to_book": None,
+        "net_cash": None,
+        "metrics": metrics,
+        "checks": [],
+        "summary": {
+            "final_adjusted_score": None,
+            "normalized_score": None,
+            "raw_score": None,
+        },
+        "eligibility": {
+            "passed": False,
+            "fail_reason": err,
+        },
+    }
 
 
 def _csv_row(detail: dict) -> dict:

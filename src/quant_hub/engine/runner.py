@@ -99,11 +99,26 @@ class StrategyEngine:
             for name, fr in universe_factors.get(ticker, {}).items():
                 tr.factors[name] = fr  # type: ignore[assignment]
 
+            compute_failed = False
             for binding in self.spec.factor_bindings:
                 factor = binding.factor
                 if factor.pass_kind != "ticker":
                     continue
-                tr.factors[binding.name] = factor.compute(ctx, ticker)
+                try:
+                    tr.factors[binding.name] = factor.compute(ctx, ticker)
+                except Exception:
+                    logger.exception(
+                        "Factor %s failed for %s — marking ineligible",
+                        binding.name,
+                        ticker,
+                    )
+                    tr.eligible = False
+                    tr.filter_reason = "compute_error"
+                    compute_failed = True
+                    break
+
+            if compute_failed:
+                continue
 
         finalized: list[TickerResult] = []
         for ticker in ctx.universe:

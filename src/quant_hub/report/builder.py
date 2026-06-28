@@ -165,6 +165,7 @@ def build_scan_report(
     scores_by_ticker: dict,
     strategy_id: str = "breakout",
     fundamentals_quality: dict | None = None,
+    data_provenance: dict | None = None,
 ) -> dict:
     tickers_report = []
     for ticker in universe:
@@ -206,9 +207,12 @@ def build_scan_report(
     if fundamentals_quality:
         summary["fundamentals_quality"] = fundamentals_quality
 
-    return {
+    report = {
         "strategy_id": strategy_id,
         "scan_summary": summary,
         "market_regime": regime_detail,
         "tickers": tickers_report,
     }
+    if data_provenance:
+        report["data_provenance"] = data_provenance
+    return report

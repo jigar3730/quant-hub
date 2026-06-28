@@ -2,6 +2,8 @@ import pandas as pd
 
 from quant_hub.indicators import return_over_days
 
+RS_SECTOR_NEUTRAL = 7.5  # half of max 15 when group has only one name
+
 
 def _rs_ratio(stock_close: pd.Series, bench_close: pd.Series, days: int) -> float | None:
     stock_ret = return_over_days(stock_close, days)
@@ -42,21 +44,35 @@ def compute_rs_sector_ratio(
     return (r63 + r126) / 2
 
 
-def score_rs_market(ratios: pd.Series) -> pd.Series:
-    """Percentile rank across universe, scaled to 0-20."""
-    pct = ratios.rank(pct=True, na_option="keep")
-    return (pct * 20).fillna(0)
+def score_rs_market(ratios: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """Percentile rank across universe, scaled to 0-20. Returns (scores, status)."""
+    status = pd.Series("ranked", index=ratios.index)
+    status[ratios.isna()] = "missing"
+    valid = ratios.dropna()
+    scores = pd.Series(0.0, index=ratios.index)
+    if len(valid) >= 2:
+        pct = valid.rank(pct=True)
+        scores.loc[valid.index] = pct * 20
+    elif len(valid) == 1:
+        scores.loc[valid.index] = 10.0
+        status.loc[valid.index] = "singleton"
+    return scores, status
 
 
-def score_rs_sector(ratios: pd.Series, sector_etfs: pd.Series) -> pd.Series:
+def score_rs_sector(ratios: pd.Series, sector_etfs: pd.Series) -> tuple[pd.Series, pd.Series]:
     """Percentile rank within each sector ETF group, scaled to 0-15."""
     scores = pd.Series(0.0, index=ratios.index)
+    status = pd.Series("missing", index=ratios.index)
     for etf in sector_etfs.dropna().unique():
         mask = sector_etfs == etf
-        group = ratios[mask]
-        if len(group) < 2:
-            scores.loc[mask] = 0.0
+        group = ratios[mask].dropna()
+        if group.empty:
             continue
-        pct = group.rank(pct=True, na_option="keep")
-        scores.loc[mask] = (pct * 15).fillna(0)
-    return scores
+        if len(group) < 2:
+            scores.loc[group.index] = RS_SECTOR_NEUTRAL
+            status.loc[group.index] = "singleton_group"
+            continue
+        pct = group.rank(pct=True)
+        scores.loc[group.index] = pct * 15
+        status.loc[group.index] = "ranked"
+    return scores, status
