@@ -56,4 +56,10 @@ Universes are config-driven via `data/universes.json` + ticker files under `data
 
 **Operator scripts:** `scripts/full-rescan.sh` — truncate Postgres scan history and re-run breakout, swing, and Lynch for all universes.
 
-See `docs/USER_MANUAL.md` and `docs/RUNBOOK.md` for operator and analyst guides.
+## Documentation
+
+| Doc | Audience |
+|-----|----------|
+| [docs/USER_MANUAL.md](docs/USER_MANUAL.md) | Analysts — dashboard, scans, email |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Operators — deploy, cron, troubleshooting |
+| [docs/LYNCH_SCANNER.md](docs/LYNCH_SCANNER.md) | Lynch pipeline — pull, calculate, store fundamentals |

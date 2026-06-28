@@ -23,6 +23,8 @@
 12. [Migration from quant-platform](#12-migration-from-quant-platform)
 13. [Emergency procedures](#13-emergency-procedures)
 
+**Related:** [Lynch Scanner — data pipeline](LYNCH_SCANNER.md)
+
 ---
 
 ## 1. System overview
@@ -300,6 +302,8 @@ Log: `/mnt/fast/quant-data/logs/swing_rescan.log` (if run manually with tee).
 6. Write CSV + JSON + MD under `data/output/lynch/sp500/` (plus legacy `lynch_scan_*` copies)
 7. Record `job_runs` row (`lynch-summary-sp500`)
 8. **Send Lynch email** — reader-friendly HTML with category summary, top candidates, and qualitative checklist
+
+**Reference:** [Lynch Scanner — data pipeline](LYNCH_SCANNER.md) (metrics pull, PEG math, checks, Postgres `detail` JSON, dashboard field mapping).
 
 ### Email notifications
 

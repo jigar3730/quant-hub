@@ -3,7 +3,7 @@
 **Version:** 1.1  
 **Product:** Quant Hub homelab stock scanner (breakout + swing + Lynch)  
 **Audience:** Traders, analysts, and operators who run scans and use the dashboard  
-**Last updated:** 2026-06-28
+**Last updated:** 2026-06-28 (Lynch pipeline reference added)
 
 ---
 
@@ -19,6 +19,8 @@
 8. [Email notifications](#8-email-notifications)
 9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
+
+**Deep dive:** [Lynch Scanner — data pipeline](LYNCH_SCANNER.md) (how fundamentals are pulled, calculated, and stored)
 
 ---
 
@@ -137,6 +139,12 @@ All scan tables show a **Ticker** column linking to **Yahoo Finance** quotes (op
 | **All Tickers** | Full universe with Lynch score and data status |
 | **Ticker Detail** | Plain-English summary, fundamentals table, quantitative checks |
 
+On **Ticker Detail**, three data layers come from the same scan (see [Lynch Scanner reference](LYNCH_SCANNER.md)):
+
+- **Key fundamentals** — curated snapshot with explanations  
+- **Quantitative checks** — pass/fail rules and Lynch score inputs  
+- **Raw metrics** — full Yahoo-derived field bag (expander)
+
 ### Market regime banner
 
 Each scan includes a **market regime** derived from SPY:
@@ -254,6 +262,8 @@ quant-lynch --universe sp500 --preset fast_grower --no-email
 
 Results: dashboard **Lynch** strategy, `data/output/lynch/{universe}/`, and legacy `data/output/lynch_scan_report.json` for sp500.
 
+For how PEG, checks, and Postgres storage work, see **[Lynch Scanner — data pipeline](LYNCH_SCANNER.md)**.
+
 ### How long does a scan take?
 
 | Scenario | Typical duration |
@@ -262,7 +272,7 @@ Results: dashboard **Lynch** strategy, `data/output/lynch/{universe}/`, and lega
 | Cold cache sp500 | 5–15 minutes (Yahoo rate limits) |
 | Dry-run | Under 10 seconds |
 
-Fundamentals are fetched **sequentially per ticker** in v1, which dominates runtime on large universes.
+Fundamentals are fetched in **parallel batches** (with retries); Yahoo rate limits still dominate runtime on large universes.
 
 ### Same-day reruns
 
@@ -333,6 +343,18 @@ Fine-grained scoring lives in `setup_detail` on each ticker:
 **Penalties** (examples): chase/extended entry, RSI extreme, MACD overextension, structure break (below EMA50 on longs), wrong-side dominance, weak weekly close.
 
 **Final score** = clamp(base − penalties, 0, 100). Dashboard shows base, each penalty, and per-rule partial credit on **Ticker Detail**.
+
+### Lynch fundamentals (weekly strategy)
+
+| Concept | Meaning |
+|---------|---------|
+| **Lynch score** | % of quantitative checks passed (not a weighted model) |
+| **passed** | Met preset gate (`summary` = base screen **or** any Lynch category) |
+| **categories** | `fast_grower`, `stalwart`, `asset_play` |
+| **metrics** | Raw Yahoo + computed fields (PEG, EPS growth, revenue CV, etc.) |
+| **checks** | Anti-filters + base/category rules with plain-English explanations |
+
+Full pipeline: [LYNCH_SCANNER.md](LYNCH_SCANNER.md).
 
 ---
 
