@@ -20,7 +20,7 @@
 9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
 
-**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md)
+**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md)
 
 ---
 
@@ -252,7 +252,7 @@ Open **Swing setup score rubric** in the sidebar or Weekly Setups tab for the fu
 quant-scan-all --cache --email --report both
 ```
 
-Runs breakout on every universe in `data/universes.json` (seven today). With `--email`, you receive **one breakout email per universe** when each finishes.
+Runs breakout on every universe in `data/universes.json` (eight today). With `--email`, you receive **one breakout email per universe** when each finishes.
 
 ### Lynch scan (fundamental screen)
 
@@ -385,6 +385,7 @@ Universes are defined in `data/universes.json` and backed by files or screeners.
 | `dividend_growers` | Dividend Growers | Dividend growth proxy |
 | `fintech_growth` | Fintech & Digital Growth | FDIG-style list |
 | `most_actives` | Most Actives | Yahoo screener (up to 250 symbols) |
+| `sector_commodity_etfs` | Sector & Commodity ETFs | 11 GICS sector SPDRs + 6 commodity proxies (17 tickers) |
 
 ### Scan all universes
 
@@ -393,7 +394,7 @@ quant-scan-all --cache              # no email
 quant-scan-all --cache --email      # one breakout email per universe
 ```
 
-Includes file-based universes and dynamic screeners (`most_actives`). Not on the automatic schedule unless an admin adds cron entries.
+Includes file-based universes and dynamic screeners (`most_actives`). **`sector_commodity_etfs`** is on the Friday ETF schedule (see §9); other stock universes remain manual unless cron is extended.
 
 ### List universes
 
@@ -505,10 +506,12 @@ All scheduled jobs run **inside the `quant-hub` container** in **America/New_Yor
 | Day | Time (ET) | Job | What you receive |
 |-----|-----------|-----|------------------|
 | Mon–Fri | **5:17 PM** | Breakout daily (`quant-daily --universe sp500`) | Breakout email for large-cap core list |
+| Friday | **4:30 PM** | Breakout (`quant-daily --universe sector_commodity_etfs --no-email`) | No email — sector & commodity ETFs |
+| Friday | **4:35 PM** | Swing (`quant-swing --universe sector_commodity_etfs --no-email`) | No email — same ETF list, weekly setups |
 | Friday | **6:17 PM** | Swing weekly (`quant-swing --universe sp500`) | Swing email for the same universe |
 | Saturday | **9:17 AM** | Lynch weekly (`quant-lynch --universe sp500`) | Lynch email with fundamental candidates |
 
-Other universes (`small_cap_growth`, `most_actives`, etc.) are **not** on the automatic schedule unless an administrator adds cron lines (see **RUNBOOK.md**).
+Other stock universes (`small_cap_growth`, `most_actives`, etc.) are **not** on the automatic schedule unless an administrator adds cron lines (see **RUNBOOK.md**).
 
 ### Typical user routine
 
@@ -519,11 +522,11 @@ Other universes (`small_cap_growth`, `most_actives`, etc.) are **not** on the au
 3. Review **Actionable Watchlist** (Tier 1 first); use **Ticker Detail** for confirmation
 4. Optionally export CSV from `data/output/breakout/sp500/`
 
-**Fridays (swing)**
+**Fridays (swing + ETFs)**
 
-1. After **~6:30 PM ET** — check inbox for the swing email
-2. In the dashboard, switch strategy to **Swing**, universe **sp500**, latest scan date
-3. Review long/short setup tables
+1. After **~4:45 PM ET** — ETF universe scans finish (dashboard only; no email)
+2. After **~6:30 PM ET** — check inbox for the **sp500** swing email
+3. In the dashboard: **Swing** → universe **Sector & Commodity ETFs** or **sp500**; review long/short setup tables
 
 **Saturdays (Lynch)**
 
@@ -570,10 +573,10 @@ A: No. It is research and scanning only.
 A: Normal when no names meet Tier 1/2 (breakout) or setup rules (swing). The scan still ran; check the dashboard for filtered names.
 
 **Q: How many emails should I expect on a full batch run?**  
-A: `quant-scan-all --email` sends one breakout email per universe (seven today). Swing is separate — one email per `quant-swing` run.
+A: `quant-scan-all --email` sends one breakout email per universe (eight today). Swing is separate — one email per `quant-swing` run.
 
 **Q: Does the swing job run on weekdays?**  
-A: Only **Friday 6:17 PM ET** for `sp500` in the default schedule.
+A: **sp500** swing runs Friday **6:17 PM ET**. **sector_commodity_etfs** runs breakout **4:30 PM** and swing **4:35 PM** (no email).
 
 **Q: Where do TradingView links go?**  
 A: Email notifications include TradingView chart links for actionable tickers and swing setups.

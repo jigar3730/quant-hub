@@ -1,6 +1,9 @@
 import pandas as pd
 
 from quant_hub.config import (
+    ETF_MIN_AVG_VOLUME,
+    ETF_MIN_PRICE,
+    ETF_MIN_TRADING_DAYS,
     LOOKBACK_DAYS,
     MIN_AVG_VOLUME,
     MIN_PRICE,
@@ -11,8 +14,11 @@ from quant_hub.indicators import pct_above_low, range_52w, sma
 
 FILTER_LABELS = {
     "insufficient_history": "Fewer than 200 trading days of history",
+    "insufficient_etf_history": "Fewer than 120 trading days of history (ETF mode)",
     "price_below_minimum": "Price below $10 minimum",
+    "etf_price_below_minimum": "Price below ETF minimum ($5)",
     "low_liquidity": "20-day average volume below 750,000 shares",
+    "etf_low_liquidity": "20-day average volume below 500,000 shares (ETF mode)",
     "insufficient_ma_history": "Not enough data to compute moving averages",
     "trend_misaligned": "Price/MA stack not aligned (price > SMA50 > SMA150 > SMA200)",
     "sma200_not_rising": "200-day MA is not rising vs 30 trading days ago",
@@ -24,7 +30,71 @@ FILTER_LABELS = {
 }
 
 
-def eligibility_detail(df: pd.DataFrame) -> dict:
+def eligibility_detail(df: pd.DataFrame, *, mode: str = "stock") -> dict:
+    """Return structured eligibility checks. Use mode='etf' for ETF-only universes."""
+    if mode == "etf":
+        return _etf_eligibility_detail(df)
+    return _stock_eligibility_detail(df)
+
+
+def _etf_eligibility_detail(df: pd.DataFrame) -> dict:
+    """Relaxed gates for sector/commodity ETFs — no Stage-2 MA stack or 52w position rules."""
+    checks: list[dict] = []
+
+    history_len = len(df)
+    checks.append(
+        {
+            "rule": "trading_history",
+            "passed": history_len >= ETF_MIN_TRADING_DAYS,
+            "value": history_len,
+            "threshold": f">= {ETF_MIN_TRADING_DAYS} days",
+        }
+    )
+    if history_len < ETF_MIN_TRADING_DAYS:
+        return _fail(checks, "insufficient_etf_history")
+
+    close = df["Close"]
+    price = float(close.iloc[-1])
+    checks.append(
+        {
+            "rule": "price",
+            "passed": price >= ETF_MIN_PRICE,
+            "value": round(price, 2),
+            "threshold": f">= ${ETF_MIN_PRICE:.0f}",
+        }
+    )
+    if price < ETF_MIN_PRICE:
+        return _fail(checks, "etf_price_below_minimum")
+
+    spike_ratio = price_spike_ratio(df)
+    spike = has_price_spike(df)
+    checks.append(
+        {
+            "rule": "price_stability",
+            "passed": not spike,
+            "value": round(spike_ratio, 2) if spike_ratio is not None else None,
+            "threshold": "latest close within 3x of 20-day median",
+        }
+    )
+    if spike:
+        return _fail(checks, "price_data_anomaly")
+
+    avg_vol = float(df["Volume"].tail(20).mean())
+    checks.append(
+        {
+            "rule": "liquidity",
+            "passed": avg_vol >= ETF_MIN_AVG_VOLUME,
+            "value": int(avg_vol),
+            "threshold": f">= {ETF_MIN_AVG_VOLUME:,} shares (20d avg)",
+        }
+    )
+    if avg_vol < ETF_MIN_AVG_VOLUME:
+        return _fail(checks, "etf_low_liquidity")
+
+    return {"passed": True, "fail_reason": None, "checks": checks}
+
+
+def _stock_eligibility_detail(df: pd.DataFrame) -> dict:
     """Return structured eligibility checks with actual values."""
     checks: list[dict] = []
 
@@ -156,9 +226,9 @@ def eligibility_detail(df: pd.DataFrame) -> dict:
     return {"passed": True, "fail_reason": None, "checks": checks}
 
 
-def check_eligibility(df: pd.DataFrame) -> tuple[bool, str]:
+def check_eligibility(df: pd.DataFrame, *, mode: str = "stock") -> tuple[bool, str]:
     """Apply hard eligibility filters. Returns (eligible, reason)."""
-    detail = eligibility_detail(df)
+    detail = eligibility_detail(df, mode=mode)
     if detail["passed"]:
         return True, "eligible"
     return False, detail["fail_reason"]

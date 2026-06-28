@@ -72,11 +72,13 @@ class ScanService:
 
         try:
             spec = get_strategy(self.strategy_id)
+            eligibility_mode = self.universe_service.registry.get_eligibility_mode(resolved_id)
             engine = StrategyEngine(
                 spec,
                 tickers=universe,
                 use_cache=use_cache,
                 dry_run=dry_run,
+                eligibility_mode=eligibility_mode,
             )
             scan_result = engine.run()
             results = scan_result.to_dataframe()
@@ -100,6 +102,7 @@ class ScanService:
                 scores_by_ticker=scores_by_ticker,
                 strategy_id=scan_result.strategy_id,
                 fundamentals_quality=ctx.extras.get("fundamentals_quality"),
+                eligibility_mode=eligibility_mode,
                 data_provenance=build_data_provenance(
                     strategy_id=scan_result.strategy_id,
                     universe_id=resolved_id,

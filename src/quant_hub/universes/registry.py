@@ -61,6 +61,10 @@ class UniverseRegistry:
 
         raise ValueError("Specify --universe, --tickers, or --tickers-file")
 
+    def get_eligibility_mode(self, universe_id: str) -> str:
+        meta = self._config.get("universes", {}).get(universe_id, {})
+        return meta.get("eligibility_mode", "stock")
+
     def _resolve_id(self, universe_id: str) -> list[str]:
         universes = self._config.get("universes", {})
         if universe_id not in universes:

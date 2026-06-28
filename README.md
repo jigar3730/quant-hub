@@ -65,3 +65,4 @@ Universes are config-driven via `data/universes.json` + ticker files under `data
 | [docs/LYNCH_SCANNER.md](docs/LYNCH_SCANNER.md) | Lynch pipeline — pull, calculate, store fundamentals |
 | [docs/SWING_SCANNER.md](docs/SWING_SCANNER.md) | Swing pipeline — weekly indicators, setup gate, quality score |
 | [docs/BREAKOUT_SCANNER.md](docs/BREAKOUT_SCANNER.md) | Breakout pipeline — daily factors, eligibility, tiers, regime |
+| [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | ERD + data dictionary — all inputs, caches, Postgres, exports |

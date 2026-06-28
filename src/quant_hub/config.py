@@ -18,6 +18,9 @@ UNIVERSE_SIZE = 250
 MIN_TRADING_DAYS = 200
 MIN_AVG_VOLUME = 750_000
 MIN_PRICE = 10.0
+ETF_MIN_TRADING_DAYS = 120
+ETF_MIN_AVG_VOLUME = 500_000
+ETF_MIN_PRICE = 5.0
 MAX_REASONABLE_GROWTH = 3.0
 PRICE_SPIKE_RATIO = 3.0
 LOOKBACK_DAYS = 252
@@ -114,6 +117,27 @@ SECTOR_TO_ETF: dict[str, str] = {
 }
 
 ALL_SECTOR_ETFS = sorted(set(SECTOR_TO_ETF.values()) | set(INDUSTRY_TO_ETF.values()))
+
+# Sector & commodity ETF universe (Option A scan list)
+SECTOR_COMMODITY_ETFS = (
+    "XLK",
+    "XLC",
+    "XLY",
+    "XLP",
+    "XLE",
+    "XLF",
+    "XLV",
+    "XLI",
+    "XLB",
+    "XLU",
+    "XLRE",
+    "GLD",
+    "SLV",
+    "GDX",
+    "PDBC",
+    "CPER",
+    "DBA",
+)
 
 FALLBACK_UNIVERSE = [
     "AAPL",

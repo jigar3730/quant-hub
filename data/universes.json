@@ -34,6 +34,12 @@
       "name": "Most Actives",
       "description": "Yahoo most-actives screener (dynamic)",
       "sources": [{"type": "screener", "screener": "most_actives", "count": 250}]
+    },
+    "sector_commodity_etfs": {
+      "name": "Sector & Commodity ETFs",
+      "description": "GICS sector SPDRs plus liquid commodity proxies (17 names)",
+      "eligibility_mode": "etf",
+      "sources": [{"type": "file", "path": "data/universes/sector_commodity_etfs.txt"}]
     }
   }
 }

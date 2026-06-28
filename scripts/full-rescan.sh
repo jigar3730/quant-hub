@@ -5,7 +5,7 @@ set -euo pipefail
 
 LOG="/mnt/fast/quant-data/logs/full_rescan.log"
 OUT="/mnt/fast/quant-data/data/output"
-UNIVERSES=(sp500 large_cap_growth small_cap_growth mid_cap_growth dividend_growers fintech_growth most_actives)
+UNIVERSES=(sp500 large_cap_growth small_cap_growth mid_cap_growth dividend_growers fintech_growth most_actives sector_commodity_etfs)
 
 mkdir -p "$(dirname "$LOG")"
 exec > >(tee -a "$LOG") 2>&1

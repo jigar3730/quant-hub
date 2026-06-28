@@ -23,7 +23,7 @@
 12. [Migration from quant-platform](#12-migration-from-quant-platform)
 13. [Emergency procedures](#13-emergency-procedures)
 
-**Related:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md)
+**Related:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md)
 
 ---
 
@@ -230,7 +230,7 @@ Quant Hub ships two active strategies. Both persist to Postgres and can export C
 
 **Manual only (no email by default):** ad-hoc `quant-scan` without `--email`.
 
-Configured universes (see `data/universes.json`): `sp500`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`.
+Configured universes (see `data/universes.json`): `sp500`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sector_commodity_etfs`.
 
 ### Automated schedule (container cron)
 
@@ -240,6 +240,8 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 | Job | Cron | When | Command | Universe | Email |
 |-----|------|------|---------|----------|-------|
 | **Breakout daily** | `17 17 * * 1-5` | Mon–Fri **5:17 PM ET** | `quant-daily --universe sp500` | `sp500` | Yes (if SMTP set) |
+| **ETF breakout weekly** | `30 16 * * 5` | Friday **4:30 PM ET** | `quant-daily --universe sector_commodity_etfs --no-email` | `sector_commodity_etfs` | No |
+| **ETF swing weekly** | `35 16 * * 5` | Friday **4:35 PM ET** | `quant-swing --universe sector_commodity_etfs --no-email` | `sector_commodity_etfs` | No |
 | **Swing weekly** | `17 18 * * 5` | Friday **6:17 PM ET** | `quant-swing --universe sp500` | `sp500` | Yes (if SMTP set) |
 | **Lynch weekly** | `17 9 * * 6` | Saturday **9:17 AM ET** | `quant-lynch --universe sp500` | `sp500` | Yes (if SMTP set) |
 
@@ -247,13 +249,13 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 
 ```
 17 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 >> /app/logs/cron.log 2>&1
+30 16 * * 5 root . /etc/environment; quant-daily --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
+35 16 * * 5 root . /etc/environment; quant-swing --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
 17 18 * * 5 root . /etc/environment; quant-swing --universe sp500 >> /app/logs/cron.log 2>&1
 17 9 * * 6 root . /etc/environment; quant-lynch --universe sp500 >> /app/logs/cron.log 2>&1
 ```
 
-**Why 5:17 / 6:17 / 9:17?** Breakout and swing run after the US cash close; Lynch runs Saturday morning when fundamentals data is stable and away from weekday price-fetch jobs.
-
-**Not on cron today:** other universes, `quant-scan-all`, or manual-only runs. Add lines to `docker/crontab` if you want them scheduled (stagger by 15–30 minutes).
+**Why 4:30 / 5:17 / 6:17 / 9:17?** ETF scans run first after the cash close; stock breakout/swing follow; Lynch runs Saturday morning when fundamentals data is stable.
 
 ### What each scheduled job does
 
@@ -289,7 +291,7 @@ Rescan all universes after scoring changes:
 ```bash
 bash /opt/stacks/quant-hub/scripts/full-rescan.sh          # breakout + swing + Lynch (truncates DB)
 # or swing only:
-for u in sp500 large_cap_growth small_cap_growth mid_cap_growth dividend_growers fintech_growth most_actives; do
+for u in sp500 large_cap_growth small_cap_growth mid_cap_growth dividend_growers fintech_growth most_actives sector_commodity_etfs; do
   docker exec quant-hub quant-swing --universe "$u" --no-email
 done
 ```

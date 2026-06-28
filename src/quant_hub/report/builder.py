@@ -72,6 +72,7 @@ def build_ticker_report(
     fund: dict,
     scores: dict | None,
     strategy_id: str = "breakout",
+    eligibility_mode: str = "stock",
 ) -> dict:
     if stock_df is None or stock_df.empty:
         eligibility = {
@@ -95,7 +96,7 @@ def build_ticker_report(
             },
         }
 
-    elig = eligibility_detail(stock_df)
+    elig = eligibility_detail(stock_df, mode=eligibility_mode)
     elig["summary"] = (
         "Passed all eligibility filters"
         if elig["passed"]
@@ -165,6 +166,7 @@ def build_scan_report(
     scores_by_ticker: dict,
     strategy_id: str = "breakout",
     fundamentals_quality: dict | None = None,
+    eligibility_mode: str = "stock",
     data_provenance: dict | None = None,
 ) -> dict:
     tickers_report = []
@@ -183,6 +185,7 @@ def build_scan_report(
                 fund=fund_map.get(ticker, {}),
                 scores=scores_by_ticker.get(ticker),
                 strategy_id=strategy_id,
+                eligibility_mode=eligibility_mode,
             )
         )
 

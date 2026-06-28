@@ -352,7 +352,7 @@ def score_components_detail(
     fund: dict,
     scores: dict,
 ) -> dict:
-    return {
+    detail = {
         "rs_market": rs_market_detail(stock_df, spy_df, scores["rs_market_score"]),
         "rs_sector": rs_sector_detail(stock_df, sector_df, sector_etf, scores["rs_sector_score"]),
         "accumulation": accumulation_detail(stock_df, scores["accumulation_score"]),
@@ -360,18 +360,21 @@ def score_components_detail(
         "compression": compression_detail(stock_df, scores["compression_score"]),
         "pattern": pattern_detail(stock_df, scores["pattern_score"]),
         "resistance": resistance_detail(stock_df, scores["resistance_score"]),
-        "revenue": revenue_detail(
+    }
+    if "revenue_score" in scores:
+        detail["revenue"] = revenue_detail(
             fund.get("revenue_yoy"),
             scores["revenue_score"],
             status=fund.get("revenue_yoy_status", "OK"),
             source=fund.get("revenue_yoy_source", ""),
-        ),
-        "eps": eps_detail(
+        )
+    if "eps_score" in scores:
+        detail["eps"] = eps_detail(
             fund.get("eps_combined"),
             scores["eps_score"],
             status=fund.get("eps_combined_status", "OK"),
             source=fund.get("eps_source", ""),
             eps_yoy=fund.get("eps_yoy"),
             eps_cagr_3y=fund.get("eps_cagr_3y"),
-        ),
-    }
+        )
+    return detail

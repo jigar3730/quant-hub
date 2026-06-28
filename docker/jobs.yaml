@@ -23,6 +23,28 @@ jobs:
     exports: [csv]
     job_name: swing-weekly
 
+  - name: breakout-sector-commodity-etfs-weekly
+    cron: "30 16 * * 5"     # Fri 4:30 PM ET (after cash close)
+    command: quant-daily --universe sector_commodity_etfs --no-email
+    strategy: breakout
+    universe: sector_commodity_etfs
+    email: false
+    cache: true
+    persist: true
+    exports: [csv, json, md]
+    job_name: breakout-sector-commodity-etfs-weekly
+
+  - name: swing-sector-commodity-etfs-weekly
+    cron: "35 16 * * 5"     # Fri 4:35 PM ET
+    command: quant-swing --universe sector_commodity_etfs --no-email
+    strategy: swing
+    universe: sector_commodity_etfs
+    email: false
+    cache: true
+    persist: true
+    exports: [csv]
+    job_name: swing-sector-commodity-etfs-weekly
+
   - name: lynch-sp500-weekly
     cron: "17 9 * * 6"      # Sat 9:17 AM ET
     command: quant-lynch --universe sp500

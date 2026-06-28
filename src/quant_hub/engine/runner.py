@@ -23,6 +23,7 @@ class StrategyEngine:
         dynamic_universe: bool = False,
         use_cache: bool = False,
         dry_run: bool = False,
+        eligibility_mode: str = "stock",
         context: ScanContext | None = None,
     ) -> None:
         self.spec = spec
@@ -31,6 +32,7 @@ class StrategyEngine:
         self.dynamic_universe = dynamic_universe
         self.use_cache = use_cache
         self.dry_run = dry_run
+        self.eligibility_mode = eligibility_mode
         self._context = context
 
     def run(self) -> ScanResult:
@@ -40,6 +42,7 @@ class StrategyEngine:
             dynamic_universe=self.dynamic_universe,
             use_cache=self.use_cache,
             dry_run=self.dry_run,
+            eligibility_mode=self.eligibility_mode,
         )
         self._context = ctx
         logger.info(
@@ -68,7 +71,10 @@ class StrategyEngine:
             fr = self._evaluate_filters(ctx, ticker)
             filter_results[ticker] = fr
             if fr.passed:
-                sector_etf = resolve_sector_etf(ticker)
+                if ctx.extras.get("eligibility_mode") == "etf":
+                    sector_etf = "SPY"
+                else:
+                    sector_etf = resolve_sector_etf(ticker)
                 ctx.sector_etfs[ticker] = sector_etf
                 eligible_tickers.append(ticker)
                 ticker_results[ticker] = TickerResult(
@@ -100,9 +106,14 @@ class StrategyEngine:
                 tr.factors[name] = fr  # type: ignore[assignment]
 
             compute_failed = False
+            skip_factors = (
+                {"revenue", "eps"} if ctx.extras.get("eligibility_mode") == "etf" else set()
+            )
             for binding in self.spec.factor_bindings:
                 factor = binding.factor
                 if factor.pass_kind != "ticker":
+                    continue
+                if binding.name in skip_factors:
                     continue
                 try:
                     tr.factors[binding.name] = factor.compute(ctx, ticker)

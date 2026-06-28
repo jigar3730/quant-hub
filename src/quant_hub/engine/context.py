@@ -95,6 +95,7 @@ class ScanContext:
         dynamic_universe: bool = False,
         use_cache: bool = False,
         dry_run: bool = False,
+        eligibility_mode: str = "stock",
     ) -> ScanContext:
         if not tickers:
             raise ValueError("ScanContext requires an explicit ticker list")
@@ -135,7 +136,7 @@ class ScanContext:
             regime=regime,
             regime_detail=regime_info,
             dry_run=dry_run,
-            extras={"fundamentals_quality": fund_quality},
+            extras={"fundamentals_quality": fund_quality, "eligibility_mode": eligibility_mode},
         )
 
     def stock_df(self, ticker: str) -> pd.DataFrame | None:

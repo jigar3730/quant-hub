@@ -15,7 +15,7 @@ class BreakoutEligibilityFilter:
         df = ctx.stock_df(ticker)
         if df is None or df.empty:
             return FilterResult(passed=False, reason="no_price_data", checks=[])
-        detail = eligibility_detail(df)
+        detail = eligibility_detail(df, mode=ctx.extras.get("eligibility_mode", "stock"))
         return FilterResult(
             passed=detail["passed"],
             reason=detail["fail_reason"] if not detail["passed"] else "eligible",
