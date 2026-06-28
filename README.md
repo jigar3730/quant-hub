@@ -60,9 +60,11 @@ Universes are config-driven via `data/universes.json` + ticker files under `data
 
 | Doc | Audience |
 |-----|----------|
-| [docs/USER_MANUAL.md](docs/USER_MANUAL.md) | Analysts — dashboard, scans, email |
+| [docs/RUN_TEAM_QUICKSTART.md](docs/RUN_TEAM_QUICKSTART.md) | **Run team** — Docker, triage, email/schedule/universe recipes |
 | [docs/RUNBOOK.md](docs/RUNBOOK.md) | Operators — deploy, cron, troubleshooting |
+| [docs/USER_MANUAL.md](docs/USER_MANUAL.md) | Analysts — dashboard, scans, email |
 | [docs/LYNCH_SCANNER.md](docs/LYNCH_SCANNER.md) | Lynch pipeline — pull, calculate, store fundamentals |
 | [docs/SWING_SCANNER.md](docs/SWING_SCANNER.md) | Swing pipeline — weekly indicators, setup gate, quality score |
 | [docs/BREAKOUT_SCANNER.md](docs/BREAKOUT_SCANNER.md) | Breakout pipeline — daily factors, eligibility, tiers, regime |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | ERD + data dictionary — all inputs, caches, Postgres, exports |
+| [docs/ARCHITECTURE_GAPS.md](docs/ARCHITECTURE_GAPS.md) | Known gaps, risks, and phased remediation plan |

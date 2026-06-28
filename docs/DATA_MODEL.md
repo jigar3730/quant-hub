@@ -4,7 +4,7 @@
 **Audience:** Developers, analysts, and operators  
 **Last updated:** 2026-06-28
 
-Related: [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Runbook](RUNBOOK.md)
+Related: [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Runbook](RUNBOOK.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md)
 
 ---
 

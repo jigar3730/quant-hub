@@ -5,6 +5,8 @@
 **Install path:** `/opt/stacks/quant-hub`  
 **Last updated:** 2026-06-28
 
+**New operators:** start with [Run Team Quickstart](RUN_TEAM_QUICKSTART.md) — Docker commands, triage, email/schedule/universe recipes.
+
 ---
 
 ## Table of contents
@@ -23,7 +25,7 @@
 12. [Migration from quant-platform](#12-migration-from-quant-platform)
 13. [Emergency procedures](#13-emergency-procedures)
 
-**Related:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md)
+**Related:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
 
 ---
 
@@ -220,7 +222,7 @@ docker compose down && docker compose up -d   # full stack
 
 ### Scan types
 
-Quant Hub ships two active strategies. Both persist to Postgres and can export CSV/JSON; only the commands below send email by default.
+Quant Hub ships three active strategies. Both persist to Postgres and can export CSV/JSON; only the commands below send email by default.
 
 | Strategy | CLI | Data | Scoring / output | Email default |
 |----------|-----|------|------------------|---------------|
@@ -827,6 +829,8 @@ docker compose build --no-cache quant-hub
 ---
 
 ## 11. Security notes
+
+See also **[Architecture Gaps](ARCHITECTURE_GAPS.md)** for the full risk register and remediation phases (C1–C2 cover dashboard and Postgres exposure).
 
 - Change default `POSTGRES_PASSWORD` before production use
 - Postgres port 5433 is exposed on host — firewall to trusted networks only
