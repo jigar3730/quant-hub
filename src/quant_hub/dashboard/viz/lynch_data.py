@@ -67,11 +67,12 @@ def lynch_checks_dataframe(ticker: dict) -> pd.DataFrame:
     for check in ticker.get("checks") or []:
         rows.append(
             {
-                "check": check.get("rule") or check.get("label") or check.get("id", ""),
+                "check": check.get("label") or check.get("rule") or check.get("id", ""),
                 "passed": bool(check.get("passed")),
-                "value": format_display_value(check.get("value")),
+                "value": format_display_value(check.get("plain_value", check.get("value"))),
                 "threshold": format_display_value(check.get("threshold")),
-                "detail": check.get("detail", ""),
+                "why": check.get("why_it_matters") or check.get("detail", ""),
+                "result": check.get("result_text", ""),
             }
         )
     return pd.DataFrame(rows)

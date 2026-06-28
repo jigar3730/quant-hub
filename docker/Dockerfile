@@ -18,7 +18,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY data/universes.json data/universes.json
-COPY data/universes/sp500.txt data/universes/sp500.txt
+COPY data/universes/ data/universes/
 
 RUN uv pip install --system -e .[dev,viz]
 

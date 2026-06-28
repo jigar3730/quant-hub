@@ -232,8 +232,19 @@ def resistance_detail(df: pd.DataFrame, score: float) -> dict:
     }
 
 
-def revenue_detail(growth: float | None, score: float) -> dict:
-    if growth is None:
+def revenue_detail(growth: float | None, score: float, *, status: str = "OK", source: str = "") -> dict:
+    status_labels = {
+        "OK": "",
+        "MISSING": "Revenue growth data unavailable",
+        "NOT_APPLICABLE": "Revenue growth not applicable for this issuer",
+        "CAPPED": "Revenue growth capped at display limit (hypergrowth)",
+        "NEGATIVE": None,
+    }
+    if status == "NEGATIVE" and growth is not None:
+        meaning = f"Negative revenue growth ({growth * 100:.1f}% YoY)"
+    elif status != "OK" and status != "NEGATIVE":
+        meaning = status_labels.get(status, "Revenue growth data unavailable")
+    elif growth is None:
         meaning = "Revenue growth data unavailable"
     elif growth >= 0.25:
         meaning = f"Strong revenue growth ({growth * 100:.1f}% YoY)"
@@ -242,16 +253,39 @@ def revenue_detail(growth: float | None, score: float) -> dict:
     else:
         meaning = f"Weak or negative revenue growth ({growth * 100:.1f}% YoY)"
 
+    if source:
+        meaning = f"{meaning} [{source}]"
+
     return {
         "score": score,
         "max": 15,
-        "raw": {"revenue_yoy_pct": round(growth * 100, 2) if growth is not None else None},
+        "status": status,
+        "raw": {
+            "revenue_yoy_pct": round(growth * 100, 2) if growth is not None else None,
+            "source": source or None,
+        },
         "meaning": meaning,
     }
 
 
-def eps_detail(combined: float | None, score: float) -> dict:
-    if combined is None:
+def eps_detail(
+    combined: float | None,
+    score: float,
+    *,
+    status: str = "OK",
+    source: str = "",
+    eps_yoy: float | None = None,
+    eps_cagr_3y: float | None = None,
+) -> dict:
+    if status == "NEGATIVE" and combined is not None:
+        meaning = f"Negative EPS growth ({combined * 100:.1f}% blended)"
+    elif status == "MISSING":
+        meaning = "EPS growth data unavailable"
+    elif status == "NOT_APPLICABLE":
+        meaning = "EPS growth not applicable (e.g. negative earnings history)"
+    elif status == "CAPPED":
+        meaning = f"Strong EPS growth ({combined * 100:.1f}% blended, capped for scoring)"
+    elif combined is None:
         meaning = "EPS growth data unavailable"
     elif combined >= 0.30:
         meaning = f"Strong EPS growth ({combined * 100:.1f}% blended)"
@@ -260,11 +294,52 @@ def eps_detail(combined: float | None, score: float) -> dict:
     else:
         meaning = f"Negative EPS growth ({combined * 100:.1f}% blended)"
 
+    if source:
+        meaning = f"{meaning} [{source}]"
+
     return {
         "score": score,
         "max": 15,
-        "raw": {"eps_combined_pct": round(combined * 100, 2) if combined is not None else None},
+        "status": status,
+        "raw": {
+            "eps_combined_pct": round(combined * 100, 2) if combined is not None else None,
+            "eps_yoy_pct": round(eps_yoy * 100, 2) if eps_yoy is not None else None,
+            "eps_cagr_3y_pct": round(eps_cagr_3y * 100, 2) if eps_cagr_3y is not None else None,
+            "source": source or None,
+        },
         "meaning": meaning,
+    }
+
+
+def fundamentals_detail_from_map(fund: dict, scores: dict | None = None) -> dict:
+    """Build revenue/eps detail blocks from fundamentals snapshot + optional score row."""
+    from quant_hub.scoring.fundamentals import score_eps, score_revenue
+
+    rev_scored = score_revenue(
+        fund.get("revenue_yoy"),
+        status=fund.get("revenue_yoy_status", "MISSING"),
+    )
+    eps_scored = score_eps(
+        fund.get("eps_combined"),
+        status=fund.get("eps_combined_status", "MISSING"),
+    )
+    rev_score = float(scores.get("revenue_score", rev_scored.score)) if scores else rev_scored.score
+    eps_score = float(scores.get("eps_score", eps_scored.score)) if scores else eps_scored.score
+    return {
+        "revenue": revenue_detail(
+            fund.get("revenue_yoy"),
+            rev_score,
+            status=fund.get("revenue_yoy_status", rev_scored.status),
+            source=fund.get("revenue_yoy_source", ""),
+        ),
+        "eps": eps_detail(
+            fund.get("eps_combined"),
+            eps_score,
+            status=fund.get("eps_combined_status", eps_scored.status),
+            source=fund.get("eps_source", ""),
+            eps_yoy=fund.get("eps_yoy"),
+            eps_cagr_3y=fund.get("eps_cagr_3y"),
+        ),
     }
 
 
@@ -285,6 +360,18 @@ def score_components_detail(
         "compression": compression_detail(stock_df, scores["compression_score"]),
         "pattern": pattern_detail(stock_df, scores["pattern_score"]),
         "resistance": resistance_detail(stock_df, scores["resistance_score"]),
-        "revenue": revenue_detail(fund.get("revenue_yoy"), scores["revenue_score"]),
-        "eps": eps_detail(fund.get("eps_combined"), scores["eps_score"]),
+        "revenue": revenue_detail(
+            fund.get("revenue_yoy"),
+            scores["revenue_score"],
+            status=fund.get("revenue_yoy_status", "OK"),
+            source=fund.get("revenue_yoy_source", ""),
+        ),
+        "eps": eps_detail(
+            fund.get("eps_combined"),
+            scores["eps_score"],
+            status=fund.get("eps_combined_status", "OK"),
+            source=fund.get("eps_source", ""),
+            eps_yoy=fund.get("eps_yoy"),
+            eps_cagr_3y=fund.get("eps_cagr_3y"),
+        ),
     }

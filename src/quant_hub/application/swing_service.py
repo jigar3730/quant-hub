@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.config import DEFAULT_SWING_OUTPUT_CSV, SWING_MIN_BARS
+from quant_hub.config import SWING_MIN_BARS, scan_output_paths
 from quant_hub.infrastructure.market.weekly_prices import download_weekly_prices
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.notify.email import send_swing_email
@@ -81,9 +81,8 @@ def build_swing_report(
             "eligible_count": len(setups),
             "excluded_count": len(universe) - len(setups),
             "tier_counts": {
-                "Tier 1": len(longs),
-                "Tier 2": len(shorts),
-                "Tier 3": 0,
+                "SETUP_LONG": len(longs),
+                "SETUP_SHORT": len(shorts),
                 "filtered": sum(rejection_counts.values()),
             },
             "actionable_count": len(setups),
@@ -121,7 +120,7 @@ class SwingScanService:
         tickers_file: Path | None = None,
         use_cache: bool = True,
         force_refresh: bool = False,
-        output: Path = DEFAULT_SWING_OUTPUT_CSV,
+        output: Path | None = None,
         persist: bool = True,
         send_email: bool = False,
         scan_date: date | None = None,
@@ -133,6 +132,9 @@ class SwingScanService:
             tickers=tickers,
             tickers_file=tickers_file,
         )
+
+        paths = scan_output_paths("swing", resolved_id)
+        output = output or paths["csv"]
 
         job_id = None
         if job_name:

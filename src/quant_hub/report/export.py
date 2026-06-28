@@ -1,11 +1,11 @@
-import json
+import shutil
 from pathlib import Path
+
+from quant_hub.serialization.json_util import json_dump_file
 
 
 def export_json_report(report: dict, path: Path) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w") as f:
-        json.dump(report, f, indent=2, default=str)
+    json_dump_file(report, path)
     return path
 
 
@@ -14,6 +14,46 @@ def export_markdown_report(report: dict, path: Path) -> Path:
     lines = _render_markdown(report)
     path.write_text("\n".join(lines) + "\n")
     return path
+
+
+def copy_to_legacy(path: Path, legacy_path: Path) -> None:
+    if path.resolve() == legacy_path.resolve():
+        return
+    if path.exists():
+        legacy_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, legacy_path)
+
+
+def _regime_line(regime: dict) -> list[str]:
+    """Render regime section; supports breakout SPY and swing weekly contexts."""
+    if regime.get("interval") == "1wk":
+        return [
+            f"- **Mode:** Weekly swing ({regime.get('period', '10y')} history)",
+            f"- **Interval:** {regime.get('interval')}",
+        ]
+    spy = regime.get("spy_price")
+    sma50 = regime.get("sma50")
+    sma200 = regime.get("sma200")
+    lines = [
+        f"- **Regime:** {regime.get('label', 'unknown')} (multiplier {regime.get('multiplier', 1.0)})",
+    ]
+    if spy is not None:
+        parts = [f"**SPY:** ${spy}"]
+        if sma50 is not None:
+            parts.append(f"SMA50: ${sma50}")
+        if sma200 is not None:
+            parts.append(f"SMA200: ${sma200}")
+        lines.append(f"- {' | '.join(parts)}")
+    ret = regime.get("return_63d_pct")
+    below = regime.get("pct_below_52w_high")
+    if ret is not None or below is not None:
+        ret_s = f"{ret}%" if ret is not None else "—"
+        below_s = f"{below}%" if below is not None else "—"
+        lines.append(f"- **63d return:** {ret_s} | **Below 52w high:** {below_s}")
+    meaning = regime.get("meaning")
+    if meaning:
+        lines.append(f"- {meaning}")
+    return lines
 
 
 def _render_markdown(report: dict) -> list[str]:
@@ -32,16 +72,7 @@ def _render_markdown(report: dict) -> list[str]:
         "",
         "## Market Regime",
         "",
-        f"- **Regime:** {regime['label']} (multiplier {regime['multiplier']})",
-        (
-            f"- **SPY:** ${regime['spy_price']} | SMA50: ${regime['sma50']}"
-            f" | SMA200: ${regime['sma200']}"
-        ),
-        (
-            f"- **63d return:** {regime['return_63d_pct']}%"
-            f" | **Below 52w high:** {regime['pct_below_52w_high']}%"
-        ),
-        f"- {regime['meaning']}",
+        *_regime_line(regime),
         "",
         "## Scan Summary",
         "",

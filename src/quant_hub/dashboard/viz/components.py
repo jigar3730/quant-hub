@@ -55,6 +55,17 @@ def render_scan_header(report_path: str, summary: dict, regime: dict) -> None:
 
 
 def render_regime_panel(regime: dict) -> None:
+    if regime.get("interval") == "1wk":
+        st.markdown('<div class="info-card"><h4>Weekly Swing Context</h4>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        c1.metric("Interval", regime.get("interval", "1wk"))
+        c2.metric("History", regime.get("period", "10y"))
+        st.markdown(
+            "Swing scans use **10-year weekly OHLCV** and finance-vibe EMA/RSI/MACD rules."
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+        return
+
     if regime_looks_synthetic(regime):
         st.warning(
             "SPY price looks like **synthetic dry-run data**, not live market data. "
@@ -63,15 +74,24 @@ def render_regime_panel(regime: dict) -> None:
         )
     st.markdown('<div class="info-card"><h4>Market Regime (SPY)</h4>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("SPY Price", f"${regime['spy_price']}")
-    c2.metric("SMA 50", f"${regime['sma50']}")
-    c3.metric("SMA 200", f"${regime['sma200']}")
-    c4.metric("63d Return", f"{regime['return_63d_pct']}%")
-    st.markdown(
-        f"**{regime['meaning']}**  \n"
-        f"52-week high: ${regime.get('high_52w', '—')} "
-        f"({regime['pct_below_52w_high']}% below high)"
-    )
+    spy = regime.get("spy_price")
+    c1.metric("SPY Price", f"${spy}" if spy is not None else "—")
+    sma50 = regime.get("sma50")
+    c2.metric("SMA 50", f"${sma50}" if sma50 is not None else "—")
+    sma200 = regime.get("sma200")
+    c3.metric("SMA 200", f"${sma200}" if sma200 is not None else "—")
+    ret = regime.get("return_63d_pct")
+    c4.metric("63d Return", f"{ret}%" if ret is not None else "—")
+    meaning = regime.get("meaning")
+    high = regime.get("high_52w")
+    below = regime.get("pct_below_52w_high")
+    if meaning or high is not None:
+        below_s = f"{below}%" if below is not None else "—"
+        high_s = f"${high}" if high is not None else "—"
+        st.markdown(
+            f"**{meaning or 'Market regime'}**  \n"
+            f"52-week high: {high_s} ({below_s} below high)"
+        )
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -394,10 +414,20 @@ def render_score_history(history: list[dict], ticker: str) -> go.Figure | None:
 
 def render_fundamentals_panel(ticker_data: dict) -> None:
     scores = ticker_data.get("scores") or {}
-    if not any(scores.get(k) for k in FUNDAMENTAL_KEYS):
-        st.info("Fundamental scores unavailable — ticker did not pass eligibility filters.")
-        return
+    has_fund = any(scores.get(k) for k in FUNDAMENTAL_KEYS)
+    if not has_fund:
+        fund = ticker_data.get("fundamentals") or {}
+        if not fund.get("revenue_yoy_status") and not fund.get("eps_combined_status"):
+            st.info("Fundamental data unavailable for this ticker.")
+            return
     _render_score_cards(ticker_data, FUNDAMENTAL_KEYS, "Fundamentals")
+    fund = ticker_data.get("fundamentals") or {}
+    if fund.get("quarters_available"):
+        st.caption(
+            f"Quarters available: {fund.get('quarters_available')} · "
+            f"Revenue: {fund.get('revenue_yoy_status', '—')} · "
+            f"EPS: {fund.get('eps_combined_status', '—')}"
+        )
 
 
 def render_technical_panel(ticker_data: dict, ticker: str) -> None:

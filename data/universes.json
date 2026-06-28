@@ -2,10 +2,37 @@
   "universes": {
     "sp500": {
       "name": "Large Cap Core",
+      "description": "Curated large-cap watchlist (~193 names; not the full S&P 500 index)",
       "sources": [{"type": "file", "path": "data/universes/sp500.txt"}]
+    },
+    "large_cap_growth": {
+      "name": "Large Cap Growth",
+      "description": "Growth-tilted large caps (sp500 minus dividend/value names)",
+      "sources": [{"type": "file", "path": "data/universes/large_cap_growth.txt"}]
+    },
+    "small_cap_growth": {
+      "name": "Small Cap Growth",
+      "description": "VBK-style small cap growth holdings",
+      "sources": [{"type": "file", "path": "data/universes/small_cap_growth.txt"}]
+    },
+    "mid_cap_growth": {
+      "name": "Mid Cap Growth",
+      "description": "Mid cap growth watchlist (manifest + VOT/IWP tops)",
+      "sources": [{"type": "file", "path": "data/universes/mid_cap_growth.txt"}]
+    },
+    "dividend_growers": {
+      "name": "Dividend Growers",
+      "description": "SCHD/VIG/DGRO dividend growth proxy",
+      "sources": [{"type": "file", "path": "data/universes/dividend_growers.txt"}]
+    },
+    "fintech_growth": {
+      "name": "Fintech & Digital Growth",
+      "description": "FDIG-style fintech and payments growth",
+      "sources": [{"type": "file", "path": "data/universes/fintech_growth.txt"}]
     },
     "most_actives": {
       "name": "Most Actives",
+      "description": "Yahoo most-actives screener (dynamic)",
       "sources": [{"type": "screener", "screener": "most_actives", "count": 250}]
     }
   }

@@ -7,13 +7,13 @@ from pathlib import Path
 import pandas as pd
 
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.config import DEFAULT_OUTPUT_CSV, DEFAULT_OUTPUT_JSON, DEFAULT_OUTPUT_MD
+from quant_hub.config import LEGACY_BREAKOUT_OUTPUTS, scan_output_paths
 from quant_hub.engine.export import ticker_results_to_legacy_scores
 from quant_hub.engine.runner import StrategyEngine
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.notify.email import send_scan_email
 from quant_hub.report.builder import build_scan_report
-from quant_hub.report.export import export_json_report, export_markdown_report
+from quant_hub.report.export import copy_to_legacy, export_json_report, export_markdown_report
 from quant_hub.scoring.aggregate import export_results
 from quant_hub.strategies.registry import get_strategy
 
@@ -42,10 +42,10 @@ class ScanService:
         tickers_file: Path | None = None,
         use_cache: bool = False,
         dry_run: bool = False,
-        output: Path = DEFAULT_OUTPUT_CSV,
+        output: Path | None = None,
         report: str | None = "json",
-        report_json: Path = DEFAULT_OUTPUT_JSON,
-        report_md: Path = DEFAULT_OUTPUT_MD,
+        report_json: Path | None = None,
+        report_md: Path | None = None,
         send_email: bool = False,
         scan_date: date | None = None,
         job_name: str | None = None,
@@ -57,6 +57,11 @@ class ScanService:
             tickers=tickers,
             tickers_file=tickers_file,
         )
+
+        paths = scan_output_paths(self.strategy_id, resolved_id)
+        output = output or paths["csv"]
+        report_json = report_json or paths["json"]
+        report_md = report_md or paths["md"]
 
         job_id = None
         if job_name:
@@ -89,6 +94,7 @@ class ScanService:
                 regime_detail=scan_result.regime_detail,
                 scores_by_ticker=scores_by_ticker,
                 strategy_id=scan_result.strategy_id,
+                fundamentals_quality=ctx.extras.get("fundamentals_quality"),
             )
 
             if report in ("json", "both"):
@@ -97,6 +103,13 @@ class ScanService:
             if report in ("md", "both"):
                 export_markdown_report(scan_report, report_md)
                 logger.info("Wrote markdown report to %s", report_md)
+
+            if self.strategy_id == "breakout" and resolved_id == "sp500":
+                copy_to_legacy(output, LEGACY_BREAKOUT_OUTPUTS["csv"])
+                if report in ("json", "both"):
+                    copy_to_legacy(report_json, LEGACY_BREAKOUT_OUTPUTS["json"])
+                if report in ("md", "both"):
+                    copy_to_legacy(report_md, LEGACY_BREAKOUT_OUTPUTS["md"])
 
             if persist:
                 run_id = self.scan_repo.upsert_scan(

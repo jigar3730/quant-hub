@@ -1,7 +1,7 @@
 # Quant Hub — User Manual
 
 **Version:** 1.0  
-**Product:** Quant Hub homelab breakout scanner  
+**Product:** Quant Hub homelab stock scanner (breakout + swing)  
 **Audience:** Traders, analysts, and operators who run scans and use the dashboard  
 **Last updated:** 2026-06-28
 
@@ -17,23 +17,30 @@
 6. [Universes](#6-universes)
 7. [Exports and reports](#7-exports-and-reports)
 8. [Email notifications](#8-email-notifications)
-9. [Daily workflow](#9-daily-workflow)
+9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
 
 ---
 
 ## 1. What Quant Hub does
 
-Quant Hub is a **breakout stock scanner** for a homelab environment. It:
+Quant Hub is a **stock scanner** for a homelab environment. It runs two strategies:
 
-- Loads a **named universe** of tickers (e.g. large-cap core list `sp500`)
-- Downloads price and fundamental data from Yahoo Finance
-- Scores each ticker on technical and fundamental factors
-- Classifies tickers into **Tier 1**, **Tier 2**, **Tier 3**, or **filtered**
-- Stores results in **PostgreSQL** (the system of record)
-- Displays results in a **Streamlit web dashboard**
+| Strategy | Cadence | What it finds |
+|----------|---------|---------------|
+| **Breakout** | Daily (weekdays) | Tier 1 / 2 / 3 names with relative strength, compression, volume, and pattern scores |
+| **Swing** | Weekly (Friday) | Long/short pullback setups vs 20-week EMA on weekly charts |
+| **Lynch** | Weekly (Saturday) | Peter Lynch categories: fast growers, stalwarts, asset plays (P/E, PEG, balance sheet) |
 
-**v1 scope:** Breakout strategy only. Lynch, swing, and finance-vibe integrations are planned for future releases.
+Both strategies:
+
+- Load a **named universe** of tickers (e.g. large-cap core list `sp500`)
+- Download price data from Yahoo Finance (daily for breakout, weekly for swing)
+- Store results in **PostgreSQL** (the system of record)
+- Display results in a **Streamlit web dashboard** (`quant-view`)
+- Can **email** actionable results when SMTP is configured
+
+**v1 scope:** Breakout, swing, and Lynch scanners with Postgres-backed results.
 
 ### What you should use it for
 
@@ -89,12 +96,13 @@ Docker deployment: `http://<host>:5002`
 
 | Control | Purpose |
 |---------|---------|
+| **Strategy** | Breakout (daily) or Swing (weekly) |
 | **Universe** | Select which ticker list to view (`sp500`, `most_actives`, etc.) |
 | **Scan date** | Pick a historical run for that universe (most recent at top) |
 | **Tier** | Filter by Tier 1, Tier 2, Tier 3, or filtered |
 | **Eligible only** | Hide tickers that failed eligibility filters |
 | **Actionable only** | Show Tier 1 + Tier 2 only |
-| **Min final score** | Slider to hide low-scoring names |
+| **Min normalized score** | When *Actionable only* is checked, filters on normalized score (tier threshold). Otherwise filters on final adjusted score (includes regime discount). |
 | **Search ticker** | Jump to a symbol |
 | **Score component guide** | Explains RS, compression, volume, etc. |
 | **Ticker Detail picker** | Open a single-ticker profile |
@@ -126,9 +134,21 @@ Use regime context when interpreting scores: a Tier 2 in a weak regime may deser
 
 ## 4. Running scans manually
 
-All scan commands are run from the server where Quant Hub is installed (`/opt/stacks/quant-hub`).
+All scan commands run on the server where Quant Hub is installed (`/opt/stacks/quant-hub`), or inside the container via `docker exec quant-hub …`.
 
-### Standard scan (recommended)
+### Scan commands at a glance
+
+| Command | Strategy | Email | Typical use |
+|---------|----------|-------|-------------|
+| `quant-daily --universe sp500` | Breakout | **Yes** | Same as the weekday cron job |
+| `quant-scan --universe sp500 --cache` | Breakout | No | Manual scan, no mail |
+| `quant-scan-all --cache --email` | Breakout | **Yes** (per universe) | Batch all universes |
+| `quant-swing --universe sp500` | Swing | **Yes** | Same as the Friday cron job |
+| `quant-swing --universe sp500 --no-email` | Swing | No | Manual swing without mail |
+| `quant-lynch --universe sp500` | Lynch | **Yes** | Same as the Saturday cron job |
+| `quant-lynch --preset fast_grower --no-email` | Lynch | No | Narrow preset, no mail |
+
+### Standard breakout scan (recommended)
 
 ```bash
 quant-scan --universe sp500 --cache
@@ -166,6 +186,42 @@ When multiple sources are given:
 3. `--tickers-file` (legacy file path)
 
 You must provide at least one of the above.
+
+### Swing scan (weekly strategy)
+
+```bash
+quant-swing --universe sp500
+```
+
+Uses 10 years of **weekly** OHLCV. Email is sent by default. Results appear under the **Swing** strategy in the dashboard and at `data/output/swing/{universe}/scan_results.csv`.
+
+```bash
+quant-swing --universe dividend_growers --no-email   # skip email
+```
+
+### Scan all universes (breakout batch)
+
+```bash
+quant-scan-all --cache --email --report both
+```
+
+Runs breakout on every universe in `data/universes.json` (seven today). With `--email`, you receive **one breakout email per universe** when each finishes.
+
+### Lynch scan (fundamental screen)
+
+```bash
+quant-lynch --universe sp500
+```
+
+Screens for Peter Lynch-style growth-at-a-reasonable-price names. Presets: `summary` (default), `fast_grower`, `stalwart`, `asset_play`, `base`. Email is **on** by default with a reader-friendly summary (category counts, top candidates, qualitative checklist).
+
+Each result includes **plain-English reasoning**: an investor summary paragraph, a fundamentals table explaining what each metric means, and per-check pass/fail sentences (e.g. “PEG 0.8 — meets Lynch hurdle”). Growth for PEG prefers **recent TTM EPS trend** over stale 5-year averages when available.
+
+```bash
+quant-lynch --universe sp500 --preset fast_grower --no-email
+```
+
+Results: dashboard **Lynch** strategy, `data/output/lynch/{universe}/`, and legacy `data/output/lynch_scan_report.json` for sp500.
 
 ### How long does a scan take?
 
@@ -237,12 +293,26 @@ The **Ticker Detail** tab and **Full Universe** table show the filter reason.
 
 Universes are defined in `data/universes.json` and backed by files or screeners.
 
-### Built-in universes (v1)
+### Built-in universes
 
 | ID | Name | Source |
 |----|------|--------|
-| `sp500` | Large Cap Core | File: `data/universes/sp500.txt` (~193 symbols) |
+| `sp500` | Large Cap Core | Curated watchlist (~193 symbols; not the full S&P 500 index) |
+| `large_cap_growth` | Large Cap Growth | Growth-tilted subset of core list |
+| `small_cap_growth` | Small Cap Growth | VBK-style holdings |
+| `mid_cap_growth` | Mid Cap Growth | Mid cap growth watchlist |
+| `dividend_growers` | Dividend Growers | Dividend growth proxy |
+| `fintech_growth` | Fintech & Digital Growth | FDIG-style list |
 | `most_actives` | Most Actives | Yahoo screener (up to 250 symbols) |
+
+### Scan all universes
+
+```bash
+quant-scan-all --cache              # no email
+quant-scan-all --cache --email      # one breakout email per universe
+```
+
+Includes file-based universes and dynamic screeners (`most_actives`). Not on the automatic schedule unless an admin adds cron entries.
 
 ### List universes
 
@@ -272,9 +342,11 @@ Postgres is the **source of truth**. File exports are optional convenience copie
 
 | Output | Path | When created |
 |--------|------|--------------|
-| CSV results | `data/output/breakout_scan_results.csv` | Every scan |
-| JSON report | `data/output/breakout_scan_report.json` | When `--report json` or default |
-| Markdown summary | `data/output/breakout_scan_summary.md` | When `--report md` or `both` |
+| Breakout CSV | `data/output/breakout/{universe}/scan_results.csv` | Every breakout scan |
+| Breakout JSON | `data/output/breakout/{universe}/report.json` | `quant-daily`, `--report json/both` |
+| Breakout Markdown | `data/output/breakout/{universe}/summary.md` | `quant-daily`, `--report md/both` |
+| Swing CSV | `data/output/swing/{universe}/scan_results.csv` | Every swing scan |
+| Legacy sp500 copies | `data/output/breakout_scan_*` | sp500 breakout only (backward compatible) |
 
 `quant-daily` produces CSV + JSON + MD by default.
 
@@ -290,51 +362,105 @@ Prints JSON scan summary from Postgres (tier counts, universe size, etc.).
 
 ## 8. Email notifications
 
-When SMTP is configured, `quant-daily` sends an email listing **Tier 1 and Tier 2** tickers after the scan.
-
-Required environment variables (set by administrator in `.env`):
+When SMTP is configured in `.env`, Quant Hub sends HTML emails to every address in `EMAIL_TO` (comma-separated). Your administrator sets:
 
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
-- `EMAIL_TO` (comma-separated recipients)
-- `EMAIL_FROM` (optional)
+- `EMAIL_TO` (required for any mail)
+- `EMAIL_FROM` (optional; defaults to `SMTP_USER`)
+- `SMTP_USE_TLS` (optional; default `true`)
 
-Skip email for a manual run:
+### When emails are sent
+
+| Event | Command / trigger | Default |
+|-------|-------------------|---------|
+| Weekday breakout scan | Cron → `quant-daily --universe sp500` | Email **on** |
+| Friday swing scan | Cron → `quant-swing --universe sp500` | Email **on** |
+| Saturday Lynch scan | Cron → `quant-lynch --universe sp500` | Email **on** |
+| Manual breakout with mail | `quant-daily --universe <id>` | Email **on** |
+| Manual breakout, no mail | `quant-scan --universe <id> --cache` | Email **off** |
+| Batch all universes | `quant-scan-all --cache --email` | Email **on** (once per universe) |
+| Manual swing | `quant-swing --universe <id>` | Email **on** |
+
+Emails are sent **even when there are zero actionable tickers or setups** — the message states that explicitly.
+
+### Breakout email
+
+- **Subject:** `Quant Hub YYYY-MM-DD: N Actionable (X T1, Y T2)`
+- **Content:** Market regime (label, SPY price, 63-day return); universe stats; HTML table of **Tier 1 and Tier 2** tickers sorted by final score (normalized score, sector ETF, RS, compression, relative volume, tier reason)
+- **Links:** Each ticker links to TradingView
+
+### Swing email
+
+- **Subject:** `Quant Hub Swing YYYY-MM-DD: N setups (L long, S short)`
+- **Content:** Weekly data context (10y / 1wk); count of long vs short setups; table of `SETUP_LONG` and `SETUP_SHORT` names with close, EMA20/50, RSI, ATR, notes
+- **Links:** Each ticker links to TradingView
+
+### Lynch email
+
+- **Subject:** `Your Lynch Stock Ideas — Mon DD: N names passed`
+- **Content:** Plain-English intro; colored summary cards (fast growers / stalwarts / asset plays); top candidates with company name, Lynch type badge, score, P/E, PEG, 5Y EPS growth, market cap, and why it passed; “Before you buy” qualitative checklist
+- **Links:** Each ticker links to TradingView
+- **Empty runs:** Still emailed with guidance to check the dashboard for near-misses
+
+### Skip email for a manual run
 
 ```bash
 quant-daily --no-email
+quant-swing --no-email
+quant-lynch --no-email
 ```
+
+`quant-scan` and `quant-scan-all` (without `--email`) never send mail.
 
 ---
 
-## 9. Daily workflow
+## 9. Automated schedule and daily workflow
 
-### Automated schedule (production)
+All scheduled jobs run **inside the `quant-hub` container** in **America/New_York** time.
 
-On weekdays, the container cron job runs at **5:17 PM Eastern Time**:
+### Production schedule
 
-```
-quant-daily --universe sp500
-```
+| Day | Time (ET) | Job | What you receive |
+|-----|-----------|-----|------------------|
+| Mon–Fri | **5:17 PM** | Breakout daily (`quant-daily --universe sp500`) | Breakout email for large-cap core list |
+| Friday | **6:17 PM** | Swing weekly (`quant-swing --universe sp500`) | Swing email for the same universe |
+| Saturday | **9:17 AM** | Lynch weekly (`quant-lynch --universe sp500`) | Lynch email with fundamental candidates |
 
-This enables cache, persists to Postgres, writes export files, logs the job, and sends email if configured.
+Other universes (`small_cap_growth`, `most_actives`, etc.) are **not** on the automatic schedule unless an administrator adds cron lines (see **RUNBOOK.md**).
 
 ### Typical user routine
 
-1. **After 5:30 PM ET** — open dashboard at `http://<host>:5002`
-2. Select **sp500** and today’s **Scan date**
-3. Open **Actionable Watchlist** tab
-4. Review Tier 1 names first; drill into **Ticker Detail** for confirmation
-5. Optionally export CSV from `data/output/` for spreadsheet work
+**Weekdays (breakout)**
+
+1. After **~5:30 PM ET** — check inbox for the breakout email (or open the dashboard)
+2. Open `http://<host>:5002`, select **Breakout** strategy, universe **sp500**, today’s **Scan date**
+3. Review **Actionable Watchlist** (Tier 1 first); use **Ticker Detail** for confirmation
+4. Optionally export CSV from `data/output/breakout/sp500/`
+
+**Fridays (swing)**
+
+1. After **~6:30 PM ET** — check inbox for the swing email
+2. In the dashboard, switch strategy to **Swing**, universe **sp500**, latest scan date
+3. Review long/short setup tables
+
+**Saturdays (Lynch)**
+
+1. After **~9:30 AM ET** — check inbox for the Lynch email
+2. In the dashboard, switch strategy to **Lynch**, universe **sp500**
+3. Review **Candidates** tab; read qualitative overlay before acting
 
 ### Manual catch-up
 
-If the cron job failed or you need a refresh:
+If cron failed or you need a refresh:
 
 ```bash
-quant-scan --universe sp500 --cache
+quant-daily --universe sp500          # breakout + email
+quant-swing --universe sp500          # swing + email
+quant-lynch --universe sp500          # Lynch + email
+quant-scan --universe sp500 --cache   # breakout, no email
 ```
 
-Same-day reruns are safe.
+Same-day reruns replace the previous run for that (date, strategy, universe) — safe to repeat.
 
 ---
 
@@ -358,8 +484,17 @@ A: Daily OHLCV; cache TTL is 24 hours per ticker. Use `--force-refresh` for a fu
 **Q: Does Quant Hub place trades?**  
 A: No. It is research and scanning only.
 
+**Q: I got an email with no tickers in the table.**  
+A: Normal when no names meet Tier 1/2 (breakout) or setup rules (swing). The scan still ran; check the dashboard for filtered names.
+
+**Q: How many emails should I expect on a full batch run?**  
+A: `quant-scan-all --email` sends one breakout email per universe (seven today). Swing is separate — one email per `quant-swing` run.
+
+**Q: Does the swing job run on weekdays?**  
+A: Only **Friday 6:17 PM ET** for `sp500` in the default schedule.
+
 **Q: Where do TradingView links go?**  
-A: Email notifications include TradingView chart links for actionable tickers.
+A: Email notifications include TradingView chart links for actionable tickers and swing setups.
 
 ---
 
@@ -370,8 +505,9 @@ A: Email notifications include TradingView chart links for actionable tickers.
 | **Universe** | Named list of tickers to scan |
 | **Scan run** | One complete execution for (date, strategy, universe) |
 | **Regime** | SPY-based market environment multiplier |
-| **Actionable** | Tier 1 or Tier 2 |
-| **Cache hit** | Price loaded from local parquet file (< 24h old) |
+| **Actionable** | Tier 1 or Tier 2 (breakout) |
+| **Setup** | Swing `SETUP_LONG` or `SETUP_SHORT` |
+| **Cache hit** | Price loaded from local parquet file (< 24h daily / weekly cache) |
 
 ---
 

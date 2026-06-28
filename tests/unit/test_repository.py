@@ -53,6 +53,11 @@ def _sample_report(n: int = 5) -> dict:
             "multiplier": 0.85,
             "spy_price": 500.0,
             "return_63d_pct": 5.0,
+            "sma50": 495.0,
+            "sma200": 480.0,
+            "meaning": "Test regime",
+            "high_52w": 510.0,
+            "pct_below_52w_high": 2.0,
         },
         "tickers": tickers,
     }
@@ -80,5 +85,27 @@ def test_upsert_same_day_replaces_ticker_rows():
     assert len(loaded["tickers"]) == 7  # last run had n=7
     assert counts["scan_runs"] >= 1
 
-    runs = [r for r in repo.list_runs() if r["universe_id"] == universe and r["scan_date"] == scan_date]
+    runs = [r for r in repo.list_runs(exclude_fixtures=False) if r["universe_id"] == universe and r["scan_date"] == scan_date]
     assert len(runs) == 1
+
+
+def test_market_regime_roundtrip():
+    repo = ScanRepository()
+    report = _sample_report()
+    repo.upsert_scan(
+        scan_date=date(2099, 1, 2),
+        strategy_id="breakout",
+        universe_id="test-regime-roundtrip",
+        report=report,
+    )
+    loaded = repo.load_report(
+        strategy_id="breakout",
+        universe_id="test-regime-roundtrip",
+        scan_date=date(2099, 1, 2),
+        exclude_fixtures=False,
+    )
+    assert loaded is not None
+    regime = loaded["market_regime"]
+    assert regime["sma50"] == 495.0
+    assert regime["meaning"] == "Test regime"
+    repo.delete_fixture_runs()

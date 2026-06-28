@@ -1,5 +1,5 @@
 from quant_hub.filters.eligibility import FILTER_LABELS, eligibility_detail
-from quant_hub.report.diagnostics import score_components_detail
+from quant_hub.report.diagnostics import fundamentals_detail_from_map, score_components_detail
 from quant_hub.strategies.breakout.tiers import explain_tier as explain_breakout_tier
 
 
@@ -103,6 +103,7 @@ def build_ticker_report(
     )
 
     if not elig["passed"]:
+        fund_detail = fundamentals_detail_from_map(fund) if fund else None
         return {
             "ticker": ticker,
             "verdict": "excluded",
@@ -110,7 +111,8 @@ def build_ticker_report(
             "tier": "filtered",
             "tier_reason": elig["summary"],
             "eligibility": elig,
-            "scores": None,
+            "scores": fund_detail,
+            "fundamentals": fund or None,
             "summary": {
                 "raw_score": 0,
                 "normalized_score": 0,
@@ -140,6 +142,7 @@ def build_ticker_report(
         "sector_etf": sector_etf,
         "eligibility": elig,
         "scores": score_detail,
+        "fundamentals": fund or None,
         "summary": {
             "raw_score": row.get("raw_score"),
             "normalized_score": round(row.get("normalized_score", 0), 2),
@@ -161,6 +164,7 @@ def build_scan_report(
     regime_detail: dict,
     scores_by_ticker: dict,
     strategy_id: str = "breakout",
+    fundamentals_quality: dict | None = None,
 ) -> dict:
     tickers_report = []
     for ticker in universe:
@@ -191,16 +195,20 @@ def build_scan_report(
 
     tier_counts = _tier_counts(results_df, strategy_id)
 
-    return {
-        "strategy_id": strategy_id,
-        "scan_summary": {
+    summary = {
             "universe_size": len(universe),
             "eligible_count": len(eligible),
             "excluded_count": len(excluded),
             "tier_counts": tier_counts,
             "actionable_count": _actionable_count(tier_counts, strategy_id),
             "filter_breakdown": filter_counts,
-        },
+        }
+    if fundamentals_quality:
+        summary["fundamentals_quality"] = fundamentals_quality
+
+    return {
+        "strategy_id": strategy_id,
+        "scan_summary": summary,
         "market_regime": regime_detail,
         "tickers": tickers_report,
     }

@@ -10,6 +10,7 @@ from quant_hub.config import ALL_SECTOR_ETFS, BENCHMARK_TICKER
 from quant_hub.infrastructure.market.yfinance_provider import (
     download_fundamentals,
     download_prices,
+    fundamentals_quality_summary,
 )
 from quant_hub.regime.market import MarketRegime, compute_market_regime, regime_detail
 
@@ -51,13 +52,25 @@ def synthetic_prices(tickers: list[str]) -> pd.DataFrame:
 
 
 def synthetic_fundamentals(tickers: list[str]) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "ticker": tickers,
-            "revenue_yoy": [0.25] * len(tickers),
-            "eps_combined": [0.35] * len(tickers),
-        }
-    )
+    rows = []
+    for ticker in tickers:
+        rows.append(
+            {
+                "ticker": ticker,
+                "revenue_yoy": 0.25,
+                "revenue_yoy_status": "OK",
+                "revenue_yoy_source": "synthetic",
+                "eps_combined": 0.35,
+                "eps_combined_status": "OK",
+                "eps_yoy": 0.30,
+                "eps_cagr_3y": 0.25,
+                "eps_source": "synthetic",
+                "quarters_available": 8,
+                "fetched_at": "",
+                "fetch_error": None,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 @dataclass
@@ -91,9 +104,11 @@ class ScanContext:
         if dry_run:
             prices = synthetic_prices(download_tickers)
             fundamentals = synthetic_fundamentals(universe)
+            fund_quality = fundamentals_quality_summary(fundamentals)
         else:
             prices = download_prices(download_tickers, use_cache=use_cache)
             fundamentals = download_fundamentals(universe, use_cache=use_cache)
+            fund_quality = fundamentals_quality_summary(fundamentals)
 
         spy_df = ticker_df(prices, BENCHMARK_TICKER)
         if spy_df is None or spy_df.empty:
@@ -120,6 +135,7 @@ class ScanContext:
             regime=regime,
             regime_detail=regime_info,
             dry_run=dry_run,
+            extras={"fundamentals_quality": fund_quality},
         )
 
     def stock_df(self, ticker: str) -> pd.DataFrame | None:

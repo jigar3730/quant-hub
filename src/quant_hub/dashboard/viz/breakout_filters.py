@@ -25,7 +25,13 @@ def apply_breakout_filters(df: pd.DataFrame, filters: BreakoutFilters) -> pd.Dat
     if filters.actionable_only:
         result = result[result["tier"].isin(["Tier 1", "Tier 2"])]
     if filters.min_score > 0:
-        result = result[result["final_score"] >= filters.min_score]
+        # Tier assignment uses normalized score; final score includes regime discount.
+        score_col = (
+            "normalized_score"
+            if filters.actionable_only and "normalized_score" in result.columns
+            else "final_score"
+        )
+        result = result[result[score_col] >= filters.min_score]
     if filters.search:
         result = result[result["ticker"].str.contains(filters.search, na=False)]
     return result
@@ -43,6 +49,7 @@ def scatter_dataframe(tickers: list[dict]) -> pd.DataFrame:
                 "compression": ticker["scores"]["compression"]["score"],
                 "rs_market": ticker["scores"]["rs_market"]["score"],
                 "final_score": ticker["summary"]["final_adjusted_score"],
+                "normalized_score": ticker["summary"].get("normalized_score"),
             }
         )
     return pd.DataFrame(rows)

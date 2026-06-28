@@ -6,7 +6,6 @@ import argparse
 import logging
 
 from quant_hub.application.scan_service import ScanService
-from quant_hub.config import DEFAULT_OUTPUT_CSV, DEFAULT_OUTPUT_JSON, DEFAULT_OUTPUT_MD
 from quant_hub.logging_setup import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -24,10 +23,7 @@ def run_daily_scan(
     service.run(
         universe_id=universe_id,
         use_cache=use_cache,
-        output=DEFAULT_OUTPUT_CSV,
         report="both",
-        report_json=DEFAULT_OUTPUT_JSON,
-        report_md=DEFAULT_OUTPUT_MD,
         send_email=send_email,
         job_name=job_name,
     )

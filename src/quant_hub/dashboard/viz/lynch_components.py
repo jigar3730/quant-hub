@@ -109,6 +109,28 @@ def render_lynch_ticker_detail(ticker: str, data: dict) -> None:
     elif data.get("fail_reason"):
         st.warning(data["fail_reason"])
 
+    if data.get("investor_summary"):
+        st.markdown("#### In plain English")
+        st.write(data["investor_summary"])
+
+    snapshot = data.get("fundamental_snapshot") or []
+    if snapshot:
+        st.markdown("#### Key fundamentals (what the numbers mean)")
+        snap_df = pd.DataFrame(snapshot)
+        show_cols = ["label", "display", "explanation", "source"]
+        cols_present = [c for c in show_cols if c in snap_df.columns]
+        st.dataframe(
+            snap_df[cols_present],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "label": st.column_config.TextColumn("Metric"),
+                "display": st.column_config.TextColumn("Value"),
+                "explanation": st.column_config.TextColumn("What it means"),
+                "source": st.column_config.TextColumn("Source"),
+            },
+        )
+
     hist_fig = render_lynch_history_chart(ticker)
     if hist_fig:
         st.plotly_chart(hist_fig, use_container_width=True)

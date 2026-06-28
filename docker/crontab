@@ -1,5 +1,9 @@
-# Quant Hub cron — weekday breakout scan at 5:17 PM ET
+# Quant Hub cron — America/New_York (container TZ)
+# Breakout: Mon–Fri 5:17 PM ET — sp500 daily scan + email
 17 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 >> /app/logs/cron.log 2>&1
 
-# Weekly swing scan — Friday 6:17 PM ET (10y / 1wk OHLCV + email)
+# Swing: Friday 6:17 PM ET — sp500 weekly setup scan + email
 17 18 * * 5 root . /etc/environment; quant-swing --universe sp500 >> /app/logs/cron.log 2>&1
+
+# Lynch: Saturday 9:17 AM ET — Peter Lynch fundamental screen + email
+17 9 * * 6 root . /etc/environment; quant-lynch --universe sp500 >> /app/logs/cron.log 2>&1

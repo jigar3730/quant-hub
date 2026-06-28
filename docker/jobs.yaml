@@ -1,7 +1,34 @@
+# Reference schedule — authoritative source is docker/crontab (installed into the container).
+# All times America/New_York (container TZ).
 jobs:
   - name: breakout-sp500-daily
-    cron: "0 17 * * 1-5"
+    cron: "17 17 * * 1-5"   # Mon–Fri 5:17 PM ET
     command: quant-daily --universe sp500
+    strategy: breakout
+    universe: sp500
+    email: true            # default; skip with --no-email
+    cache: true
+    persist: true
+    exports: [csv, json, md]
+    job_name: breakout-sp500-daily
+
   - name: swing-sp500-weekly
-    cron: "0 18 * * 5"
+    cron: "17 18 * * 5"     # Fri 6:17 PM ET
     command: quant-swing --universe sp500
+    strategy: swing
+    universe: sp500
+    email: true            # default; skip with --no-email
+    cache: true            # weekly parquet cache (default ON)
+    persist: true
+    exports: [csv]
+    job_name: swing-weekly
+
+  - name: lynch-sp500-weekly
+    cron: "17 9 * * 6"      # Sat 9:17 AM ET
+    command: quant-lynch --universe sp500
+    strategy: lynch
+    universe: sp500
+    email: true
+    persist: true
+    exports: [csv, json, md]
+    job_name: lynch-summary-sp500

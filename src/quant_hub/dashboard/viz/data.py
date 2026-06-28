@@ -139,7 +139,9 @@ def full_universe_dataframe(tickers: list[dict]) -> pd.DataFrame:
         rev_raw = scores.get("revenue", {}).get("raw", {})
         eps_raw = scores.get("eps", {}).get("raw", {})
         row["revenue_yoy_pct"] = rev_raw.get("revenue_yoy_pct")
+        row["revenue_status"] = scores.get("revenue", {}).get("status")
         row["eps_growth_pct"] = eps_raw.get("eps_combined_pct")
+        row["eps_status"] = scores.get("eps", {}).get("status")
         rows.append(row)
     return pd.DataFrame(rows).sort_values("final_score", ascending=False)
 

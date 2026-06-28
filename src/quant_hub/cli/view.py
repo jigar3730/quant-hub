@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-DASHBOARD = Path(__file__).resolve().parent / "dashboard" / "app.py"
+DASHBOARD = Path(__file__).resolve().parent.parent / "dashboard" / "app.py"
 
 
 def main(argv: list[str] | None = None) -> int:

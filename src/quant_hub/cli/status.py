@@ -23,33 +23,41 @@ def _cmd_status() -> int:
     for table, count in counts.items():
         print(f"  {table}: {count}")
 
-    runs = repo.list_runs(limit=5)
-    if runs:
-        print("\nRecent scans:")
+    for strategy in ("breakout", "swing", "lynch"):
+        runs = repo.list_runs(strategy_id=strategy, limit=5, exclude_fixtures=True)
+        if not runs:
+            continue
+        print(f"\nRecent {strategy} scans:")
         for run in runs:
             print(
                 f"  {run['scan_date']} {run['universe_id']} "
                 f"actionable={run.get('actionable_count', 0)} "
                 f"regime={run.get('regime_label', '?')}"
             )
-    else:
-        print("\nNo scan runs yet.")
 
-    job = job_repo.latest_job()
-    if job:
-        print("\nLatest job:")
-        print(
-            f"  {job['job_name']} status={job['status']} "
-            f"started={job['started_at']} "
-            f"fetched={job.get('tickers_fetched', 0)}/"
-            f"{job.get('tickers_requested', 0)}"
-        )
+    jobs = job_repo.recent_jobs(limit=5)
+    if jobs:
+        print("\nRecent jobs:")
+        for job in jobs:
+            print(
+                f"  {job['job_name']} status={job['status']} "
+                f"started={job['started_at']} "
+                f"fetched={job.get('tickers_fetched', 0)}/"
+                f"{job.get('tickers_requested', 0)}"
+            )
     return 0
 
 
 def _cmd_init_db() -> int:
     apply_schema()
     print("Schema applied.")
+    return 0
+
+
+def _cmd_cleanup_fixtures() -> int:
+    repo = ScanRepository()
+    deleted = repo.delete_fixture_runs()
+    print(f"Removed {deleted} fixture scan run(s).")
     return 0
 
 
@@ -69,6 +77,10 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("status", help="Database and scan status")
     sub.add_parser("init-db", help="Apply Postgres schema")
+    sub.add_parser(
+        "cleanup-fixtures",
+        help="Delete test fixture scan runs (test-upsert, custom, future dates)",
+    )
 
     report = sub.add_parser("report", help="Show latest scan summary")
     report.add_argument("--universe", default="sp500")
@@ -80,6 +92,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_status()
     if args.command == "init-db":
         return _cmd_init_db()
+    if args.command == "cleanup-fixtures":
+        return _cmd_cleanup_fixtures()
     if args.command == "report":
         return _cmd_report(args.universe, args.strategy)
     return 1
