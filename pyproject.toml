@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quant-hub"
+version = "0.1.0"
+description = "Homelab quant scanner with Postgres-backed results"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0.0",
+    "pandas>=2.2.0",
+    "psycopg[binary]>=3.2.0",
+    "pyarrow>=18.0.0",
+    "yfinance>=0.2.40",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+]
+viz = [
+    "plotly>=5.0.0",
+    "streamlit>=1.40.0",
+]
+
+[project.scripts]
+quant-scan = "quant_hub.cli.scan:main"
+quant-daily = "quant_hub.cli.daily:main"
+quant-swing = "quant_hub.cli.swing:main"
+quant-universe = "quant_hub.cli.universe:main"
+quant-hub = "quant_hub.cli.status:main"
+quant-view = "quant_hub.cli.view:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quant_hub"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests that require network access",
+]
+addopts = "-m 'not integration'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

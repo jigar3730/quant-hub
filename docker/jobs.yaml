@@ -1,0 +1,7 @@
+jobs:
+  - name: breakout-sp500-daily
+    cron: "0 17 * * 1-5"
+    command: quant-daily --universe sp500
+  - name: swing-sp500-weekly
+    cron: "0 18 * * 5"
+    command: quant-swing --universe sp500

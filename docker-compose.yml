@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: quant-hub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: quant
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quant}
+      POSTGRES_DB: quant_hub
+    volumes:
+      - /mnt/fast/quant-data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quant -d quant_hub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  quant-hub:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: quant-hub
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      TZ: America/New_York
+      DATABASE_URL: postgresql://quant:${POSTGRES_PASSWORD:-quant}@postgres:5432/quant_hub
+    volumes:
+      - /mnt/fast/quant-data/data:/app/data
+      - /mnt/fast/quant-data/logs:/app/logs
+    ports:
+      - "5002:5000"

@@ -1,0 +1,12 @@
+{
+  "universes": {
+    "sp500": {
+      "name": "Large Cap Core",
+      "sources": [{"type": "file", "path": "data/universes/sp500.txt"}]
+    },
+    "most_actives": {
+      "name": "Most Actives",
+      "sources": [{"type": "screener", "screener": "most_actives", "count": 250}]
+    }
+  }
+}
