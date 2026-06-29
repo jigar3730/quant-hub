@@ -217,7 +217,7 @@ Do **not** re-implement these — they are in place:
 
 | | |
 |---|---|
-| **Issue** | Breakout engine iterates tickers sequentially. Friday jobs overlap (ETF breakout 4:30, swing 4:35, sp500 breakout 5:17, swing 6:17) with no coordination. |
+| **Issue** | Breakout engine iterates tickers sequentially. Friday jobs overlap (ETF breakout 4:30, swing 4:35, sp500 swing 5:45) with no coordination; Saturday full coverage runs 1–5 AM. |
 | **Evidence** | `src/quant_hub/engine/runner.py`; `docker/crontab` |
 | **Remediation** | DB advisory lock or file mutex; stagger jobs; queue-based workers for large universes. |
 

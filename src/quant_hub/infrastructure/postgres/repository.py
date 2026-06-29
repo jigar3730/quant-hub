@@ -545,6 +545,10 @@ class JobRunRepository:
                 ]
                 return dict(zip(keys, row, strict=True))
 
+    def job_succeeded(self, job_name: str) -> bool:
+        job = self.latest_job(job_name)
+        return bool(job and job.get("status") == "success")
+
     def recent_jobs(self, *, limit: int = 10) -> list[dict[str, Any]]:
         with get_connection() as conn:
             with conn.cursor() as cur:

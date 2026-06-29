@@ -1,13 +1,38 @@
 # Quant Hub cron — America/New_York (container TZ)
-# Breakout: Mon–Fri 5:17 PM ET — sp500 daily scan + email
-17 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 >> /app/logs/cron.log 2>&1
+# Scans run with --no-email; digests send consolidated mail.
 
-# Sector & commodity ETFs: Fri 4:30 PM ET breakout, 4:35 PM ET swing — no email
+# Mon–Fri 5:00 PM ET — sp500 breakout scan (no email)
+0 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 --no-email >> /app/logs/cron.log 2>&1
+
+# Mon–Fri 5:35 PM ET — daily quality digest email
+35 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
+
+# Fri 4:30 PM ET — ETF breakout (no email)
 30 16 * * 5 root . /etc/environment; quant-daily --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
+
+# Fri 4:35 PM ET — ETF swing (no email)
 35 16 * * 5 root . /etc/environment; quant-swing --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
 
-# Swing: Friday 6:17 PM ET — sp500 weekly setup scan + email
-17 18 * * 5 root . /etc/environment; quant-swing --universe sp500 >> /app/logs/cron.log 2>&1
+# Fri 5:45 PM ET — sp500 swing scan (no email; included in Saturday weekly digest)
+45 17 * * 5 root . /etc/environment; quant-swing --universe sp500 --no-email >> /app/logs/cron.log 2>&1
 
-# Lynch: Saturday 9:17 AM ET — Peter Lynch fundamental screen + email
-17 9 * * 6 root . /etc/environment; quant-lynch --universe sp500 >> /app/logs/cron.log 2>&1
+# Sat 12:30 AM ET on first Saturday of each quarter — refresh sp500_index before weekly sweep
+30 0 1-7 1,4,7,10 6 root . /etc/environment; quant-universe refresh sp500_index >> /app/logs/cron.log 2>&1
+
+# Sat 1:00 AM ET — full breakout coverage (all universes)
+0 1 * * 6 root . /etc/environment; quant-scan-all --cache --report both >> /app/logs/cron.log 2>&1
+
+# Sat 4:00 AM ET — full swing coverage (all universes)
+0 4 * * 6 root . /etc/environment; quant-swing-all --no-email >> /app/logs/cron.log 2>&1
+
+# Sat 5:00 AM ET — full Lynch coverage (stock universes; skips lynch_enabled: false)
+0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
+
+# Sat 7:50 AM ET — weekly analytics payload
+50 7 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1
+
+# Sat 8:00 AM ET — weekly consolidated digest email
+0 8 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
+
+# Sat 9:00 AM ET — retry weekly digest if 8:00 run failed (idempotent skip if already sent)
+0 9 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Weekly full coverage entrypoint inside the quant-hub container.
+set -euo pipefail
+exec /app/scripts/weekly-full-coverage.sh "$@"

@@ -3,7 +3,7 @@
 **Version:** 1.1  
 **Product:** Quant Hub homelab stock scanner (breakout + swing + Lynch)  
 **Audience:** Traders, analysts, and operators who run scans and use the dashboard  
-**Last updated:** 2026-06-28 (Breakout pipeline reference added)
+**Last updated:** 2026-06-29 (full universe coverage, batch CLIs, digest schedule)
 
 ---
 
@@ -20,7 +20,7 @@
 9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
 
-**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
+**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
 
 ---
 
@@ -28,11 +28,13 @@
 
 Quant Hub is a **stock scanner** for a homelab environment. It runs two strategies:
 
-| Strategy | Cadence | What it finds |
-|----------|---------|---------------|
-| **Breakout** | Daily (weekdays) | Tier 1 / 2 / 3 names with relative strength, compression, volume, and pattern scores |
-| **Swing** | Weekly (Friday) | Long/short pullback setups vs 20-week EMA; **quality score 0–100** ranks setups |
-| **Lynch** | Weekly (Saturday) | Peter Lynch categories: fast growers, stalwarts, asset plays (P/E, PEG, balance sheet) |
+
+| Strategy     | Cadence           | What it finds                                                                          |
+| ------------ | ----------------- | -------------------------------------------------------------------------------------- |
+| **Breakout** | Daily (weekdays)  | Tier 1 / 2 / 3 names with relative strength, compression, volume, and pattern scores   |
+| **Swing**    | Weekly (Friday)   | Long/short pullback setups vs 20-week EMA; **quality score 0–100** ranks setups        |
+| **Lynch**    | Weekly (Saturday) | Peter Lynch categories: fast growers, stalwarts, asset plays (P/E, PEG, balance sheet) |
+
 
 All strategies:
 
@@ -52,7 +54,7 @@ All strategies:
 
 ### What it is not
 
-- Not a broker or order execution system
+- Not a broker or order execution systemasdfsedfas
 - Not financial advice
 - Not a real-time streaming quote platform (data is daily OHLCV with optional cache)
 
@@ -64,10 +66,12 @@ All strategies:
 
 If Quant Hub is running via Docker (recommended):
 
-| Service | URL |
-|---------|-----|
-| Dashboard | `http://<your-server>:5002` |
-| Postgres (admin only) | `localhost:5433` |
+
+| Service               | URL                         |
+| --------------------- | --------------------------- |
+| Dashboard             | `http://<your-server>:5002` |
+| Postgres (admin only) | `localhost:5433`            |
+
 
 The dashboard reads **only from Postgres**. You do not need JSON report files open in the UI.
 
@@ -96,15 +100,17 @@ Docker deployment: `http://<host>:5002`
 
 ### Sidebar controls
 
-| Control | Purpose |
-|---------|---------|
-| **Strategy** | Breakout (daily), Swing (weekly), or Lynch (fundamental) |
-| **Universe** | Select which ticker list to view (`sp500`, `most_actives`, etc.); universes with scans are listed first |
-| **Scan date** | Pick a historical run for that universe (most recent at top) |
-| **Filters** | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only) |
-| **Score / rubric guides** | Breakout: stock metrics cheat sheet. Swing: setup quality rubric (partial credit + penalties) |
-| **Search ticker** | Filter tables by symbol |
-| **Ticker Detail picker** | Open a single-ticker profile (in-app; separate from Yahoo links in tables) |
+
+| Control                   | Purpose                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Strategy**              | Breakout (daily), Swing (weekly), or Lynch (fundamental)                                                |
+| **Universe**              | Select which ticker list to view (`sp500`, `most_actives`, etc.); universes with scans are listed first |
+| **Scan date**             | Pick a historical run for that universe (most recent at top)                                            |
+| **Filters**               | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only)                |
+| **Score / rubric guides** | Breakout: stock metrics cheat sheet. Swing: setup quality rubric (partial credit + penalties)           |
+| **Search ticker**         | Filter tables by symbol                                                                                 |
+| **Ticker Detail picker**  | Open a single-ticker profile (in-app; separate from Yahoo links in tables)                              |
+
 
 ### Ticker links
 
@@ -112,36 +118,42 @@ All scan tables show a **Ticker** column linking to **Yahoo Finance** quotes (op
 
 ### Breakout tabs
 
-| Tab | Description |
-|-----|-------------|
-| **Overview** | Today's takeaway, regime, tier charts, near-miss panel, scatter plot |
-| **Full Universe** | Sortable table + side panel preview; top signal tags |
-| **Ticker Detail** | Fundamentals, component scores, eligibility, live snapshot |
-| **Actionable Watchlist** | Tier 1 and Tier 2 candidates |
-| **Compare** | Side-by-side radar for 2–3 tickers |
-| **System** | Scan counts and job status (collapsed admin) |
+
+| Tab                      | Description                                                          |
+| ------------------------ | -------------------------------------------------------------------- |
+| **Overview**             | Today's takeaway, regime, tier charts, near-miss panel, scatter plot |
+| **Full Universe**        | Sortable table + side panel preview; top signal tags                 |
+| **Ticker Detail**        | Fundamentals, component scores, eligibility, live snapshot           |
+| **Actionable Watchlist** | Tier 1 and Tier 2 candidates                                         |
+| **Compare**              | Side-by-side radar for 2–3 tickers                                   |
+| **System**               | Scan counts and job status (collapsed admin)                         |
+
 
 Three layers on every breakout result: **eligibility** (hard gate) → **score** (9 factors + regime) → **tier** (Tier 1/2/3). See [Breakout Scanner reference](BREAKOUT_SCANNER.md).
 
 ### Swing tabs
 
-| Tab | Description |
-|-----|-------------|
-| **Weekly Setups** | Confirmed `SETUP_LONG` / `SETUP_SHORT` ranked by **quality score** and grade |
-| **Full Universe** | Every ticker with weekly indicators, rules passed, and score |
-| **Ticker Detail** | Setup score breakdown: base components, penalties, rule checklist |
-| **Rejection Breakdown** | Why setups failed (aggregate counts) |
+
+| Tab                     | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| **Weekly Setups**       | Confirmed `SETUP_LONG` / `SETUP_SHORT` ranked by **quality score** and grade |
+| **Full Universe**       | Every ticker with weekly indicators, rules passed, and score                 |
+| **Ticker Detail**       | Setup score breakdown: base components, penalties, rule checklist            |
+| **Rejection Breakdown** | Why setups failed (aggregate counts)                                         |
+
 
 On **Ticker Detail**, see [Swing Scanner reference](SWING_SCANNER.md) for how **Score** (quality) differs from the **setup gate** (all 5 rules must pass).
 
 ### Lynch tabs
 
-| Tab | Description |
-|-----|-------------|
-| **Candidates** | Names that passed the screen (default landing tab) |
-| **Overview** | Category charts, data-quality panel |
-| **All Tickers** | Full universe with Lynch score and data status |
+
+| Tab               | Description                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| **Candidates**    | Names that passed the screen (default landing tab)             |
+| **Overview**      | Category charts, data-quality panel                            |
+| **All Tickers**   | Full universe with Lynch score and data status                 |
 | **Ticker Detail** | Plain-English summary, fundamentals table, quantitative checks |
+
 
 On **Ticker Detail**, three data layers come from the same scan (see [Lynch Scanner reference](LYNCH_SCANNER.md)):
 
@@ -153,11 +165,13 @@ On **Ticker Detail**, three data layers come from the same scan (see [Lynch Scan
 
 Each scan includes a **market regime** derived from SPY:
 
-| Regime | Meaning | Score effect |
-|--------|---------|--------------|
-| **strong** | SPY in uptrend | Full weight (×1.0) |
-| **neutral** | Mixed conditions | Slight discount (×0.85) |
-| **weak** | Below 200-day MA or far from highs | Larger discount (×0.6) |
+
+| Regime      | Meaning                            | Score effect            |
+| ----------- | ---------------------------------- | ----------------------- |
+| **strong**  | SPY in uptrend                     | Full weight (×1.0)      |
+| **neutral** | Mixed conditions                   | Slight discount (×0.85) |
+| **weak**    | Below 200-day MA or far from highs | Larger discount (×0.6)  |
+
 
 Use regime context when interpreting scores: a Tier 2 in a weak regime may deserve extra caution.
 
@@ -169,30 +183,38 @@ All scan commands run on the server where Quant Hub is installed (`/opt/stacks/q
 
 ### Scan commands at a glance
 
-| Command | Strategy | Email | Typical use |
-|---------|----------|-------|-------------|
-| `quant-daily --universe sp500` | Breakout | **Yes** | Same as the weekday cron job |
-| `quant-scan --universe sp500 --cache` | Breakout | No | Manual scan, no mail |
-| `quant-scan-all --cache --email` | Breakout | **Yes** (per universe) | Batch all universes |
-| `quant-swing --universe sp500` | Swing | **Yes** | Same as the Friday cron job |
-| `quant-swing --universe sp500 --no-email` | Swing | No | Manual swing without mail |
-| `quant-lynch --universe sp500` | Lynch | **Yes** | Same as the Saturday cron job |
-| `quant-lynch --preset fast_grower --no-email` | Lynch | No | Narrow preset, no mail |
+
+| Command                                       | Strategy | Email                  | Typical use                   |
+| --------------------------------------------- | -------- | ---------------------- | ----------------------------- |
+| `quant-daily --universe sp500`                | Breakout | **Yes**                | Same as the weekday cron job  |
+| `quant-scan --universe sp500 --cache`         | Breakout | No                     | Manual scan, no mail          |
+| `quant-scan-all --cache --email`              | Breakout | **Yes** (per universe) | Batch all universes           |
+| `quant-swing --universe sp500`                | Swing    | **Yes**                | Same as the Friday cron job   |
+| `quant-swing --universe sp500 --no-email`     | Swing    | No                     | Manual swing without mail     |
+| `quant-swing-all --no-email`                  | Swing    | No                     | All universes (Saturday cron)   |
+| `quant-lynch --universe sp500 --no-email`     | Lynch    | No                     | Single universe               |
+| `quant-lynch-all --no-email`                  | Lynch    | No                     | All stock universes (Sat cron)|
+| `quant-lynch --preset fast_grower --no-email` | Lynch    | No                     | Narrow preset, no mail        |
+
+On production, prefix with `docker exec quant-hub` (CLI runs inside the container).
+
 
 ### Standard breakout scan (recommended)
 
 ```bash
-quant-scan --universe sp500 --cache
+docker exec quant-hub quant-scan --universe sp500 --cache
 ```
 
-| Flag | Meaning |
-|------|---------|
-| `--universe sp500` | Use the Large Cap Core list (~193 tickers) |
-| `--cache` | Reuse per-ticker price files cached within 24 hours (faster, fewer Yahoo requests) |
-| `--force-refresh` | Ignore cache and re-download all prices |
-| `--dry-run` | Synthetic data only; no network (for testing) |
-| `--report none` | Skip JSON/MD file export (Postgres still updated unless `--no-persist`) |
-| `--no-persist` | Skip writing to Postgres (CSV only) |
+
+| Flag               | Meaning                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `--universe sp500` | Use the Large Cap Core list (~193 tickers)                                         |
+| `--cache`          | Reuse per-ticker price files cached within 24 hours (faster, fewer Yahoo requests) |
+| `--force-refresh`  | Ignore cache and re-download all prices                                            |
+| `--dry-run`        | Synthetic data only; no network (for testing)                                      |
+| `--report none`    | Skip JSON/MD file export (Postgres still updated unless `--no-persist`)            |
+| `--no-persist`     | Skip writing to Postgres (CSV only)                                                |
+
 
 Scheduled job equivalent: `quant-daily --universe sp500` (email on by default). Factor and tier reference: **[BREAKOUT_SCANNER.md](BREAKOUT_SCANNER.md)**.
 
@@ -214,8 +236,8 @@ One ticker per line; `#` starts a comment.
 
 When multiple sources are given:
 
-1. `--tickers` (explicit list) — highest priority  
-2. `--universe` (named universe from config)  
+1. `--tickers` (explicit list) — highest priority
+2. `--universe` (named universe from config)
 3. `--tickers-file` (legacy file path)
 
 You must provide at least one of the above.
@@ -234,11 +256,13 @@ quant-swing --universe dividend_growers --no-email   # skip email
 
 #### Swing setup gate vs quality score
 
-| Concept | Meaning |
-|---------|---------|
-| **Setup gate** | Hard rule: all 5 long or short checks must pass → `SETUP_LONG` / `SETUP_SHORT` |
+
+| Concept                   | Meaning                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| **Setup gate**            | Hard rule: all 5 long or short checks must pass → `SETUP_LONG` / `SETUP_SHORT`           |
 | **Quality score (0–100)** | **Base** partial credit on 5 rules (20 pts each max) **minus penalties** (capped at −25) |
-| **Grade** | A (85+), B (70+), C (55+), D (&lt;55) |
+| **Grade**                 | A (85+), B (70+), C (55+), D (<55)                                                       |
+
 
 A confirmed setup can score below 100 (e.g. 82, grade B) if structure is valid but chase, RSI stretch, or MACD overextension penalties apply. Use the score to **rank** setups and review near-misses in **Full Universe**.
 
@@ -252,7 +276,7 @@ Open **Swing setup score rubric** in the sidebar or Weekly Setups tab for the fu
 quant-scan-all --cache --email --report both
 ```
 
-Runs breakout on every universe in `data/universes.json` (eight today). With `--email`, you receive **one breakout email per universe** when each finishes.
+Runs breakout on every universe in `data/universes.json` (nine today). With `--email`, you receive **one breakout email per universe** when each finishes.
 
 ### Lynch scan (fundamental screen)
 
@@ -274,11 +298,13 @@ For how PEG, checks, and Postgres storage work, see **[Lynch Scanner — data pi
 
 ### How long does a scan take?
 
-| Scenario | Typical duration |
-|----------|------------------|
-| Cached sp500 (~193 tickers) | 1–3 minutes |
-| Cold cache sp500 | 5–15 minutes (Yahoo rate limits) |
-| Dry-run | Under 10 seconds |
+
+| Scenario                    | Typical duration                 |
+| --------------------------- | -------------------------------- |
+| Cached sp500 (~193 tickers) | 1–3 minutes                      |
+| Cold cache sp500            | 5–15 minutes (Yahoo rate limits) |
+| Dry-run                     | Under 10 seconds                 |
+
 
 Fundamentals are fetched in **parallel batches** (with retries); Yahoo rate limits still dominate runtime on large universes.
 
@@ -292,12 +318,14 @@ Running the scan again on the **same calendar day** for the same universe **repl
 
 ### Tiers
 
-| Tier | Typical meaning |
-|------|-----------------|
-| **Tier 1** | Highest conviction breakout profile: strong normalized score, compression, and accumulation or relative volume |
-| **Tier 2** | Actionable watchlist: normalized score ≥ 65 |
-| **Tier 3** | Eligible but lower conviction |
-| **filtered** | Failed eligibility (volume, price, data quality, etc.) |
+
+| Tier         | Typical meaning                                                                                                |
+| ------------ | -------------------------------------------------------------------------------------------------------------- |
+| **Tier 1**   | Highest conviction breakout profile: strong normalized score, compression, and accumulation or relative volume |
+| **Tier 2**   | Actionable watchlist: normalized score ≥ 65                                                                    |
+| **Tier 3**   | Eligible but lower conviction                                                                                  |
+| **filtered** | Failed eligibility (volume, price, data quality, etc.)                                                         |
+
 
 **Actionable** tickers = Tier 1 + Tier 2.
 
@@ -305,23 +333,25 @@ Running the scan again on the **same calendar day** for the same universe **repl
 
 Each eligible ticker is scored on components such as:
 
-| Component | What it measures |
-|-----------|------------------|
-| **RS vs Market** | Relative strength vs SPY |
-| **RS vs Sector** | Relative strength vs sector ETF |
-| **Accumulation** | Volume/price accumulation patterns |
-| **Relative Volume** | Today’s volume vs average |
-| **Compression** | Volatility squeeze / range contraction |
-| **Pattern** | Chart pattern quality |
-| **Resistance** | Proximity to breakout levels |
-| **Revenue** | Revenue growth (fundamentals) |
-| **EPS** | Earnings growth (fundamentals) |
+
+| Component           | What it measures                       |
+| ------------------- | -------------------------------------- |
+| **RS vs Market**    | Relative strength vs SPY               |
+| **RS vs Sector**    | Relative strength vs sector ETF        |
+| **Accumulation**    | Volume/price accumulation patterns     |
+| **Relative Volume** | Today’s volume vs average              |
+| **Compression**     | Volatility squeeze / range contraction |
+| **Pattern**         | Chart pattern quality                  |
+| **Resistance**      | Proximity to breakout levels           |
+| **Revenue**         | Revenue growth (fundamentals)          |
+| **EPS**             | Earnings growth (fundamentals)         |
+
 
 Scores are combined into:
 
 - **Raw score** — sum of components  
 - **Normalized score** — scaled 0–100  
-- **Final adjusted score** — normalized × regime multiplier  
+- **Final adjusted score** — normalized × regime multiplier
 
 Sort and filter primarily on **final adjusted score**.
 
@@ -334,7 +364,7 @@ Tickers marked **filtered** failed checks such as:
 - Insufficient trading history  
 - Average volume below threshold  
 - Price below minimum  
-- Missing price data  
+- Missing price data
 
 The **Ticker Detail** tab and **Full Universe** table show the filter reason.
 
@@ -342,13 +372,15 @@ The **Ticker Detail** tab and **Full Universe** table show the filter reason.
 
 Fine-grained scoring lives in `setup_detail` on each ticker. **Important:** the **setup gate** (all 5 hard rules pass → `SETUP_LONG` / `SETUP_SHORT`) is separate from the **quality score** (0–100 partial credit minus penalties). A name can score 70+ and still be “No setup” if one rule failed.
 
-| Component | Max | Notes |
-|-----------|-----|-------|
-| Trend alignment | 20 | EMA20 vs EMA50 spread (partial if flat) |
-| EMA50 slope | 20 | Rising/falling vs prior week |
-| Pullback zone | 20 | Partial credit by ATR distance from EMA20 band |
-| RSI band | 20 | Partial credit near band edges |
-| MACD momentum | 20 | Two 10-pt sub-parts (week-over-week + overextension trim) |
+
+| Component       | Max | Notes                                                     |
+| --------------- | --- | --------------------------------------------------------- |
+| Trend alignment | 20  | EMA20 vs EMA50 spread (partial if flat)                   |
+| EMA50 slope     | 20  | Rising/falling vs prior week                              |
+| Pullback zone   | 20  | Partial credit by ATR distance from EMA20 band            |
+| RSI band        | 20  | Partial credit near band edges                            |
+| MACD momentum   | 20  | Two 10-pt sub-parts (week-over-week + overextension trim) |
+
 
 **Penalties** (examples): chase/extended entry, RSI extreme, MACD overextension, structure break (below EMA50 on longs), wrong-side dominance, weak weekly close.
 
@@ -358,13 +390,15 @@ Full pipeline, indicator formulas, and column-by-column dashboard guide: **[SWIN
 
 ### Lynch fundamentals (weekly strategy)
 
-| Concept | Meaning |
-|---------|---------|
-| **Lynch score** | % of quantitative checks passed (not a weighted model) |
-| **passed** | Met preset gate (`summary` = base screen **or** any Lynch category) |
-| **categories** | `fast_grower`, `stalwart`, `asset_play` |
-| **metrics** | Raw Yahoo + computed fields (PEG, EPS growth, revenue CV, etc.) |
-| **checks** | Anti-filters + base/category rules with plain-English explanations |
+
+| Concept         | Meaning                                                             |
+| --------------- | ------------------------------------------------------------------- |
+| **Lynch score** | % of quantitative checks passed (not a weighted model)              |
+| **passed**      | Met preset gate (`summary` = base screen **or** any Lynch category) |
+| **categories**  | `fast_grower`, `stalwart`, `asset_play`                             |
+| **metrics**     | Raw Yahoo + computed fields (PEG, EPS growth, revenue CV, etc.)     |
+| **checks**      | Anti-filters + base/category rules with plain-English explanations  |
+
 
 Full pipeline: [LYNCH_SCANNER.md](LYNCH_SCANNER.md).
 
@@ -376,25 +410,49 @@ Universes are defined in `data/universes.json` and backed by files or screeners.
 
 ### Built-in universes
 
-| ID | Name | Source |
-|----|------|--------|
-| `sp500` | Large Cap Core | Curated watchlist (~193 symbols; not the full S&P 500 index) |
-| `large_cap_growth` | Large Cap Growth | Growth-tilted subset of core list |
-| `small_cap_growth` | Small Cap Growth | VBK-style holdings |
-| `mid_cap_growth` | Mid Cap Growth | Mid cap growth watchlist |
-| `dividend_growers` | Dividend Growers | Dividend growth proxy |
-| `fintech_growth` | Fintech & Digital Growth | FDIG-style list |
-| `most_actives` | Most Actives | Yahoo screener (up to 250 symbols) |
-| `sector_commodity_etfs` | Sector & Commodity ETFs | 11 GICS sector SPDRs + 6 commodity proxies (17 tickers) |
 
-### Scan all universes
+| ID                      | Name                     | Source                                                              |
+| ----------------------- | ------------------------ | ------------------------------------------------------------------- |
+| `sp500`                 | Large Cap Core           | Curated watchlist (~193 symbols; not the full S&P 500 index)        |
+| `large_cap_growth`      | Large Cap Growth         | Growth-tilted subset of core list                                   |
+| `small_cap_growth`      | Small Cap Growth         | VBK-style holdings                                                  |
+| `mid_cap_growth`        | Mid Cap Growth           | Mid cap growth watchlist                                            |
+| `dividend_growers`      | Dividend Growers         | Dividend growth proxy                                               |
+| `fintech_growth`        | Fintech & Digital Growth | FDIG-style list                                                     |
+| `most_actives`          | Most Actives             | Yahoo screener (up to 250 symbols)                                  |
+| `sector_commodity_etfs` | Sector & Commodity ETFs  | 11 GICS sector SPDRs + 6 commodity proxies (17 tickers)             |
+| `sp500_index`           | S&P 500 (SPY holdings)   | SSGA SPY daily holdings file (~503 names; auto-refreshed quarterly) |
+
+
+### Refresh a holdings-backed universe
 
 ```bash
-quant-scan-all --cache              # no email
-quant-scan-all --cache --email      # one breakout email per universe
+quant-universe refresh sp500_index          # download SSGA SPY holdings -> sp500_index.txt
+quant-universe refresh sp500_index --dry-run
 ```
 
-Includes file-based universes and dynamic screeners (`most_actives`). **`sector_commodity_etfs`** is on the Friday ETF schedule (see §9); other stock universes remain manual unless cron is extended.
+Production bind mount: refresh writes to `/mnt/fast/quant-data/data/universes/sp500_index.txt`. Cron refreshes on the **first Saturday of Jan/Apr/Jul/Oct** at **12:30 AM ET** (before the 1 AM breakout sweep).
+
+The curated **`sp500`** list (~193 names) remains the default for weekday scans and digests; use **`sp500_index`** when you want full index coverage.
+
+### Scan all universes (batch)
+
+Run inside the container (`docker exec quant-hub …`) on production:
+
+```bash
+quant-scan-all --cache --report both   # breakout, all 9 universes
+quant-swing-all --no-email             # swing, all 9 universes
+quant-lynch-all --no-email             # Lynch, 8 stock universes (ETFs skipped)
+weekly-full-coverage                   # all three in order (~30–90 min cached)
+```
+
+| CLI | Universes | Email default |
+|-----|-----------|---------------|
+| `quant-scan-all` | All 9 | Off (use `--email` for one mail per universe) |
+| `quant-swing-all` | All 9 | Off with `--no-email` (cron default) |
+| `quant-lynch-all` | 8 stock (`lynch_enabled: false` skips ETFs) | Off with `--no-email` |
+
+Saturday cron runs full coverage automatically (see §9). **`sector_commodity_etfs`** also has dedicated Friday ETF jobs.
 
 ### List universes
 
@@ -410,8 +468,8 @@ quant-universe show sp500
 
 ### Adding a universe (requires admin)
 
-1. Add a ticker file under `data/universes/`  
-2. Add an entry to `data/universes.json`  
+1. Add a ticker file under `data/universes/`
+2. Add an entry to `data/universes.json`
 3. Run: `quant-scan --universe <new_id> --cache`
 
 No code changes are required for file-based universes.
@@ -422,14 +480,16 @@ No code changes are required for file-based universes.
 
 Postgres is the **source of truth**. File exports are optional convenience copies.
 
-| Output | Path | When created |
-|--------|------|--------------|
-| Breakout CSV | `data/output/breakout/{universe}/scan_results.csv` | Every breakout scan |
-| Breakout JSON | `data/output/breakout/{universe}/report.json` | `quant-daily`, `--report json/both` |
-| Breakout Markdown | `data/output/breakout/{universe}/summary.md` | `quant-daily`, `--report md/both` |
-| Swing setups CSV | `data/output/swing/{universe}/setups.csv` | Every swing scan |
-| Lynch CSV / JSON | `data/output/lynch/{universe}/` | Every Lynch scan |
-| Legacy sp500 copies | `data/output/breakout_scan_*` | sp500 breakout only (backward compatible) |
+
+| Output              | Path                                               | When created                              |
+| ------------------- | -------------------------------------------------- | ----------------------------------------- |
+| Breakout CSV        | `data/output/breakout/{universe}/scan_results.csv` | Every breakout scan                       |
+| Breakout JSON       | `data/output/breakout/{universe}/report.json`      | `quant-daily`, `--report json/both`       |
+| Breakout Markdown   | `data/output/breakout/{universe}/summary.md`       | `quant-daily`, `--report md/both`         |
+| Swing setups CSV    | `data/output/swing/{universe}/setups.csv`          | Every swing scan                          |
+| Lynch CSV / JSON    | `data/output/lynch/{universe}/`                    | Every Lynch scan                          |
+| Legacy sp500 copies | `data/output/breakout_scan_`*                      | sp500 breakout only (backward compatible) |
+
 
 `quant-daily` produces CSV + JSON + MD by default.
 
@@ -445,28 +505,38 @@ Prints JSON scan summary from Postgres (tier counts, universe size, etc.).
 
 ## 8. Email notifications
 
-When SMTP is configured in `.env`, Quant Hub sends HTML emails to every address in `EMAIL_TO` (comma-separated). Your administrator sets:
+When SMTP is configured, Quant Hub sends **consolidated digest emails** (see [Digest Policy](DIGEST_POLICY.md)):
+
+
+| Digest     | When (ET)       | Content                                                                           |
+| ---------- | --------------- | --------------------------------------------------------------------------------- |
+| **Daily**  | Mon–Fri 5:35 PM | Tier 1 conviction + Tier 2 watchlist; new/dropped; persistent names; regime       |
+| **Weekly** | Sat 8:00 AM     | Triple alignment (breakout + swing + Lynch); swing/Lynch highlights; regime recap |
+
+
+Individual scan emails (`quant-daily`, `quant-swing`, `quant-lynch`) are **off in cron** but available for manual runs.
+
+### SMTP settings (administrator)
 
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
-- `EMAIL_TO` (required for any mail)
-- `EMAIL_FROM` (optional; defaults to `SMTP_USER`)
+- `EMAIL_TO` (comma-separated recipients)
+- `EMAIL_FROM` (optional)
 - `SMTP_USE_TLS` (optional; default `true`)
 
-### When emails are sent
+### Manual email commands
 
-| Event | Command / trigger | Default |
-|-------|-------------------|---------|
-| Weekday breakout scan | Cron → `quant-daily --universe sp500` | Email **on** |
-| Friday swing scan | Cron → `quant-swing --universe sp500` | Email **on** |
-| Saturday Lynch scan | Cron → `quant-lynch --universe sp500` | Email **on** |
-| Manual breakout with mail | `quant-daily --universe <id>` | Email **on** |
-| Manual breakout, no mail | `quant-scan --universe <id> --cache` | Email **off** |
-| Batch all universes | `quant-scan-all --cache --email` | Email **on** (once per universe) |
-| Manual swing | `quant-swing --universe <id>` | Email **on** |
 
-Emails are sent **even when there are zero actionable tickers or setups** — the message states that explicitly.
+| Command                        | Use                                      |
+| ------------------------------ | ---------------------------------------- |
+| `quant-digest daily`           | Send today's daily digest                |
+| `quant-digest weekly`          | Send weekly digest (after Fri/Sat scans) |
+| `quant-daily --universe sp500` | Legacy single breakout email             |
+| `quant-swing` / `quant-lynch`  | Legacy single-strategy emails            |
 
-### Breakout email
+
+Empty-signal days still send a short daily digest when the pipeline ran successfully.
+
+### Legacy per-scan email formats (manual only)
 
 - **Subject:** `Quant Hub YYYY-MM-DD: N Actionable (X T1, Y T2)`
 - **Content:** Market regime (label, SPY price, 63-day return); universe stats; HTML table of **Tier 1 and Tier 2** tickers sorted by final score (normalized score, sector ETF, RS, compression, relative volume, tier reason)
@@ -499,50 +569,78 @@ quant-lynch --no-email
 
 ## 9. Automated schedule and daily workflow
 
-All scheduled jobs run **inside the `quant-hub` container** in **America/New_York** time.
+All scheduled jobs run **inside the `quant-hub` container** in **America/New_York** time. On the host, use `docker exec quant-hub <command>` (the CLI is not on the host PATH unless you install the package locally).
 
 ### Production schedule
 
 | Day | Time (ET) | Job | What you receive |
 |-----|-----------|-----|------------------|
-| Mon–Fri | **5:17 PM** | Breakout daily (`quant-daily --universe sp500`) | Breakout email for large-cap core list |
-| Friday | **4:30 PM** | Breakout (`quant-daily --universe sector_commodity_etfs --no-email`) | No email — sector & commodity ETFs |
-| Friday | **4:35 PM** | Swing (`quant-swing --universe sector_commodity_etfs --no-email`) | No email — same ETF list, weekly setups |
-| Friday | **6:17 PM** | Swing weekly (`quant-swing --universe sp500`) | Swing email for the same universe |
-| Saturday | **9:17 AM** | Lynch weekly (`quant-lynch --universe sp500`) | Lynch email with fundamental candidates |
+| Mon–Fri | **5:00 PM** | Breakout (`quant-daily --universe sp500 --no-email`) | No scan email |
+| Mon–Fri | **5:35 PM** | Daily digest (`quant-digest daily`) | **Daily digest email** (sp500 Tier 1/2) |
+| Friday | **4:30 PM** | Breakout (`sector_commodity_etfs --no-email`) | Dashboard only |
+| Friday | **4:35 PM** | Swing (`sector_commodity_etfs --no-email`) | Dashboard only |
+| Friday | **5:45 PM** | Swing (`sp500 --no-email`) | Dashboard only — feeds weekly digest |
+| Saturday | **12:30 AM** (quarterly) | `quant-universe refresh sp500_index` | First Sat of Jan/Apr/Jul/Oct |
+| Saturday | **1:00 AM** | `quant-scan-all --cache --report both` | Full breakout — all 9 universes → Postgres |
+| Saturday | **4:00 AM** | `quant-swing-all --no-email` | Full swing — all 9 universes |
+| Saturday | **5:00 AM** | `quant-lynch-all --no-email` | Full Lynch — 8 stock universes |
+| Saturday | **7:50 AM** | `quant-analytics weekly` | No email |
+| Saturday | **8:00 AM** | `quant-digest weekly` | **Weekly digest email** (sp500 focus) |
 
-Other stock universes (`small_cap_growth`, `most_actives`, etc.) are **not** on the automatic schedule unless an administrator adds cron lines (see **RUNBOOK.md**).
+### Coverage matrix
+
+| Universe | Breakout | Swing | Lynch |
+|----------|----------|-------|-------|
+| `sp500` | daily + Sat | Fri + Sat | Sat |
+| `sp500_index` | Sat | Sat | Sat |
+| `large_cap_growth` | Sat | Sat | Sat |
+| `small_cap_growth` | Sat | Sat | Sat |
+| `mid_cap_growth` | Sat | Sat | Sat |
+| `dividend_growers` | Sat | Sat | Sat |
+| `fintech_growth` | Sat | Sat | Sat |
+| `most_actives` | Sat | Sat | Sat |
+| `sector_commodity_etfs` | Fri + Sat | Fri + Sat | — |
+
+Digests highlight **`sp500`** only. All universes appear in the dashboard after Saturday overnight runs.
 
 ### Typical user routine
 
 **Weekdays (breakout)**
 
-1. After **~5:30 PM ET** — check inbox for the breakout email (or open the dashboard)
-2. Open `http://<host>:5002`, select **Breakout** strategy, universe **sp500**, today’s **Scan date**
+1. After **~5:35 PM ET** — check the **daily digest** email (or open the dashboard)
+2. Open `http://<host>:5002`, select **Breakout**, universe **sp500**, today’s **Scan date**
 3. Review **Actionable Watchlist** (Tier 1 first); use **Ticker Detail** for confirmation
-4. Optionally export CSV from `data/output/breakout/sp500/`
 
 **Fridays (swing + ETFs)**
 
-1. After **~4:45 PM ET** — ETF universe scans finish (dashboard only; no email)
-2. After **~6:30 PM ET** — check inbox for the **sp500** swing email
-3. In the dashboard: **Swing** → universe **Sector & Commodity ETFs** or **sp500**; review long/short setup tables
+1. After **~5:45 PM ET** — ETF and sp500 swing scans finish (dashboard only)
+2. In the dashboard: **Swing** → **Sector & Commodity ETFs** or **sp500**
 
-**Saturdays (Lynch)**
+**Saturdays (full coverage + weekly digest)**
 
-1. After **~9:30 AM ET** — check inbox for the Lynch email
-2. In the dashboard, switch strategy to **Lynch**, universe **sp500**
-3. Review **Candidates** tab; read qualitative overlay before acting
+1. Overnight — all universes scanned (breakout 1 AM, swing 4 AM, Lynch 5 AM ET)
+2. After **~8:00 AM ET** — check the **weekly digest** email
+3. In the dashboard, pick any **universe** and **strategy**; use the latest **Scan date** for that universe
 
-### Manual catch-up
+### Manual full coverage
+
+```bash
+docker exec quant-hub weekly-full-coverage
+# log: /mnt/fast/quant-data/logs/weekly_coverage.log (or weekly_coverage_manual.log)
+```
+
+Expect **~30–90 minutes** cached (longer on cold cache or Lynch rate limits on large universes).
+
+### Manual catch-up (single universe)
 
 If cron failed or you need a refresh:
 
 ```bash
-quant-daily --universe sp500          # breakout + email
-quant-swing --universe sp500          # swing + email
-quant-lynch --universe sp500          # Lynch + email
-quant-scan --universe sp500 --cache   # breakout, no email
+docker exec quant-hub quant-daily --universe sp500 --no-email
+docker exec quant-hub quant-swing --universe sp500 --no-email
+docker exec quant-hub quant-lynch --universe sp500 --no-email
+docker exec quant-hub quant-scan --universe large_cap_growth --cache
+docker exec quant-hub weekly-full-coverage
 ```
 
 Same-day reruns replace the previous run for that (date, strategy, universe) — safe to repeat.
@@ -573,10 +671,13 @@ A: No. It is research and scanning only.
 A: Normal when no names meet Tier 1/2 (breakout) or setup rules (swing). The scan still ran; check the dashboard for filtered names.
 
 **Q: How many emails should I expect on a full batch run?**  
-A: `quant-scan-all --email` sends one breakout email per universe (eight today). Swing is separate — one email per `quant-swing` run.
+A: `quant-scan-all --email` sends one breakout email per universe (nine today). Batch swing/Lynch use `quant-swing-all` / `quant-lynch-all` (no email in cron). Scheduled mail is only the daily and weekly digests.
 
 **Q: Does the swing job run on weekdays?**  
-A: **sp500** swing runs Friday **6:17 PM ET**. **sector_commodity_etfs** runs breakout **4:30 PM** and swing **4:35 PM** (no email).
+A: **sp500** and **sector_commodity_etfs** swing run **Friday** (4:35 PM and 5:45 PM ET). All universes get swing on **Saturday 4:00 AM** via `quant-swing-all`.
+
+**Q: Why is Lynch score missing for some tickers?**  
+A: Yahoo rate limits on large universes (`sp500_index`, `small_cap_growth`) can leave `lynch_score` null. Re-run `docker exec quant-hub quant-lynch --universe <id> --no-email` for that universe later.
 
 **Q: Where do TradingView links go?**  
 A: Email notifications include TradingView chart links for actionable tickers and swing setups.
@@ -585,17 +686,19 @@ A: Email notifications include TradingView chart links for actionable tickers an
 
 ## Glossary
 
-| Term | Definition |
-|------|------------|
-| **Universe** | Named list of tickers to scan |
-| **Scan run** | One complete execution for (date, strategy, universe) |
-| **Regime** | SPY-based market environment multiplier |
-| **Actionable** | Tier 1 or Tier 2 (breakout) |
-| **Setup** | Swing `SETUP_LONG` or `SETUP_SHORT` (all 5 rules pass) |
-| **Swing quality score** | 0–100 setup grade: partial rule credit minus penalties |
-| **Grade** | A/B/C/D band derived from quality score |
-| **Near-miss** | Breakout eligible name close to watchlist threshold (Overview tab) |
-| **Cache hit** | Price loaded from local parquet file (< 24h daily / weekly cache) |
+
+| Term                    | Definition                                                         |
+| ----------------------- | ------------------------------------------------------------------ |
+| **Universe**            | Named list of tickers to scan                                      |
+| **Scan run**            | One complete execution for (date, strategy, universe)              |
+| **Regime**              | SPY-based market environment multiplier                            |
+| **Actionable**          | Tier 1 or Tier 2 (breakout)                                        |
+| **Setup**               | Swing `SETUP_LONG` or `SETUP_SHORT` (all 5 rules pass)             |
+| **Swing quality score** | 0–100 setup grade: partial rule credit minus penalties             |
+| **Grade**               | A/B/C/D band derived from quality score                            |
+| **Near-miss**           | Breakout eligible name close to watchlist threshold (Overview tab) |
+| **Cache hit**           | Price loaded from local parquet file (< 24h daily / weekly cache)  |
+
 
 ---
 

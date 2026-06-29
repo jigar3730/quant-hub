@@ -112,6 +112,19 @@ def send_scan_email(
         return False
 
     subject, html = build_actionable_email(report, scan_date=scan_date)
+    return send_html_email(subject, html, config=config)
+
+
+def send_html_email(
+    subject: str,
+    html: str,
+    *,
+    config: EmailConfig | None = None,
+) -> bool:
+    config = config or EmailConfig.from_env()
+    if not config:
+        return False
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = config.from_addr
@@ -195,20 +208,7 @@ def send_swing_email(
         return False
 
     subject, html = build_swing_email(report, scan_date=scan_date)
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = config.from_addr
-    msg["To"] = ", ".join(config.to_addrs)
-    msg.attach(MIMEText(html, "html"))
-
-    with smtplib.SMTP(config.host, config.port, timeout=30) as server:
-        if config.use_tls:
-            server.starttls()
-        if config.user and config.password:
-            server.login(config.user, config.password)
-        server.sendmail(config.from_addr, config.to_addrs, msg.as_string())
-
-    return True
+    return send_html_email(subject, html, config=config)
 
 
 def _fmt_lynch_pct(value) -> str:
@@ -409,17 +409,4 @@ def send_lynch_email(
         return False
 
     subject, html = build_lynch_email(report, scan_date=scan_date)
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = config.from_addr
-    msg["To"] = ", ".join(config.to_addrs)
-    msg.attach(MIMEText(html, "html"))
-
-    with smtplib.SMTP(config.host, config.port, timeout=30) as server:
-        if config.use_tls:
-            server.starttls()
-        if config.user and config.password:
-            server.login(config.user, config.password)
-        server.sendmail(config.from_addr, config.to_addrs, msg.as_string())
-
-    return True
+    return send_html_email(subject, html, config=config)

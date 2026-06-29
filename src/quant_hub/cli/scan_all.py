@@ -3,20 +3,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-from pathlib import Path
 
 from quant_hub.application.scan_service import ScanService
-from quant_hub.config import UNIVERSES_CONFIG
 from quant_hub.logging_setup import setup_logging
+from quant_hub.universes.batch import list_universe_ids
 
 logger = logging.getLogger(__name__)
-
-
-def _all_universe_ids(config_path: Path) -> list[str]:
-    data = json.loads(config_path.read_text())
-    return list(data.get("universes", {}).keys())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -34,7 +27,7 @@ def main(argv: list[str] | None = None) -> int:
 
     setup_logging("scan.log")
     use_cache = args.cache and not args.force_refresh
-    universe_ids = args.universes or _all_universe_ids(UNIVERSES_CONFIG)
+    universe_ids = list_universe_ids(explicit=args.universes)
 
     service = ScanService()
     failed: list[str] = []

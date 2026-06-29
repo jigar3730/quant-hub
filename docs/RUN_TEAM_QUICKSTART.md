@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Audience:** Day-to-day operators (run team)  
 **Install path:** `/opt/stacks/quant-hub`  
-**Last updated:** 2026-06-28
+**Last updated:** 2026-06-29
 
 **Start here.** Full detail: [Runbook](RUNBOOK.md) · Analyst guide: [User Manual](USER_MANUAL.md)
 
@@ -156,16 +156,20 @@ docker exec quant-hub quant-swing --universe sp500 --no-email
 # 6. Manual Lynch scan
 docker exec quant-hub quant-lynch --universe sp500 --no-email
 
-# 7. List configured universes
+# 7. Full weekly coverage (all universes, ~30–90 min)
+docker exec quant-hub weekly-full-coverage
+
+# 8. List configured universes
 docker exec quant-hub quant-universe list
 
-# 8. Show tickers in a universe
+# 9. Show tickers in a universe
 docker exec quant-hub quant-universe show sp500 | wc -l
+docker exec quant-hub quant-universe refresh sp500_index   # full S&P 500 proxy (~503)
 
-# 9. Restart app after issues
-docker compose restart quant-hub
+# 10. Restart app after code/cron changes
+docker compose up -d --build quant-hub
 
-# 10. Open dashboard
+# 11. Open dashboard
 # http://<host>:5002  →  select Strategy, Universe, Scan date
 ```
 
@@ -180,11 +184,17 @@ Authoritative file: `docker/crontab`. After edits → `docker compose up -d --bu
 
 | Job | When | Command | Email |
 |-----|------|---------|-------|
-| Breakout daily | Mon–Fri **5:17 PM** | `quant-daily --universe sp500` | Yes |
+| Breakout daily | Mon–Fri **5:00 PM** | `quant-daily --universe sp500 --no-email` | No |
+| **Daily digest** | Mon–Fri **5:35 PM** | `quant-digest daily` | **Yes** |
 | ETF breakout | Fri **4:30 PM** | `quant-daily --universe sector_commodity_etfs --no-email` | No |
 | ETF swing | Fri **4:35 PM** | `quant-swing --universe sector_commodity_etfs --no-email` | No |
-| Swing weekly | Fri **6:17 PM** | `quant-swing --universe sp500` | Yes |
-| Lynch weekly | Sat **9:17 AM** | `quant-lynch --universe sp500` | Yes |
+| Swing weekly | Fri **5:45 PM** | `quant-swing --universe sp500 --no-email` | No |
+| SPY holdings refresh | First Sat of quarter **12:30 AM** | `quant-universe refresh sp500_index` | No |
+| Breakout full coverage | Sat **1:00 AM** | `quant-scan-all --cache --report both` | No |
+| Swing full coverage | Sat **4:00 AM** | `quant-swing-all --no-email` | No |
+| Lynch full coverage | Sat **5:00 AM** | `quant-lynch-all --no-email` | No |
+| Weekly analytics | Sat **7:50 AM** | `quant-analytics weekly` | No |
+| **Weekly digest** | Sat **8:00 AM** | `quant-digest weekly` | **Yes** |
 
 Verify cron:
 
@@ -215,10 +225,11 @@ tail -50 /mnt/fast/quant-data/logs/cron.log
    docker compose up -d --force-recreate quant-hub
    ```
 
-3. Test (optional — sends real email):
+3. Test digest (optional — sends real email):
 
    ```bash
-   docker exec quant-hub quant-daily --universe sp500
+   docker exec quant-hub quant-digest daily --no-email
+   docker exec quant-hub quant-digest daily   # sends mail
    ```
 
 4. Confirm in logs: `grep -i email /mnt/fast/quant-data/logs/scan.log | tail -5`
@@ -378,6 +389,7 @@ More detail: [Runbook §9 Troubleshooting](RUNBOOK.md#9-troubleshooting) · [Eme
 |------|------|
 | **This guide** | Day-to-day ops, Docker, triage |
 | [Runbook](RUNBOOK.md) | Full deploy, backup, upgrade, security |
+| [Analytics Guide](ANALYTICS_GUIDE.md) | SQL insights, cross-strategy analysis, weekly playbook |
 | [User Manual](USER_MANUAL.md) | Dashboard for analysts |
 | [Data Model](DATA_MODEL.md) | Postgres tables, caches, exports |
 | [Architecture Gaps](ARCHITECTURE_GAPS.md) | Known monitoring/security gaps (lead ops) |

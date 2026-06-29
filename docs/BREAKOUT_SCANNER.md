@@ -60,9 +60,11 @@ Every ticker in the universe gets a row. Ineligible names are **`filtered`** wit
 
 | When | Command | Universe |
 |------|---------|----------|
-| **Mon–Fri, 5:17 PM ET** | `quant-daily --universe sp500` | `sp500` only |
+| **Mon–Fri, 5:00 PM ET** | `quant-daily --universe sp500 --no-email` | `sp500` (daily digest at 5:35 PM) |
+| **Fri, 4:30 PM ET** | `quant-daily --universe sector_commodity_etfs --no-email` | ETFs |
+| **Sat, 1:00 AM ET** | `quant-scan-all --cache --report both` | All 9 universes |
 
-Defined in `docker/crontab`. Other universes are **manual** unless you add cron lines.
+Defined in `docker/crontab`. Use `quant-scan --universe <id> --cache` or `quant-scan-all` for manual runs.
 
 Re-running on the **same calendar day** for the same universe **replaces** that day’s scan (Postgres upsert).
 

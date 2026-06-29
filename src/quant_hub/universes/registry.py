@@ -65,6 +65,25 @@ class UniverseRegistry:
         meta = self._config.get("universes", {}).get(universe_id, {})
         return meta.get("eligibility_mode", "stock")
 
+    def is_lynch_enabled(self, universe_id: str) -> bool:
+        meta = self._config.get("universes", {}).get(universe_id, {})
+        return bool(meta.get("lynch_enabled", True))
+
+    def get_refresh_config(self, universe_id: str) -> dict | None:
+        meta = self._config.get("universes", {}).get(universe_id, {})
+        refresh = meta.get("refresh")
+        return refresh if isinstance(refresh, dict) else None
+
+    def get_file_source_path(self, universe_id: str) -> Path | None:
+        """Return resolved path for the first file-based source, if any."""
+        meta = self._config.get("universes", {}).get(universe_id, {})
+        for source in meta.get("sources", []):
+            if source.get("type") != "file":
+                continue
+            rel = source.get("path", "")
+            return PROJECT_ROOT / rel if not Path(rel).is_absolute() else Path(rel)
+        return None
+
     def _resolve_id(self, universe_id: str) -> list[str]:
         universes = self._config.get("universes", {})
         if universe_id not in universes:

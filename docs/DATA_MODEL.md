@@ -4,7 +4,7 @@
 **Audience:** Developers, analysts, and operators  
 **Last updated:** 2026-06-28
 
-Related: [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Runbook](RUNBOOK.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md)
+Related: [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Runbook](RUNBOOK.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md)
 
 ---
 
@@ -190,6 +190,7 @@ Registry of named universes. Not stored in Postgres.
 | `universes.{id}.name` | string | Display name in dashboard |
 | `universes.{id}.description` | string | Human description |
 | `universes.{id}.eligibility_mode` | string | Optional: `stock` (default) or `etf` (relaxed breakout gates) |
+| `universes.{id}.lynch_enabled` | boolean | Optional: `false` skips universe in `quant-lynch-all` (default `true`) |
 | `universes.{id}.sources[]` | array | One or more sources merged & deduped |
 
 **Source types:**
@@ -199,7 +200,9 @@ Registry of named universes. Not stored in Postgres.
 | `file` | `path` → ticker list `.txt` | `data/universes/sp500.txt` |
 | `screener` | `screener`, `count` | Yahoo most-actives, 250 symbols |
 
-**Built-in universe IDs:** `sp500`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sector_commodity_etfs`.
+**Built-in universe IDs:** `sp500`, `sp500_index`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sector_commodity_etfs`.
+
+**Refreshable universes:** `sp500_index` uses `refresh.provider: ssga_spy` — `quant-universe refresh sp500_index` downloads SSGA's SPY holdings XLSX and rewrites `data/universes/sp500_index.txt`.
 
 ### Ticker list files (`data/universes/*.txt`)
 

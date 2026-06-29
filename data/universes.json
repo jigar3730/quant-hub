@@ -39,7 +39,14 @@
       "name": "Sector & Commodity ETFs",
       "description": "GICS sector SPDRs plus liquid commodity proxies (17 names)",
       "eligibility_mode": "etf",
+      "lynch_enabled": false,
       "sources": [{"type": "file", "path": "data/universes/sector_commodity_etfs.txt"}]
+    },
+    "sp500_index": {
+      "name": "S&P 500 (SPY holdings)",
+      "description": "Full S&P 500 proxy from SSGA SPY daily holdings (~503 names)",
+      "sources": [{"type": "file", "path": "data/universes/sp500_index.txt"}],
+      "refresh": {"provider": "ssga_spy"}
     }
   }
 }

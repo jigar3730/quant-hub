@@ -459,8 +459,9 @@ Re-running `quant-swing` on the same calendar day for the same universe **replac
 
 ```bash
 quant-swing --universe sp500              # scan + email (default)
-quant-swing --universe sp500 --no-email # scan only
+quant-swing --universe sp500 --no-email   # scan only
+quant-swing-all --no-email                # all universes (Saturday cron)
 quant-swing --universe mid_cap_growth --force-refresh  # bypass weekly cache
 ```
 
-Scheduled: Friday **6:17 PM ET**, `sp500` only (see [Runbook](RUNBOOK.md)).
+**Scheduled:** Friday **5:45 PM ET** (`sp500` + ETFs at 4:35 PM); **Saturday 4:00 AM ET** full coverage via `quant-swing-all` (see [Runbook](RUNBOOK.md)).

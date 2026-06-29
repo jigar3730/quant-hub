@@ -5,7 +5,6 @@ set -euo pipefail
 
 LOG="/mnt/fast/quant-data/logs/full_rescan.log"
 OUT="/mnt/fast/quant-data/data/output"
-UNIVERSES=(sp500 large_cap_growth small_cap_growth mid_cap_growth dividend_growers fintech_growth most_actives sector_commodity_etfs)
 
 mkdir -p "$(dirname "$LOG")"
 exec > >(tee -a "$LOG") 2>&1
@@ -26,16 +25,10 @@ echo "--- Breakout: all universes ---"
 docker exec quant-hub quant-scan-all --cache --email --report both || echo "WARN: scan-all returned non-zero (check emails)"
 
 echo "--- Swing: all universes ---"
-for u in "${UNIVERSES[@]}"; do
-  echo "=== Swing universe: $u ==="
-  docker exec quant-hub quant-swing --universe "$u" || echo "WARN: swing failed for $u"
-done
+docker exec quant-hub quant-swing-all --no-email || echo "WARN: swing-all returned non-zero"
 
-echo "--- Lynch: all universes ---"
-for u in "${UNIVERSES[@]}"; do
-  echo "=== Lynch universe: $u ==="
-  docker exec quant-hub quant-lynch --universe "$u" || echo "WARN: lynch failed for $u"
-done
+echo "--- Lynch: stock universes ---"
+docker exec quant-hub quant-lynch-all --no-email || echo "WARN: lynch-all returned non-zero"
 
 echo "--- Final status ---"
 docker exec quant-hub quant-hub status

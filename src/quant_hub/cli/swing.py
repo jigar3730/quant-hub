@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         output=Path(args.output) if args.output else None,
         persist=not args.no_persist,
         send_email=not args.no_email,
-        job_name="swing-weekly-manual",
+        job_name=f"swing-{args.universe}-weekly",
     )
     return result.exit_code()
 

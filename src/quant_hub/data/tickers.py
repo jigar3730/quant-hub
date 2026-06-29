@@ -57,6 +57,17 @@ def load_tickers_file(path: Path | str) -> list[str]:
     return _normalize_tickers(tickers)
 
 
+def write_tickers_file(path: Path | str, tickers: list[str]) -> None:
+    """Write one ticker per line to a text file (atomic replace)."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    normalized = _normalize_tickers(tickers)
+    body = "\n".join(normalized) + "\n"
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(body)
+    tmp.replace(path)
+
+
 def resolve_universe(
     explicit: list[str] | None = None,
     *,

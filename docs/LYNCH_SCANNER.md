@@ -38,7 +38,9 @@ Universe tickers
     → Postgres + CSV + JSON + dashboard
 ```
 
-**Entry point:** `quant-lynch` → `LynchScanService.run()` → `LynchScannerRunner.run()` in `src/quant_hub/lynch/runner.py`.
+**Entry point:** `quant-lynch` / `quant-lynch-all` → `LynchScanService.run()` → `LynchScannerRunner.run()` in `src/quant_hub/lynch/runner.py`.
+
+**Schedule:** Saturday **5:00 AM ET** — `quant-lynch-all --no-email` on all stock universes (`lynch_enabled: true`; ETFs skipped). Weekly digest still highlights **`sp500`** Lynch results.
 
 Each scan processes every ticker in the selected universe. Results for the same `(scan_date, lynch, universe_id)` replace the previous run (upsert).
 
@@ -308,7 +310,7 @@ All three are built **during the scan** in `_evaluate()` and stored together in 
 | Category classifiers | `src/quant_hub/lynch/categories.py` |
 | Explanations and snapshots | `src/quant_hub/lynch/explain.py` |
 | Scan orchestration + CSV/report export | `src/quant_hub/lynch/runner.py` |
-| Application service + CLI wiring | `src/quant_hub/application/lynch_service.py` |
+| Application service + CLI wiring | `src/quant_hub/application/lynch_service.py`, `src/quant_hub/cli/lynch_all.py` |
 | Postgres persistence | `src/quant_hub/infrastructure/postgres/repository.py` |
 | Data quality summaries | `src/quant_hub/data/quality.py` |
 

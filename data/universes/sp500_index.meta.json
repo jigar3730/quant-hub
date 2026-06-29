@@ -1,0 +1,7 @@
+{
+  "universe_id": "sp500_index",
+  "provider": "ssga_spy",
+  "source_url": "https://www.ssga.com/us/en/intermediary/etfs/library-content/products/fund-data/etfs/us/holdings-daily-us-en-spy.xlsx",
+  "ticker_count": 503,
+  "refreshed_at": "2026-06-28T23:10:17+00:00"
+}
