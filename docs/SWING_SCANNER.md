@@ -151,7 +151,7 @@ A setup exists only when **all 5 rules on one side pass** (`evaluate_setup()`). 
 |---|---------|-------|----------------|
 | 1 | `long_trend` | Uptrend (EMA20 > EMA50) | `EMA20 > EMA50` |
 | 2 | `long_ema50_rising` | EMA50 rising | `EMA50 > EMA50_prior_week` |
-| 3 | `long_pullback_zone` | Pullback into 20 EMA | `EMA20 ≤ Close ≤ EMA20 × 1.02` |
+| 3 | `long_pullback_zone` | Pullback into 20 EMA (ATR band) | `EMA20 − 0.25×ATR ≤ Close ≤ EMA20 + 1.0×ATR` |
 | 4 | `long_rsi_band` | RSI in long band | `45 ≤ RSI ≤ 60` (default `rsi_min_long=45`) |
 | 5 | `long_macd_momentum` | MACD histogram momentum | Rising 2 weeks **and** `MACD_Hist < 2 × std(20w)` |
 
@@ -166,7 +166,7 @@ A setup exists only when **all 5 rules on one side pass** (`evaluate_setup()`). 
 |---|---------|-------|----------------|
 | 1 | `short_trend` | Downtrend (EMA20 < EMA50) | `EMA20 < EMA50` |
 | 2 | `short_ema50_falling` | EMA50 falling | `EMA50 < EMA50_prior_week` |
-| 3 | `short_pullback_zone` | Pullback into 20 EMA | `EMA20 × 0.98 ≤ Close ≤ EMA20` |
+| 3 | `short_pullback_zone` | Pullback into 20 EMA (ATR band) | `EMA20 − 1.0×ATR ≤ Close ≤ EMA20 + 0.25×ATR` |
 | 4 | `short_rsi_band` | RSI in short band | `50 ≤ RSI ≤ 65` |
 | 5 | `short_macd_momentum` | MACD histogram momentum | Falling 2 weeks **and** `MACD_Hist > −2 × std(20w)` |
 
@@ -175,10 +175,13 @@ A setup exists only when **all 5 rules on one side pass** (`evaluate_setup()`). 
 If neither side qualifies, the scanner still picks a **candidate side** for scoring (`scored_side`):
 
 1. Count passes on long vs short (5 rules each).
-2. Prefer the side with **more passes**, but the **trend rule** (rule 1) must pass to win that side.
-3. Tie-break: long if `long_pass ≥ short_pass`, else short.
+2. Prefer the side whose **trend rule (rule 1) passes** with more total passes.
+3. If only one side’s trend passes, score that side.
+4. Otherwise tie-break by pass count (long if `long_pass ≥ short_pass`).
 
-Quality score and rule breakdown use this side when there is no confirmed setup.
+Quality score adds **RS vs SPY** (10 pts) and **pullback volume** (10 pts) on top of five core rules (16 pts each, 80 total). SPY weekly data is fetched each run; RS uses universe percentile rank when ≥2 tickers have ratios.
+
+**New `setup_detail` fields:** `rs_ratio`, `rs_percentile`, `vol_ratio`.
 
 ---
 
@@ -187,7 +190,7 @@ Quality score and rule breakdown use this side when there is no confirmed setup.
 **Module:** `src/quant_hub/strategies/swing/scoring.py`
 
 ```text
-base_score     = sum of 5 rule partial credits (max 100)
+base_score     = sum of 5 core rules (16 pts each) + RS (10) + volume (10), capped at 100
 penalty_total  = sum of penalties (negative; capped at −25 total)
 swing_score    = clamp(base_score + penalty_total, 0, 100)
 quality_label  = A / B / C / D from swing_score

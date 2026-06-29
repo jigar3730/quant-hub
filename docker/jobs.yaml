@@ -1,46 +1,10 @@
 # Reference schedule — authoritative source is docker/crontab (installed into the container).
 # All times America/New_York (container TZ).
-# Scans use --no-email; quant-digest sends consolidated emails.
+#
+# ML PHASE: only swing-sp500-weekly + ml-label-swing-sp500 are active.
+# Other jobs are documented here for restore after ML/backfill work completes.
+
 jobs:
-  - name: breakout-sp500-daily
-    cron: "0 17 * * 1-5"     # Mon–Fri 5:00 PM ET
-    command: quant-daily --universe sp500 --no-email
-    strategy: breakout
-    universe: sp500
-    email: false
-    cache: true
-    persist: true
-    exports: [csv, json, md]
-    job_name: breakout-sp500-daily
-
-  - name: digest-daily
-    cron: "35 17 * * 1-5"    # Mon–Fri 5:35 PM ET
-    command: quant-digest daily
-    email: true
-    job_name: digest-daily
-
-  - name: breakout-sector-commodity-etfs-weekly
-    cron: "30 16 * * 5"      # Fri 4:30 PM ET
-    command: quant-daily --universe sector_commodity_etfs --no-email
-    strategy: breakout
-    universe: sector_commodity_etfs
-    email: false
-    cache: true
-    persist: true
-    exports: [csv, json, md]
-    job_name: breakout-sector-commodity-etfs-weekly
-
-  - name: swing-sector-commodity-etfs-weekly
-    cron: "35 16 * * 5"      # Fri 4:35 PM ET
-    command: quant-swing --universe sector_commodity_etfs --no-email
-    strategy: swing
-    universe: sector_commodity_etfs
-    email: false
-    cache: true
-    persist: true
-    exports: [csv]
-    job_name: swing-sector-commodity-etfs-weekly
-
   - name: swing-sp500-weekly
     cron: "45 17 * * 5"      # Fri 5:45 PM ET
     command: quant-swing --universe sp500 --no-email
@@ -51,56 +15,71 @@ jobs:
     persist: true
     exports: [csv]
     job_name: swing-sp500-weekly
+    active: true
+
+  - name: ml-label-swing-sp500
+    cron: "0 6 * * 6"        # Sat 6:00 AM ET
+    command: quant-ml label --strategy swing --universe sp500 --since <90d>
+    strategy: swing
+    universe: sp500
+    email: false
+    job_name: ml-label-swing-sp500
+    active: true
+
+  # --- Inactive during ML phase ---
+  - name: breakout-sp500-daily
+    cron: "0 17 * * 1-5"
+    command: quant-daily --universe sp500 --no-email
+    strategy: breakout
+    universe: sp500
+    active: false
+
+  - name: digest-daily
+    cron: "35 17 * * 1-5"
+    command: quant-digest daily
+    active: false
+
+  - name: breakout-sector-commodity-etfs-weekly
+    cron: "30 16 * * 5"
+    command: quant-daily --universe sector_commodity_etfs --no-email
+    active: false
+
+  - name: swing-sector-commodity-etfs-weekly
+    cron: "35 16 * * 5"
+    command: quant-swing --universe sector_commodity_etfs --no-email
+    active: false
 
   - name: sp500-index-refresh-quarterly
-    cron: "30 0 1-7 1,4,7,10 6"  # First Sat of quarter 12:30 AM ET
+    cron: "30 0 1-7 1,4,7,10 6"
     command: quant-universe refresh sp500_index
-    email: false
-    job_name: sp500-index-refresh
+    active: false
 
   - name: breakout-full-coverage-weekly
-    cron: "0 1 * * 6"        # Sat 1:00 AM ET
+    cron: "0 1 * * 6"
     command: quant-scan-all --cache --report both
-    strategy: breakout
-    universe: all
-    email: false
-    cache: true
-    persist: true
-    job_name: breakout-full-coverage
+    active: false
 
   - name: swing-full-coverage-weekly
-    cron: "0 4 * * 6"        # Sat 4:00 AM ET
+    cron: "0 4 * * 6"
     command: quant-swing-all --no-email
-    strategy: swing
-    universe: all
-    email: false
-    cache: true
-    persist: true
-    job_name: swing-full-coverage
+    active: false
 
   - name: lynch-full-coverage-weekly
-    cron: "0 5 * * 6"        # Sat 5:00 AM ET
+    cron: "0 5 * * 6"
     command: quant-lynch-all --no-email
-    strategy: lynch
-    universe: lynch_enabled
-    email: false
-    persist: true
-    job_name: lynch-full-coverage
+    active: false
 
   - name: analytics-weekly
-    cron: "50 7 * * 6"       # Sat 7:50 AM ET
+    cron: "50 7 * * 6"
     command: quant-analytics weekly
-    email: false
-    job_name: analytics-weekly
+    active: false
 
   - name: digest-weekly
-    cron: "0 8 * * 6"        # Sat 8:00 AM ET
+    cron: "0 8 * * 6"
     command: quant-digest weekly
-    email: true
-    job_name: digest-weekly
+    active: false
 
   - name: digest-weekly-retry
-    cron: "0 9 * * 6"        # Sat 9:00 AM ET fallback
+    cron: "0 9 * * 6"
     command: quant-digest weekly
-    email: true
-    job_name: digest-weekly-retry
+    active: false

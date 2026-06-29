@@ -41,6 +41,8 @@ quant-digest = "quant_hub.cli.digest:main"
 quant-analytics = "quant_hub.cli.analytics:main"
 quant-universe = "quant_hub.cli.universe:main"
 quant-hub = "quant_hub.cli.status:main"
+quant-ml = "quant_hub.cli.ml:main"
+quant-backfill = "quant_hub.cli.backfill:main"
 quant-view = "quant_hub.cli.view:main"
 
 [tool.hatch.build.targets.wheel]

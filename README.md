@@ -38,6 +38,8 @@ docker exec quant-hub quant-view                      # dashboard (Postgres-back
 | `quant-daily` | Scheduled breakout workflow (cache on; cron uses `--no-email`) |
 | `quant-digest` | Consolidated daily/weekly digest emails |
 | `quant-analytics` | Build weekly analytics payload (no email) |
+| `quant-ml label\|export-features\|warm-cache\|status` | ML labels + feature export ([ML Foundation](docs/ML_FOUNDATION.md)) |
+| `quant-backfill swing` | Historical point-in-time swing scans for ML training |
 | `quant-universe list\|show\|refresh` | Inspect or refresh universe registry |
 | `quant-hub status` | DB ping, table counts, recent runs |
 | `quant-hub cleanup-fixtures` | Remove test scan rows from Postgres |

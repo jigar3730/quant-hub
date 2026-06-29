@@ -20,4 +20,7 @@ quant-swing-all --no-email
 log "--- Lynch: stock universes (skips lynch_enabled: false) ---"
 quant-lynch-all --no-email
 
+log "--- ML labels: forward returns for recent runs ---"
+quant-ml label --since "$(date -d '90 days ago' +%F)" || log "WARN: quant-ml label exited non-zero"
+
 log "========== Weekly full coverage finished =========="

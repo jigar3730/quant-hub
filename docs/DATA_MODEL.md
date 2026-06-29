@@ -336,6 +336,27 @@ One row per ticker per scan run.
 | `filter_reason` | TEXT | eligibility | Fail code when not eligible |
 | `detail` | JSONB | full ticker report | **Complete per-ticker object** — see §9 |
 
+### Table: `signal_outcomes`
+
+Forward-return labels for ML (Phase 1). One row per `(run_id, ticker, horizon_days)`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `run_id` | BIGINT PK,FK | Parent scan (`ON DELETE CASCADE`) |
+| `ticker` | VARCHAR(16) PK | Symbol |
+| `horizon_days` | INT PK | Forward window in trading sessions (5, 10, 20, 63) |
+| `anchor_date` | DATE | Price anchor from scan provenance |
+| `forward_return_pct` | FLOAT | Close-to-close return |
+| `forward_max_gain_pct` | FLOAT | Peak gain along path |
+| `forward_max_drawdown_pct` | FLOAT | Worst drawdown along path |
+| `spy_forward_return_pct` | FLOAT | SPY return over same window |
+| `excess_return_pct` | FLOAT | Stock minus SPY |
+| `label_binary` | BOOLEAN | `forward_return_pct >= threshold` |
+| `label_status` | VARCHAR(32) | `ok`, `no_price`, `invalid_anchor`, `insufficient_future_bars` |
+| `computed_at` | TIMESTAMPTZ | Last label job write |
+
+Populated by `quant-ml label`. See [ML Foundation](ML_FOUNDATION.md).
+
 ### Table: `job_runs`
 
 Optional audit log when scans run with `job_name`.

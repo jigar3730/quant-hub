@@ -25,10 +25,11 @@ RUN uv pip install --system -e .[dev,viz]
 COPY docker/crontab /etc/cron.d/quant-hub
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY scripts/weekly-full-coverage.sh scripts/weekly-full-coverage /app/scripts/
+COPY scripts/ml-phase-swing-sp500.sh /app/scripts/
 
 RUN chmod 0644 /etc/cron.d/quant-hub && \
     echo "" >> /etc/cron.d/quant-hub && \
-    chmod +x /entrypoint.sh /app/scripts/weekly-full-coverage.sh /app/scripts/weekly-full-coverage
+    chmod +x /entrypoint.sh /app/scripts/weekly-full-coverage.sh /app/scripts/weekly-full-coverage /app/scripts/ml-phase-swing-sp500.sh
 
 RUN mkdir -p /app/data/output /app/data/cache /app/logs
 

@@ -3,23 +3,20 @@ from __future__ import annotations
 import logging
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
 from quant_hub.application.run_result import ServiceRunResult
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.config import SWING_MIN_BARS, scan_output_paths
+from quant_hub.config import BENCHMARK_TICKER, SWING_MIN_BARS, scan_output_paths
 from quant_hub.data.provenance import build_data_provenance
-from quant_hub.data.quality import validate_ohlcv
+from quant_hub.data.quality import max_bar_date
 from quant_hub.infrastructure.market.weekly_prices import download_weekly_prices
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.notify.email import send_swing_email
-from quant_hub.strategies.swing.scanner import (
-    SWING_FILTER_LABELS,
-    SwingSetup,
-    analysis_to_report,
-    analyze_swing,
-)
+from quant_hub.application.swing_scan_core import scan_universe_weekly
+from quant_hub.strategies.swing.scanner import SwingSetup
 
 logger = logging.getLogger(__name__)
 
@@ -43,22 +40,6 @@ def setups_to_dataframe(setups: list[SwingSetup]) -> pd.DataFrame:
         for s in sorted(setups, key=lambda x: x.ticker)
     ]
     return pd.DataFrame(rows)
-
-
-def _data_error_report(ticker: str, reason: str) -> dict:
-    label = SWING_FILTER_LABELS.get(reason, reason.replace("_", " ").title())
-    return {
-        "ticker": ticker,
-        "eligible": False,
-        "tier": "filtered",
-        "sector_etf": None,
-        "tier_reason": label,
-        "summary": {},
-        "scores": {},
-        "eligibility": {"passed": False, "fail_reason": reason, "checks": []},
-        "setup_detail": {"notes": label},
-        "swing_checks": [],
-    }
 
 
 def build_swing_report(
@@ -152,47 +133,19 @@ class SwingScanService:
                 use_cache and not force_refresh,
             )
             price_map = download_weekly_prices(
-                universe,
+                sorted(set(universe) | {BENCHMARK_TICKER}),
                 use_cache=use_cache,
                 force_refresh=force_refresh,
             )
+            spy_df = price_map.get(BENCHMARK_TICKER)
 
-            for ticker in universe:
-                df = price_map.get(ticker)
-                if df is None or df.empty:
-                    reason = "no_price_data"
-                    ticker_reports.append(_data_error_report(ticker, reason))
-                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
-                    continue
-                validation = validate_ohlcv(
-                    df,
-                    min_rows=SWING_MIN_BARS,
-                    max_staleness_days=14,
-                )
-                if not validation.ok:
-                    reason = validation.issues[0] if validation.issues else "invalid_ohlcv"
-                    ticker_reports.append(_data_error_report(ticker, reason))
-                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
-                    continue
-                if len(df) < SWING_MIN_BARS:
-                    reason = "insufficient_data"
-                    ticker_reports.append(_data_error_report(ticker, reason))
-                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
-                    continue
-                try:
-                    analysis = analyze_swing(df, ticker, min_bars=SWING_MIN_BARS)
-                    ticker_reports.append(analysis_to_report(analysis))
-                    if analysis.setup:
-                        setups.append(analysis.setup)
-                    elif analysis.fail_reason:
-                        rejection_counts[analysis.fail_reason] = (
-                            rejection_counts.get(analysis.fail_reason, 0) + 1
-                        )
-                except Exception:
-                    logger.exception("Swing scan failed for %s", ticker)
-                    reason = "scan_error"
-                    ticker_reports.append(_data_error_report(ticker, reason))
-                    rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
+            setups, ticker_reports, rejection_counts = scan_universe_weekly(
+                universe,
+                price_map,
+                spy_df,
+                min_bars=SWING_MIN_BARS,
+                skip_staleness=False,
+            )
 
             df_out = setups_to_dataframe(setups)
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -209,6 +162,9 @@ class SwingScanService:
                     universe_id=resolved_id,
                     scan_date=scan_date,
                     price_cache="parquet" if use_cache and not force_refresh else "live",
+                    as_of_price=(
+                        str(max_bar_date(spy_df)) if spy_df is not None else None
+                    ),
                     extra={"interval": "1wk", "period": "10y"},
                 ),
             )

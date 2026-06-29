@@ -7,25 +7,41 @@ from typing import Any
 
 import pandas as pd
 
-SWING_RULE_POINTS = 20
-SWING_RULE_COUNT = 5
+from quant_hub.strategies.swing.constants import (
+    CHASE_ATR_THRESHOLD,
+    SWING_CORE_RULE_POINTS,
+    SWING_MAX_BASE,
+    SWING_RS_POINTS,
+    SWING_RULE_COUNT,
+    SWING_VOLUME_POINTS,
+)
+from quant_hub.strategies.swing.metrics import pullback_zone
+
+SWING_RULE_POINTS = SWING_CORE_RULE_POINTS  # backward compat for dashboard guide
 SWING_MAX_PENALTY = 25.0
 
 SWING_SCORE_RUBRIC: tuple[tuple[str, str], ...] = (
     ("Trend alignment", "EMA20 vs EMA50 — full credit when spread is clear on the setup side."),
     ("EMA50 slope", "50-week EMA rising (long) or falling (short) — partial if flat."),
-    ("Pullback zone", "Close near 20 EMA — partial credit by ATR distance from band."),
+    (
+        "Pullback zone",
+        "Close within ATR band around 20 EMA — full credit in zone; partial by ATR distance.",
+    ),
     ("RSI band", "RSI in setup range — partial when slightly outside band."),
     ("MACD momentum", "Two-week histogram trend + not overextended — scored in sub-parts."),
+    ("RS vs SPY", "13w + 26w return ratio vs SPY — universe percentile when available."),
+    ("Pullback volume", "Dry pullback week vs 10-week average — lower volume scores higher."),
 )
 
 SWING_PENALTY_RUBRIC: tuple[tuple[str, str], ...] = (
-    ("Chase / extended", "Long: close well above EMA20 band. Short: well below band."),
+    ("Chase / extended", "Long: close beyond ATR pullback band. Short: mirror below band."),
     ("RSI extreme", "Overbought on long or oversold on short entry."),
     ("MACD overextension", "Histogram stretched vs 20-week std — late entry risk."),
     ("Structure break", "Long below EMA50 or short above EMA50."),
     ("Wrong-side dominance", "Opposite side rules pass more than scored side."),
     ("Weak weekly close", "Long: close in bottom 25% of week range (weak acceptance)."),
+    ("RS laggard", "Long setup with RS ratio vs SPY below 0.90."),
+    ("Heavy pullback volume", "Pullback week volume > 130% of 10-week average."),
 )
 
 QUALITY_LABELS = (
@@ -45,6 +61,8 @@ class SwingScoreResult:
     rule_breakdown: list[dict]
     penalties: list[dict]
     scored_side: str
+    rs_ratio_score: float = 0.0
+    volume_score: float = 0.0
 
 
 def _clamp(value: float, lo: float, hi: float) -> float:
@@ -65,6 +83,7 @@ def _scored_side(analysis: Any) -> str:
 
 
 def _trend_points(side: str, ema20: float, ema50: float) -> tuple[float, bool]:
+    pts = float(SWING_CORE_RULE_POINTS)
     if ema50 <= 0:
         return 0.0, False
     spread_pct = (ema20 - ema50) / ema50 * 100.0
@@ -72,42 +91,43 @@ def _trend_points(side: str, ema20: float, ema50: float) -> tuple[float, bool]:
         if ema20 <= ema50:
             return 0.0, False
         if spread_pct >= 2.0:
-            return float(SWING_RULE_POINTS), True
+            return pts, True
         if spread_pct >= 1.0:
-            return 16.0, True
+            return pts * 0.8, True
         if spread_pct >= 0.3:
-            return 12.0, True
-        return 8.0, True
+            return pts * 0.6, True
+        return pts * 0.4, True
     if ema20 >= ema50:
         return 0.0, False
     spread_pct = abs(spread_pct)
     if spread_pct >= 2.0:
-        return float(SWING_RULE_POINTS), True
+        return pts, True
     if spread_pct >= 1.0:
-        return 16.0, True
+        return pts * 0.8, True
     if spread_pct >= 0.3:
-        return 12.0, True
-    return 8.0, True
+        return pts * 0.6, True
+    return pts * 0.4, True
 
 
 def _ema50_slope_points(side: str, ema50: float, ema50_prev: float) -> tuple[float, bool]:
+    pts = float(SWING_CORE_RULE_POINTS)
     if ema50_prev <= 0:
         return 0.0, False
     delta_pct = (ema50 - ema50_prev) / ema50_prev * 100.0
     if side == "long":
         if delta_pct >= 0.2:
-            return float(SWING_RULE_POINTS), True
+            return pts, True
         if delta_pct >= 0.05:
-            return 14.0, True
+            return pts * 0.7, True
         if delta_pct >= 0:
-            return 8.0, False
+            return pts * 0.4, False
         return 0.0, False
     if delta_pct <= -0.2:
-        return float(SWING_RULE_POINTS), True
+        return pts, True
     if delta_pct <= -0.05:
-        return 14.0, True
+        return pts * 0.7, True
     if delta_pct <= 0:
-        return 8.0, False
+        return pts * 0.4, False
     return 0.0, False
 
 
@@ -119,51 +139,52 @@ def _pullback_points(
 ) -> tuple[float, bool]:
     if ema20 <= 0:
         return 0.0, False
+    pts = float(SWING_CORE_RULE_POINTS)
+    lo, hi, in_zone = pullback_zone(side, close, ema20, atr)
     atr = max(atr, ema20 * 0.005)
+    if in_zone:
+        return pts, True
     if side == "long":
-        lo, hi = ema20, ema20 * 1.02
-        if lo <= close <= hi:
-            return float(SWING_RULE_POINTS), True
         if close > hi:
             dist = (close - hi) / atr
-            return _clamp(20.0 - dist * 7.0, 0.0, 18.0), False
+            return _clamp(pts - dist * (pts * 0.35), 0.0, pts * 0.9), False
         dist = (lo - close) / atr
-        return _clamp(16.0 - dist * 6.0, 0.0, 16.0), False
-    lo, hi = ema20 * 0.98, ema20
-    if lo <= close <= hi:
-        return float(SWING_RULE_POINTS), True
+        return _clamp(pts * 0.8 - dist * (pts * 0.3), 0.0, pts * 0.8), False
     if close < lo:
         dist = (lo - close) / atr
-        return _clamp(20.0 - dist * 7.0, 0.0, 18.0), False
+        return _clamp(pts - dist * (pts * 0.35), 0.0, pts * 0.9), False
     dist = (close - hi) / atr
-    return _clamp(16.0 - dist * 6.0, 0.0, 16.0), False
+    return _clamp(pts * 0.8 - dist * (pts * 0.3), 0.0, pts * 0.8), False
 
 
 def _rsi_points(side: str, rsi: float, *, rsi_min_long: float = 45.0) -> tuple[float, bool]:
+    pts = float(SWING_CORE_RULE_POINTS)
     if side == "long":
         lo, hi = rsi_min_long, 60.0
         if lo <= rsi <= hi:
-            return float(SWING_RULE_POINTS), True
+            return pts, True
         if hi < rsi <= hi + 8:
-            return _clamp(20.0 - (rsi - hi) * 1.5, 6.0, 16.0), False
+            return _clamp(pts - (rsi - hi) * (pts * 0.075), pts * 0.3, pts * 0.8), False
         if lo - 6 <= rsi < lo:
-            return _clamp(12.0 - (lo - rsi) * 0.8, 4.0, 12.0), False
+            return _clamp(pts * 0.6 - (lo - rsi) * (pts * 0.04), pts * 0.2, pts * 0.6), False
         if rsi > 70:
             return 0.0, False
-        return 4.0, False
+        return pts * 0.2, False
     lo, hi = 50.0, 65.0
     if lo <= rsi <= hi:
-        return float(SWING_RULE_POINTS), True
+        return pts, True
     if lo - 8 <= rsi < lo:
-        return _clamp(20.0 - (lo - rsi) * 1.5, 6.0, 16.0), False
+        return _clamp(pts - (lo - rsi) * (pts * 0.075), pts * 0.3, pts * 0.8), False
     if hi < rsi <= hi + 6:
-        return _clamp(12.0 - (rsi - hi) * 0.8, 4.0, 12.0), False
+        return _clamp(pts * 0.6 - (rsi - hi) * (pts * 0.04), pts * 0.2, pts * 0.6), False
     if rsi < 35:
         return 0.0, False
-    return 4.0, False
+    return pts * 0.2, False
 
 
 def _macd_points(side: str, df: pd.DataFrame) -> tuple[float, bool]:
+    pts = float(SWING_CORE_RULE_POINTS)
+    half = pts / 2
     h = df["MACD_Hist"].tail(3)
     if len(h) < 3:
         return 0.0, False
@@ -174,21 +195,75 @@ def _macd_points(side: str, df: pd.DataFrame) -> tuple[float, bool]:
     points = 0.0
     if side == "long":
         if latest > prev:
-            points += 10.0
+            points += half
         if prev > prior:
-            points += 10.0
-        passed = points >= 20.0 and (hist_std <= 0 or latest < hist_std * 2)
+            points += half
+        passed = points >= pts and (hist_std <= 0 or latest < hist_std * 2)
         if hist_std > 0 and latest >= hist_std * 2:
-            points = max(0.0, points - 8.0)
-        return min(points, float(SWING_RULE_POINTS)), passed
+            points = max(0.0, points - pts * 0.4)
+        return min(points, pts), passed
     if latest < prev:
-        points += 10.0
+        points += half
     if prev < prior:
-        points += 10.0
-    passed = points >= 20.0 and (hist_std <= 0 or latest > -hist_std * 2)
+        points += half
+    passed = points >= pts and (hist_std <= 0 or latest > -hist_std * 2)
     if hist_std > 0 and latest <= -hist_std * 2:
-        points = max(0.0, points - 8.0)
-    return min(points, float(SWING_RULE_POINTS)), passed
+        points = max(0.0, points - pts * 0.4)
+    return min(points, pts), passed
+
+
+def _rs_points(side: str, analysis: Any) -> tuple[float, bool]:
+    pts = float(SWING_RS_POINTS)
+    ratio = getattr(analysis, "rs_ratio", None)
+    percentile = getattr(analysis, "rs_percentile", None)
+    if percentile is not None:
+        if side == "long":
+            if percentile >= 0.85:
+                return pts, True
+            if percentile >= 0.65:
+                return pts * 0.7, True
+            if percentile >= 0.45:
+                return pts * 0.4, False
+            return pts * 0.15, False
+        if percentile <= 0.15:
+            return pts, True
+        if percentile <= 0.35:
+            return pts * 0.7, True
+        if percentile <= 0.55:
+            return pts * 0.4, False
+        return pts * 0.15, False
+    if ratio is None:
+        return 0.0, False
+    if side == "long":
+        if ratio >= 1.15:
+            return pts, True
+        if ratio >= 1.0:
+            return pts * 0.7, True
+        if ratio >= 0.9:
+            return pts * 0.4, False
+        return 0.0, False
+    if ratio <= 0.85:
+        return pts, True
+    if ratio <= 1.0:
+        return pts * 0.7, True
+    if ratio <= 1.1:
+        return pts * 0.4, False
+    return 0.0, False
+
+
+def _volume_points(side: str, vol_ratio: float | None) -> tuple[float, bool]:
+    pts = float(SWING_VOLUME_POINTS)
+    if vol_ratio is None:
+        return 0.0, False
+    if vol_ratio < 0.75:
+        return pts, True
+    if vol_ratio < 0.85:
+        return pts * 0.6, True
+    if vol_ratio <= 1.1:
+        return pts * 0.2, False
+    if vol_ratio > 1.3:
+        return 0.0, False
+    return pts * 0.1, False
 
 
 def _rule_row(
@@ -199,13 +274,15 @@ def _rule_row(
     passed: bool,
     threshold: str,
     detail: str = "",
+    max_points: float | None = None,
 ) -> dict:
+    cap = max_points if max_points is not None else float(SWING_CORE_RULE_POINTS)
     return {
         "rule": rule,
         "label": label,
         "passed": passed,
         "score": round(points, 1),
-        "max": float(SWING_RULE_POINTS),
+        "max": cap,
         "threshold": threshold,
         "detail": detail,
     }
@@ -241,14 +318,18 @@ def _build_rule_breakdown(
     pull_pts, pull_pass = _pullback_points(side, close, ema20, atr)
     rsi_pts, rsi_pass = _rsi_points(side, rsi, rsi_min_long=rsi_min_long)
     macd_pts, macd_pass = _macd_points(side, df)
+    rs_pts, rs_pass = _rs_points(side, analysis)
+    vol_pts, vol_pass = _volume_points(side, getattr(analysis, "vol_ratio", None))
 
     prefix = f"{side}_"
     labels = {
         f"{prefix}trend": "Uptrend (EMA20 > EMA50)" if side == "long" else "Downtrend (EMA20 < EMA50)",
         f"{prefix}ema50_rising": "EMA50 rising" if side == "long" else "EMA50 falling",
-        f"{prefix}pullback_zone": "Pullback into 20 EMA",
+        f"{prefix}pullback_zone": "Pullback into 20 EMA (ATR band)",
         f"{prefix}rsi_band": "RSI in long band" if side == "long" else "RSI in short band",
         f"{prefix}macd_momentum": "MACD histogram momentum",
+        "rs_market": "RS vs SPY (13w + 26w)",
+        "volume_pullback": "Pullback volume vs 10-week avg",
     }
     thresholds = {c.rule: c.threshold for c in checks}
     passes = {
@@ -257,6 +338,8 @@ def _build_rule_breakdown(
         f"{prefix}pullback_zone": pull_pass,
         f"{prefix}rsi_band": rsi_pass,
         f"{prefix}macd_momentum": macd_pass,
+        "rs_market": rs_pass,
+        "volume_pullback": vol_pass,
     }
     points_map = {
         f"{prefix}trend": trend_pts,
@@ -264,17 +347,36 @@ def _build_rule_breakdown(
         f"{prefix}pullback_zone": pull_pts,
         f"{prefix}rsi_band": rsi_pts,
         f"{prefix}macd_momentum": macd_pts,
+        "rs_market": rs_pts,
+        "volume_pullback": vol_pts,
+    }
+    max_map = {
+        "rs_market": float(SWING_RS_POINTS),
+        "volume_pullback": float(SWING_VOLUME_POINTS),
     }
 
-    rows: list[dict] = []
-    for key in (
+    core_keys = (
         f"{prefix}trend",
         f"{prefix}ema50_rising",
         f"{prefix}pullback_zone",
         f"{prefix}rsi_band",
         f"{prefix}macd_momentum",
-    ):
+    )
+    rows: list[dict] = []
+    for key in (*core_keys, "rs_market", "volume_pullback"):
         chk = check_by_rule.get(key)
+        detail = ""
+        if key == "rs_market":
+            ratio = getattr(analysis, "rs_ratio", None)
+            pct = getattr(analysis, "rs_percentile", None)
+            if ratio is not None:
+                detail = f"ratio={ratio:.2f}"
+            if pct is not None:
+                detail = f"{detail}, pct={pct:.0%}".strip(", ")
+        elif key == "volume_pullback":
+            vr = getattr(analysis, "vol_ratio", None)
+            if vr is not None:
+                detail = f"vol_ratio={vr:.2f}"
         rows.append(
             _rule_row(
                 key,
@@ -282,7 +384,8 @@ def _build_rule_breakdown(
                 points_map[key],
                 passed=passes[key],
                 threshold=thresholds.get(key, chk.threshold if chk else ""),
-                detail=chk.detail if chk else "",
+                detail=detail or (chk.detail if chk else ""),
+                max_points=max_map.get(key),
             )
         )
     return rows
@@ -319,6 +422,10 @@ def _compute_penalties(
 
     long_pass = sum(1 for c in analysis.long_checks if c.passed)
     short_pass = sum(1 for c in analysis.short_checks if c.passed)
+    vol_ratio = getattr(analysis, "vol_ratio", None)
+    rs_ratio = getattr(analysis, "rs_ratio", None)
+
+    lo, hi, in_zone = pullback_zone(side, close, ema20, atr)
 
     if side == "long":
         if close > ema20 * 1.05:
@@ -330,15 +437,15 @@ def _compute_penalties(
                     reason=f"Close ${close:.2f} > 5% above EMA20 (${ema20:.2f})",
                 )
             )
-        elif close > ema20 * 1.02 and not any(p["code"] == "chase" for p in penalties):
-            excess = (close - ema20 * 1.02) / atr
-            if excess > 0.5:
+        elif not in_zone and close > hi:
+            excess = (close - hi) / atr
+            if excess > CHASE_ATR_THRESHOLD:
                 penalties.append(
                     _penalty(
                         "extended",
                         "Chase / extended",
                         min(8.0, 4.0 + excess * 2),
-                        reason="Above pullback band — entry extended",
+                        reason="Above ATR pullback band — entry extended",
                     )
                 )
         if rsi > 72:
@@ -367,6 +474,24 @@ def _compute_penalties(
                     reason=f"Short rules {short_pass}/5 vs long {long_pass}/5",
                 )
             )
+        if rs_ratio is not None and rs_ratio < 0.9:
+            penalties.append(
+                _penalty(
+                    "rs_laggard",
+                    "RS laggard",
+                    8.0 if rs_ratio < 0.8 else 5.0,
+                    reason=f"RS vs SPY {rs_ratio:.2f} — underperforming market",
+                )
+            )
+        if vol_ratio is not None and vol_ratio > 1.3:
+            penalties.append(
+                _penalty(
+                    "heavy_volume",
+                    "Heavy pullback volume",
+                    min(8.0, 4.0 + (vol_ratio - 1.3) * 5),
+                    reason=f"Pullback volume {vol_ratio:.0%} of 10-week avg",
+                )
+            )
     else:
         if close < ema20 * 0.95:
             penalties.append(
@@ -377,6 +502,17 @@ def _compute_penalties(
                     reason=f"Close ${close:.2f} > 5% below EMA20 (${ema20:.2f})",
                 )
             )
+        elif not in_zone and close < lo:
+            excess = (lo - close) / atr
+            if excess > CHASE_ATR_THRESHOLD:
+                penalties.append(
+                    _penalty(
+                        "extended",
+                        "Chase / extended",
+                        min(8.0, 4.0 + excess * 2),
+                        reason="Below ATR pullback band — entry extended",
+                    )
+                )
         if rsi < 32:
             penalties.append(
                 _penalty("rsi_extreme", "RSI extreme", 12.0, reason=f"RSI {rsi:.1f} — oversold for short")
@@ -401,6 +537,24 @@ def _compute_penalties(
                     "Wrong-side dominance",
                     8.0,
                     reason=f"Long rules {long_pass}/5 vs short {short_pass}/5",
+                )
+            )
+        if rs_ratio is not None and rs_ratio > 1.1:
+            penalties.append(
+                _penalty(
+                    "rs_leader",
+                    "RS laggard",
+                    8.0 if rs_ratio > 1.25 else 5.0,
+                    reason=f"RS vs SPY {rs_ratio:.2f} — outperforming (weak short context)",
+                )
+            )
+        if vol_ratio is not None and vol_ratio > 1.3:
+            penalties.append(
+                _penalty(
+                    "heavy_volume",
+                    "Heavy pullback volume",
+                    min(8.0, 4.0 + (vol_ratio - 1.3) * 5),
+                    reason=f"Pullback volume {vol_ratio:.0%} of 10-week avg",
                 )
             )
 
@@ -467,10 +621,12 @@ def score_swing_quality(
     *,
     rsi_min_long: float = 45.0,
 ) -> SwingScoreResult:
-    """Partial credit base score minus capped penalties → 0–100 quality score."""
+    """Partial credit base score (max 100) minus capped penalties → 0–100 quality score."""
     side = _scored_side(analysis)
     rule_breakdown = _build_rule_breakdown(analysis, side, df, rsi_min_long=rsi_min_long)
-    base_score = round(sum(item["score"] for item in rule_breakdown), 1)
+    rs_pts = next((r["score"] for r in rule_breakdown if r["rule"] == "rs_market"), 0.0)
+    vol_pts = next((r["score"] for r in rule_breakdown if r["rule"] == "volume_pullback"), 0.0)
+    base_score = round(min(sum(item["score"] for item in rule_breakdown), SWING_MAX_BASE), 1)
     penalties = _compute_penalties(analysis, side, df, rsi_min_long=rsi_min_long)
     penalty_total = round(sum(p["amount"] for p in penalties), 1)
     swing_score = round(_clamp(base_score + penalty_total, 0.0, 100.0), 1)
@@ -482,6 +638,8 @@ def score_swing_quality(
         rule_breakdown=rule_breakdown,
         penalties=penalties,
         scored_side=side,
+        rs_ratio_score=rs_pts,
+        volume_score=vol_pts,
     )
 
 

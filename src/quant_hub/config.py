@@ -31,6 +31,18 @@ PRICE_CACHE_SUBDIR = CACHE_DIR / "prices" / "1d" / "2y"
 WEEKLY_CACHE_SUBDIR = CACHE_DIR / "prices" / "1wk" / "10y"
 FUNDAMENTALS_CACHE_SUBDIR = CACHE_DIR / "fundamentals"
 
+# ML foundation (Phase 1)
+ML_DIR = DATA_DIR / "ml"
+ML_FEATURES_DIR = ML_DIR / "features"
+FEATURE_SCHEMA_VERSION = "v2"
+DEFAULT_LABEL_HORIZONS = (5, 10, 20, 63)
+LABEL_RETURN_THRESHOLD_PCT = 2.0
+BENCHMARK_TICKER_FOR_LABELS = "SPY"
+# Extended daily cache for ML labels (backfill + forward returns)
+ML_LABEL_LOOKBACK_DAYS = 1260  # ~5 calendar years
+ML_LABEL_CACHE_SUBDIR = CACHE_DIR / "prices" / "1d" / "5y"
+ML_LABEL_CACHE_TTL_HOURS = 8760  # 1 year — refresh via quant-ml warm-cache
+
 SWING_PERIOD = "10y"
 SWING_INTERVAL = "1wk"
 SWING_MIN_BARS = 60

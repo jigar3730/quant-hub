@@ -1,38 +1,36 @@
 # Quant Hub cron — America/New_York (container TZ)
-# Scans run with --no-email; digests send consolidated mail.
+# Scans run with --no-email unless noted.
+#
+# ===== ML PHASE: swing + sp500 only =====
+# Breakout, Lynch, other universes, and digests are disabled until ML + backfill
+# are solid. Re-enable the commented block below when exiting ML phase.
+# See docs/ML_FOUNDATION.md § "ML phase scope".
 
-# Mon–Fri 5:00 PM ET — sp500 breakout scan (no email)
-0 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 --no-email >> /app/logs/cron.log 2>&1
-
-# Mon–Fri 5:35 PM ET — daily quality digest email
-35 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
-
-# Fri 4:30 PM ET — ETF breakout (no email)
-30 16 * * 5 root . /etc/environment; quant-daily --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
-
-# Fri 4:35 PM ET — ETF swing (no email)
-35 16 * * 5 root . /etc/environment; quant-swing --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
-
-# Fri 5:45 PM ET — sp500 swing scan (no email; included in Saturday weekly digest)
+# Fri 5:45 PM ET — sp500 swing scan (weekly setup + full universe detail in Postgres)
 45 17 * * 5 root . /etc/environment; quant-swing --universe sp500 --no-email >> /app/logs/cron.log 2>&1
 
-# Sat 12:30 AM ET on first Saturday of each quarter — refresh sp500_index before weekly sweep
-30 0 1-7 1,4,7,10 6 root . /etc/environment; quant-universe refresh sp500_index >> /app/logs/cron.log 2>&1
+# Sat 6:00 AM ET — ML forward-return labels (swing sp500 only)
+0 6 * * 6 root . /etc/environment; quant-ml label --strategy swing --universe sp500 --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
 
-# Sat 1:00 AM ET — full breakout coverage (all universes)
-0 1 * * 6 root . /etc/environment; quant-scan-all --cache --report both >> /app/logs/cron.log 2>&1
-
+# --- Disabled during ML phase (restore from git history or RUNBOOK.md) ---
+# Mon–Fri 5:00 PM ET — sp500 breakout
+# 0 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 --no-email >> /app/logs/cron.log 2>&1
+# Mon–Fri 5:35 PM ET — daily digest
+# 35 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
+# Fri 4:30 PM ET — ETF breakout
+# 30 16 * * 5 root . /etc/environment; quant-daily --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
+# Fri 4:35 PM ET — ETF swing
+# 35 16 * * 5 root . /etc/environment; quant-swing --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
+# Sat 12:30 AM ET — sp500_index refresh (quarterly)
+# 30 0 1-7 1,4,7,10 6 root . /etc/environment; quant-universe refresh sp500_index >> /app/logs/cron.log 2>&1
+# Sat 1:00 AM ET — full breakout coverage
+# 0 1 * * 6 root . /etc/environment; quant-scan-all --cache --report both >> /app/logs/cron.log 2>&1
 # Sat 4:00 AM ET — full swing coverage (all universes)
-0 4 * * 6 root . /etc/environment; quant-swing-all --no-email >> /app/logs/cron.log 2>&1
-
-# Sat 5:00 AM ET — full Lynch coverage (stock universes; skips lynch_enabled: false)
-0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
-
-# Sat 7:50 AM ET — weekly analytics payload
-50 7 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1
-
-# Sat 8:00 AM ET — weekly consolidated digest email
-0 8 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
-
-# Sat 9:00 AM ET — retry weekly digest if 8:00 run failed (idempotent skip if already sent)
-0 9 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
+# 0 4 * * 6 root . /etc/environment; quant-swing-all --no-email >> /app/logs/cron.log 2>&1
+# Sat 5:00 AM ET — full Lynch coverage
+# 0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
+# Sat 7:50 AM ET — weekly analytics
+# 50 7 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1
+# Sat 8:00 / 9:00 AM ET — weekly digest
+# 0 8 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
+# 0 9 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1

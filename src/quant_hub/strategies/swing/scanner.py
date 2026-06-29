@@ -8,6 +8,12 @@ from typing import Any
 import pandas as pd
 
 from quant_hub.indicators import atr, ema, macd_histogram, rsi
+from quant_hub.strategies.swing.metrics import (
+    pullback_zone,
+    pullback_zone_label,
+    weekly_rs_vs_spy,
+    weekly_volume_ratio,
+)
 
 SWING_FILTER_LABELS = {
     "no_setup": "No long/short setup matched — review rule checklist",
@@ -69,6 +75,9 @@ class SwingAnalysis:
     short_checks: list[SwingCheck] = field(default_factory=list)
     bars_evaluated: int = 0
     score_result: Any = None
+    rs_ratio: float | None = None
+    rs_percentile: float | None = None
+    vol_ratio: float | None = None
 
     @property
     def active_checks(self) -> list[SwingCheck]:
@@ -147,8 +156,8 @@ def build_long_checks(df: pd.DataFrame, *, rsi_min: float = 45) -> list[SwingChe
     ema50 = float(latest["EMA50"])
     rsi_val = float(latest["RSI"])
     ema50_prev = float(prev["EMA50"])
-    pullback_lo = ema20
-    pullback_hi = ema20 * 1.02
+    atr_val = float(latest["ATR"])
+    lo, hi, in_zone = pullback_zone("long", close, ema20, atr_val)
 
     return [
         _check(
@@ -167,10 +176,14 @@ def build_long_checks(df: pd.DataFrame, *, rsi_min: float = 45) -> list[SwingChe
         ),
         _check(
             "long_pullback_zone",
-            "Pullback into 20 EMA",
-            pullback_lo <= close <= pullback_hi,
-            value={"close": round(close, 2), "zone": f"{pullback_lo:.2f}–{pullback_hi:.2f}"},
-            threshold="Close within EMA20 to EMA20×1.02",
+            "Pullback into 20 EMA (ATR band)",
+            in_zone,
+            value={
+                "close": round(close, 2),
+                "zone": f"{lo:.2f}–{hi:.2f}",
+                "atr": round(atr_val, 2),
+            },
+            threshold=pullback_zone_label("long"),
         ),
         _check(
             "long_rsi_band",
@@ -200,8 +213,8 @@ def build_short_checks(df: pd.DataFrame) -> list[SwingCheck]:
     ema50 = float(latest["EMA50"])
     rsi_val = float(latest["RSI"])
     ema50_prev = float(prev["EMA50"])
-    pullback_lo = ema20 * 0.98
-    pullback_hi = ema20
+    atr_val = float(latest["ATR"])
+    lo, hi, in_zone = pullback_zone("short", close, ema20, atr_val)
 
     return [
         _check(
@@ -220,10 +233,14 @@ def build_short_checks(df: pd.DataFrame) -> list[SwingCheck]:
         ),
         _check(
             "short_pullback_zone",
-            "Pullback into 20 EMA",
-            pullback_lo <= close <= pullback_hi,
-            value={"close": round(close, 2), "zone": f"{pullback_lo:.2f}–{pullback_hi:.2f}"},
-            threshold="Close within EMA20×0.98 to EMA20",
+            "Pullback into 20 EMA (ATR band)",
+            in_zone,
+            value={
+                "close": round(close, 2),
+                "zone": f"{lo:.2f}–{hi:.2f}",
+                "atr": round(atr_val, 2),
+            },
+            threshold=pullback_zone_label("short"),
         ),
         _check(
             "short_rsi_band",
@@ -248,9 +265,13 @@ def build_short_checks(df: pd.DataFrame) -> list[SwingCheck]:
 def _pick_candidate(long_checks: list[SwingCheck], short_checks: list[SwingCheck]) -> str:
     long_pass = sum(1 for c in long_checks if c.passed)
     short_pass = sum(1 for c in short_checks if c.passed)
-    if long_pass >= short_pass and long_checks[0].passed:
+    if long_checks[0].passed and long_pass >= short_pass:
         return "long"
-    if short_pass > long_pass and short_checks[0].passed:
+    if short_checks[0].passed and short_pass > long_pass:
+        return "short"
+    if long_checks[0].passed:
+        return "long"
+    if short_checks[0].passed:
         return "short"
     if long_pass >= short_pass:
         return "long"
@@ -261,11 +282,11 @@ def evaluate_setup(df: pd.DataFrame, *, rsi_min_long: float = 45) -> dict | None
     """Return setup dict or None. Logic matches finance-vibe weekly profile."""
     long_checks = build_long_checks(df, rsi_min=rsi_min_long)
     if all(c.passed for c in long_checks):
-        return {"Setup Type": "SETUP_LONG", "Notes": "Pullback into 20EMA"}
+        return {"Setup Type": "SETUP_LONG", "Notes": "Pullback into 20 EMA (ATR band)"}
 
     short_checks = build_short_checks(df)
     if all(c.passed for c in short_checks):
-        return {"Setup Type": "SETUP_SHORT", "Notes": "Pullback into 20EMA"}
+        return {"Setup Type": "SETUP_SHORT", "Notes": "Pullback into 20 EMA (ATR band)"}
 
     return None
 
@@ -276,6 +297,8 @@ def analyze_swing(
     *,
     min_bars: int = 60,
     rsi_min_long: float = 45,
+    spy_df: pd.DataFrame | None = None,
+    rs_percentile: float | None = None,
 ) -> SwingAnalysis:
     """Full weekly indicator snapshot and rule checklist for any ticker."""
     symbol = ticker.upper()
@@ -336,6 +359,9 @@ def analyze_swing(
         long_checks=long_checks,
         short_checks=short_checks,
         bars_evaluated=len(enriched),
+        rs_ratio=weekly_rs_vs_spy(enriched, spy_df) if spy_df is not None else None,
+        rs_percentile=rs_percentile,
+        vol_ratio=weekly_volume_ratio(enriched),
     )
     analysis.score_result = _score_swing_quality(
         analysis, enriched, rsi_min_long=rsi_min_long
@@ -431,6 +457,16 @@ def analysis_to_report(analysis: SwingAnalysis) -> dict:
                 "max": 0,
                 "meaning": "MACD histogram (latest week)",
             },
+            "rs_market": {
+                "score": score.rs_ratio_score,
+                "max": 10,
+                "meaning": "RS vs SPY (13w+26w weekly)",
+            },
+            "volume_pullback": {
+                "score": score.volume_score,
+                "max": 10,
+                "meaning": "Pullback week volume vs 10-week avg",
+            },
         },
         "eligibility": {
             "passed": passed,
@@ -456,6 +492,9 @@ def analysis_to_report(analysis: SwingAnalysis) -> dict:
             "rule_breakdown": rule_breakdown,
             "penalties": penalties,
             "notes": tier_reason,
+            "rs_ratio": analysis.rs_ratio,
+            "rs_percentile": analysis.rs_percentile,
+            "vol_ratio": analysis.vol_ratio,
         },
         "swing_checks": checks,
     }

@@ -4,19 +4,26 @@ from __future__ import annotations
 
 import streamlit as st
 
+from quant_hub.strategies.swing.constants import (
+    SWING_CORE_RULE_POINTS,
+    SWING_RS_POINTS,
+    SWING_RULE_COUNT,
+    SWING_VOLUME_POINTS,
+)
 from quant_hub.strategies.swing.scoring import (
     SWING_MAX_PENALTY,
     SWING_PENALTY_RUBRIC,
-    SWING_RULE_COUNT,
     SWING_RULE_POINTS,
     SWING_SCORE_RUBRIC,
 )
 
 SWING_GUIDE_TITLE = "Swing Setup Quality Rubric"
 SWING_GUIDE_INTRO = (
-    "Setup **quality score (0–100)** = **base** (partial credit on 5 rules) **− penalties**. "
-    f"Each rule earns up to {SWING_RULE_POINTS} pts. Penalties are capped at −{SWING_MAX_PENALTY:.0f} total. "
-    "**Setup gate** (SETUP_LONG/SHORT) still requires all 5 hard checks to pass."
+    "Setup **quality score (0–100)** = **base** (partial credit on 5 setup rules + RS + volume) "
+    f"**− penalties**. Core rules earn up to {SWING_CORE_RULE_POINTS} pts each (80 total); "
+    f"RS vs SPY up to {SWING_RS_POINTS}; pullback volume up to {SWING_VOLUME_POINTS}. "
+    f"Penalties capped at −{SWING_MAX_PENALTY:.0f}. "
+    "**Setup gate** still requires all 5 hard checks (ATR pullback band included)."
 )
 
 
@@ -26,10 +33,13 @@ def render_swing_score_guide(*, in_sidebar: bool = False) -> None:
     target.markdown(SWING_GUIDE_INTRO)
 
     target.markdown("**Base components (partial credit)**")
-    for index, (name, detail) in enumerate(SWING_SCORE_RUBRIC, start=1):
-        target.markdown(
-            f"{index}. **{name}** — {detail} (0–{SWING_RULE_POINTS} pts)"
-        )
+    rubric_caps = (
+        *([SWING_CORE_RULE_POINTS] * 5),
+        SWING_RS_POINTS,
+        SWING_VOLUME_POINTS,
+    )
+    for index, ((name, detail), cap) in enumerate(zip(SWING_SCORE_RUBRIC, rubric_caps, strict=True), start=1):
+        target.markdown(f"{index}. **{name}** — {detail} (0–{cap} pts)")
 
     target.markdown("**Penalties (subtracted from base)**")
     for name, detail in SWING_PENALTY_RUBRIC:
@@ -43,6 +53,6 @@ def render_swing_score_guide(*, in_sidebar: bool = False) -> None:
         "- **D (<55):** Avoid — wrong structure or heavy penalties"
     )
     target.caption(
-        f"Confirmed setups can score below 100 if chase, RSI stretch, or MACD overextension apply. "
-        f"Near-misses spread across {SWING_RULE_COUNT * SWING_RULE_POINTS} base pts minus penalties."
+        f"Confirmed setups can score below 100 if chase, RSI stretch, RS laggard, or heavy volume apply. "
+        f"Near-misses use the same {SWING_RULE_COUNT} core rules plus RS/volume (max 100 base) minus penalties."
     )

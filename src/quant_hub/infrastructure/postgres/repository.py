@@ -413,6 +413,94 @@ class ScanRepository:
                 )
                 return [self._row_to_run_dict(row) for row in cur.fetchall()]
 
+    def get_run_by_id(self, run_id: int) -> dict[str, Any] | None:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, scan_date, scan_time, strategy_id, universe_id,
+                           universe_size, tier1_count, tier2_count, tier3_count,
+                           filtered_count, actionable_count,
+                           regime_label, regime_multiplier, metadata
+                    FROM scan_runs
+                    WHERE id = %s
+                    """,
+                    (run_id,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return self._row_to_run_dict(row)
+
+    def list_runs_filtered(
+        self,
+        *,
+        strategy_id: str | None = None,
+        universe_id: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+        exclude_fixtures: bool = True,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if strategy_id:
+            clauses.append("strategy_id = %s")
+            params.append(strategy_id)
+        if universe_id:
+            clauses.append("universe_id = %s")
+            params.append(universe_id)
+        if since:
+            clauses.append("scan_date >= %s")
+            params.append(since)
+        if until:
+            clauses.append("scan_date <= %s")
+            params.append(until)
+        if exclude_fixtures:
+            fixture_clause, fixture_params = _fixture_sql_clause(True)
+            clauses.append(fixture_clause)
+            params.extend(fixture_params)
+        where = " AND ".join(clauses) if clauses else "TRUE"
+        limit_clause = ""
+        if limit is not None:
+            limit_clause = " LIMIT %s"
+            params.append(limit)
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, scan_date, scan_time, strategy_id, universe_id,
+                           universe_size, tier1_count, tier2_count, tier3_count,
+                           filtered_count, actionable_count,
+                           regime_label, regime_multiplier, metadata
+                    FROM scan_runs
+                    WHERE {where}
+                    ORDER BY scan_date DESC, scan_time DESC
+                    {limit_clause}
+                    """,
+                    params,
+                )
+                return [self._row_to_run_dict(row) for row in cur.fetchall()]
+
+    def list_ticker_details_for_run(self, run_id: int) -> list[dict[str, Any]]:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT detail FROM ticker_results
+                    WHERE run_id = %s
+                    ORDER BY ticker
+                    """,
+                    (run_id,),
+                )
+                details: list[dict[str, Any]] = []
+                for row in cur.fetchall():
+                    detail = row[0]
+                    if isinstance(detail, str):
+                        detail = json.loads(detail)
+                    details.append(detail)
+                return details
+
     def delete_fixture_runs(self) -> int:
         """Remove test fixture scan runs from production database."""
         with get_connection() as conn:
@@ -436,7 +524,7 @@ class ScanRepository:
         counts: dict[str, int] = {}
         with get_connection() as conn:
             with conn.cursor() as cur:
-                for table in ("scan_runs", "ticker_results", "job_runs"):
+                for table in ("scan_runs", "ticker_results", "job_runs", "signal_outcomes"):
                     cur.execute(f"SELECT COUNT(*) FROM {table}")
                     counts[table] = cur.fetchone()[0]
         return counts

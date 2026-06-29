@@ -1,0 +1,108 @@
+"""Flatten scan detail JSON into tabular ML features."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from quant_hub.ml.constants import BREAKOUT_SCORE_FACTORS, FEATURE_SCHEMA_VERSION
+
+
+def _categories_str(categories: list | None) -> str | None:
+    if not categories:
+        return None
+    return ",".join(sorted(str(c) for c in categories))
+
+
+def extract_features(
+    *,
+    strategy_id: str,
+    detail: dict[str, Any],
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a flat feature row from ticker detail + scan run context."""
+    summary = detail.get("summary") or {}
+    metadata = run.get("metadata") or {}
+    prov = metadata.get("data_provenance") or {}
+    eligibility = detail.get("eligibility") or {}
+
+    row: dict[str, Any] = {
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "run_id": run["id"],
+        "scan_date": str(run["scan_date"]),
+        "scan_time": str(run.get("scan_time", "")),
+        "strategy_id": strategy_id,
+        "universe_id": run["universe_id"],
+        "ticker": detail.get("ticker"),
+        "tier": detail.get("tier"),
+        "eligible": detail.get("eligible"),
+        "final_score": summary.get("final_adjusted_score") or detail.get("final_score"),
+        "regime_label": run.get("regime_label"),
+        "regime_multiplier": run.get("regime_multiplier"),
+        "as_of_price": prov.get("as_of_price"),
+        "price_cache": prov.get("price_cache"),
+        "fundamentals_cache": prov.get("fundamentals_cache"),
+        "filter_reason": eligibility.get("fail_reason") or detail.get("filter_reason"),
+        "universe_size": run.get("universe_size"),
+    }
+
+    if strategy_id == "breakout":
+        row["normalized_score"] = summary.get("normalized_score")
+        row["raw_score"] = summary.get("raw_score")
+        row["sector_etf"] = detail.get("sector_etf")
+        scores = detail.get("scores") or {}
+        for factor in BREAKOUT_SCORE_FACTORS:
+            block = scores.get(factor) or {}
+            row[f"score_{factor}"] = block.get("score")
+
+    elif strategy_id == "swing":
+        setup = detail.get("setup_detail") or {}
+        row["swing_score"] = setup.get("swing_score") or summary.get("swing_score")
+        row["quality_label"] = setup.get("quality_label")
+        row["checks_passed"] = setup.get("checks_passed")
+        row["checks_total"] = setup.get("checks_total")
+        row["scored_side"] = setup.get("scored_side")
+        row["rsi"] = setup.get("rsi") or summary.get("rsi")
+        row["close"] = setup.get("close")
+        row["ema20"] = setup.get("ema20")
+        row["ema50"] = setup.get("ema50")
+        row["atr"] = setup.get("atr")
+        row["penalty_total"] = setup.get("penalty_total")
+        row["rs_ratio"] = setup.get("rs_ratio")
+        row["rs_percentile"] = setup.get("rs_percentile")
+        row["vol_ratio"] = setup.get("vol_ratio")
+
+    elif strategy_id == "lynch":
+        metrics = detail.get("metrics") or {}
+        row["lynch_score"] = detail.get("lynch_score")
+        row["passed"] = detail.get("passed")
+        row["peg_ratio"] = detail.get("peg_ratio") or metrics.get("peg_ratio")
+        row["pe_ratio"] = detail.get("pe_ratio") or metrics.get("pe_ratio")
+        row["eps_growth_5y_pct"] = metrics.get("eps_growth_5y")
+        row["debt_to_equity"] = metrics.get("debt_to_equity")
+        row["return_on_equity"] = metrics.get("return_on_equity")
+        row["categories"] = _categories_str(detail.get("categories"))
+        row["fetch_complete"] = metrics.get("data_quality", {}).get("complete")
+        row["fetch_error"] = bool(metrics.get("error")) or detail.get("lynch_score") is None
+
+    return row
+
+
+def merge_outcome_columns(
+    features: dict[str, Any],
+    outcome: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Attach label columns for a single horizon export row."""
+    if not outcome:
+        return features
+    return {
+        **features,
+        "horizon_days": outcome.get("horizon_days"),
+        "anchor_date": str(outcome.get("anchor_date", "")),
+        "forward_return_pct": outcome.get("forward_return_pct"),
+        "forward_max_gain_pct": outcome.get("forward_max_gain_pct"),
+        "forward_max_drawdown_pct": outcome.get("forward_max_drawdown_pct"),
+        "spy_forward_return_pct": outcome.get("spy_forward_return_pct"),
+        "excess_return_pct": outcome.get("excess_return_pct"),
+        "label_binary": outcome.get("label_binary"),
+        "label_status": outcome.get("label_status"),
+    }

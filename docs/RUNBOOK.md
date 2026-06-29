@@ -253,6 +253,7 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 | **Breakout full coverage** | `0 1 * * 6` | Sat **1:00 AM ET** | `quant-scan-all --cache --report both` | No |
 | **Swing full coverage** | `0 4 * * 6` | Sat **4:00 AM ET** | `quant-swing-all --no-email` | No |
 | **Lynch full coverage** | `0 5 * * 6` | Sat **5:00 AM ET** | `quant-lynch-all --no-email` | No |
+| **ML labels** | `0 6 * * 6` | Sat **6:00 AM ET** | `quant-ml label --since <90d>` | No |
 | **Weekly analytics** | `50 7 * * 6` | Sat **7:50 AM ET** | `quant-analytics weekly` | No |
 | **Weekly digest** | `0 8 * * 6` | Sat **8:00 AM ET** | `quant-digest weekly` | **Yes** |
 | **Weekly retry** | `0 9 * * 6` | Sat **9:00 AM ET** | `quant-digest weekly` (idempotent) | If needed |
@@ -269,6 +270,7 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 0 1 * * 6 root . /etc/environment; quant-scan-all --cache --report both >> /app/logs/cron.log 2>&1
 0 4 * * 6 root . /etc/environment; quant-swing-all --no-email >> /app/logs/cron.log 2>&1
 0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
+0 6 * * 6 root . /etc/environment; quant-ml label --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
 50 7 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1
 0 8 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
 0 9 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
@@ -283,6 +285,7 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 | Breakout | `quant-scan-all --cache --report both` | All 9 in `universes.json` |
 | Swing | `quant-swing-all --no-email` | All 9 |
 | Lynch | `quant-lynch-all --no-email` | 8 stock universes (`sector_commodity_etfs` skipped via `lynch_enabled: false`) |
+| ML labels | `quant-ml label --since <90d>` | Forward returns for recent scan runs — see [ML Foundation](ML_FOUNDATION.md) |
 
 Manual equivalent inside the container:
 
