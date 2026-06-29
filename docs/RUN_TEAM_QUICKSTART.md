@@ -389,6 +389,8 @@ More detail: [Runbook §9 Troubleshooting](RUNBOOK.md#9-troubleshooting) · [Eme
 |------|------|
 | **This guide** | Day-to-day ops, Docker, triage |
 | [Runbook](RUNBOOK.md) | Full deploy, backup, upgrade, security |
+| [ML Ops](ML_OPS.md) | Backfill, labels, feature export, verification |
+| [ML Foundation](ML_FOUNDATION.md) | ML schema, leakage rules, retention |
 | [Analytics Guide](ANALYTICS_GUIDE.md) | SQL insights, cross-strategy analysis, weekly playbook |
 | [User Manual](USER_MANUAL.md) | Dashboard for analysts |
 | [Data Model](DATA_MODEL.md) | Postgres tables, caches, exports |

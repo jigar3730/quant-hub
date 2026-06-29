@@ -2,13 +2,13 @@
 
 **Status:** Phase 1 — labels + feature export (no training models yet)  
 **Audience:** Operators and anyone building Phase 2 models  
-**Related:** [Data Model](DATA_MODEL.md) · [Runbook](RUNBOOK.md) · [Analytics Guide](ANALYTICS_GUIDE.md)
+**Related:** [ML Ops](ML_OPS.md) (operator guide) · [Data Model](DATA_MODEL.md) · [Runbook](RUNBOOK.md) · [Analytics Guide](ANALYTICS_GUIDE.md)
 
 ---
 
 ## ML phase scope (current)
 
-Until swing ML and historical backfill are solid, the platform runs in **narrow scope**:
+Until swing ML and historical backfill are solid, the platform runs in **narrow scope**. See **[ML Ops Guide](ML_OPS.md)** for day-to-day commands, verification SQL, and troubleshooting.
 
 | Active | Paused |
 |--------|--------|
@@ -112,7 +112,7 @@ Labels are **recomputable**: re-run `quant-ml label` after more price history ac
 2. **Entry** — first daily close on a trading day **strictly after** `anchor_date`.
 3. **Exit** — close on the *N*th trading session after entry (`horizon_days`).
 4. **Path metrics** — max gain and max drawdown computed on closes between entry and exit.
-5. **Benchmark** — SPY from the same daily parquet cache (`data/cache/prices/1d/2y/SPY.parquet`).
+5. **Benchmark** — SPY from the ML daily cache (`data/cache/prices/1d/5y/`, fallback `1d/2y/`).
 
 Prices come only from the **daily cache**. If a ticker has no cache file, `label_status = no_price`.
 
@@ -122,7 +122,7 @@ Prices come only from the **daily cache**. If a ticker has no cache file, `label
 
 `quant-ml export-features` flattens `ticker_results.detail` plus run context into tabular columns.
 
-- **Schema version:** `v1` (`FEATURE_SCHEMA_VERSION` in config)
+- **Schema version:** `v2` (`FEATURE_SCHEMA_VERSION` in config)
 - **Output:** `data/ml/features/{strategy}/{universe}/features_*.parquet`
 - **Optional labels:** joined from `signal_outcomes` for a chosen `--horizon` (default 10)
 
@@ -131,7 +131,7 @@ Strategy-specific columns:
 | Strategy | Key columns |
 |----------|-------------|
 | breakout | 9 factor scores, `normalized_score`, `tier`, `sector_etf` |
-| swing | `swing_score`, `quality_label`, RSI, EMAs, ATR |
+| swing | `swing_score`, `quality_label`, RSI, EMAs, ATR, `rs_ratio`, `rs_percentile`, `vol_ratio` |
 | lynch | `lynch_score`, PEG, P/E, categories, fetch quality flags |
 
 Bump `FEATURE_SCHEMA_VERSION` when adding or renaming exported columns.
@@ -160,8 +160,10 @@ docker exec quant-hub quant-hub init-db
 
 ## Schedule
 
-- **Saturday 6:00 AM ET** — `quant-ml label --since <90 days ago>` (cron)
-- **Weekly full coverage** — also runs label step at the end of `weekly-full-coverage.sh`
+During **ML phase**, cron runs only swing sp500 + scoped labels. See [ML Ops § Schedule](ML_OPS.md#2-current-scope-ml-phase).
+
+- **Friday 5:45 PM ET** — `quant-swing --universe sp500 --no-email`
+- **Saturday 6:00 AM ET** — `quant-ml label --strategy swing --universe sp500 --since <90d>`
 
 Re-run labeling manually after bulk historical imports.
 
@@ -194,12 +196,33 @@ Re-run labeling manually after bulk historical imports.
 
 ## Exit criteria (Phase 1)
 
-- [ ] `signal_outcomes` populated for recent scan history
-- [ ] SQL query: Tier 1 breakout on date D → 10d forward return
-- [ ] Parquet export with `feature_schema_version = v1`
-- [ ] Unit tests pass for label math and feature flattening
+- [x] `signal_outcomes` populated for recent scan history
+- [x] SQL query: Tier 1 breakout on date D → 10d forward return
+- [x] Parquet export with `feature_schema_version = v1`
+- [x] Unit tests pass for label math and feature flattening
 
-**Phase 2** (not in scope yet): `quant-ml train`, `quant-ml evaluate`, `ml_models` registry, LightGBM reranker.
+## Phase 2 — model training and evaluation
+
+**Goal:** Can ML improve swing setup ranking beyond rule-based `swing_score`?
+
+| Deliverable | CLI / artifact |
+|-------------|----------------|
+| Training set builder | `ml/training_set.py` — setups-only filters, Postgres join |
+| Walk-forward splits | `ml/walk_forward.py` — split by `scan_date`, no shuffle |
+| Model training | `quant-ml train` → LightGBM binary classifier (10d `label_binary`) |
+| Model registry | Postgres `ml_models` + artifacts under `data/ml/models/` |
+| Evaluation | `quant-ml evaluate` — AUC, precision@K, top-K return vs `swing_score` |
+
+**Training problem (v1):** one row per `(run_id, ticker)` where `strategy_id = swing`, `universe_id = sp500`, `tier IN (SETUP_LONG, SETUP_SHORT)`, `label_status = ok`. Target: `label_binary` at horizon 10d. Features: `swing_score`, `rsi`, `rs_ratio`, etc. — no forward/label/id columns.
+
+**Exit criteria (Phase 2):**
+
+- [ ] `quant-ml train` produces a registered model from swing sp500 backfill data
+- [ ] `quant-ml evaluate` reports walk-forward metrics on held-out weeks
+- [ ] Documented comparison: ML top-N vs `swing_score` top-N on 10d forward return
+- [ ] Unit tests for training set filters, walk-forward date logic, no feature leakage
+
+**Deferred:** dashboard ML UI, live inference, breakout/lynch models, point-in-time universe backfill.
 
 ---
 

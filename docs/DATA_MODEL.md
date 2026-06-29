@@ -355,7 +355,7 @@ Forward-return labels for ML (Phase 1). One row per `(run_id, ticker, horizon_da
 | `label_status` | VARCHAR(32) | `ok`, `no_price`, `invalid_anchor`, `insufficient_future_bars` |
 | `computed_at` | TIMESTAMPTZ | Last label job write |
 
-Populated by `quant-ml label`. See [ML Foundation](ML_FOUNDATION.md).
+Populated by `quant-ml label`. See [ML Foundation](ML_FOUNDATION.md) and [ML Ops](ML_OPS.md).
 
 ### Table: `job_runs`
 

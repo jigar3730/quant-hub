@@ -524,7 +524,7 @@ class ScanRepository:
         counts: dict[str, int] = {}
         with get_connection() as conn:
             with conn.cursor() as cur:
-                for table in ("scan_runs", "ticker_results", "job_runs", "signal_outcomes"):
+                for table in ("scan_runs", "ticker_results", "job_runs", "signal_outcomes", "ml_models"):
                     cur.execute(f"SELECT COUNT(*) FROM {table}")
                     counts[table] = cur.fetchone()[0]
         return counts

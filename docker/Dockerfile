@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cron \
     procps \
     tzdata \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN ln -snf /usr/share/zoneinfo/America/New_York /etc/localtime && \
@@ -20,7 +21,7 @@ COPY src ./src
 COPY data/universes.json data/universes.json
 COPY data/universes/ data/universes/
 
-RUN uv pip install --system -e .[dev,viz]
+RUN uv pip install --system -e .[dev,viz,ml]
 
 COPY docker/crontab /etc/cron.d/quant-hub
 COPY docker/entrypoint.sh /entrypoint.sh

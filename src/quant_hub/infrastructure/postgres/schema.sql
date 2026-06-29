@@ -65,3 +65,25 @@ CREATE TABLE IF NOT EXISTS signal_outcomes (
 CREATE INDEX IF NOT EXISTS idx_signal_outcomes_run ON signal_outcomes (run_id);
 CREATE INDEX IF NOT EXISTS idx_signal_outcomes_status ON signal_outcomes (label_status);
 CREATE INDEX IF NOT EXISTS idx_signal_outcomes_anchor ON signal_outcomes (anchor_date DESC);
+
+-- ML Phase 2: trained model registry
+CREATE TABLE IF NOT EXISTS ml_models (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(128) NOT NULL UNIQUE,
+    strategy_id VARCHAR(32) NOT NULL,
+    universe_id VARCHAR(64) NOT NULL,
+    horizon_days INT NOT NULL,
+    feature_schema_version VARCHAR(16) NOT NULL,
+    model_type VARCHAR(64) NOT NULL,
+    train_params JSONB,
+    metrics JSONB,
+    feature_columns JSONB,
+    artifact_path TEXT NOT NULL,
+    train_since DATE,
+    train_until DATE,
+    eval_split_date DATE,
+    status VARCHAR(16) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ml_models_strategy ON ml_models (strategy_id, universe_id, created_at DESC);

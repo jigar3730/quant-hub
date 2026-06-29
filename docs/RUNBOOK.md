@@ -258,6 +258,8 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 | **Weekly digest** | `0 8 * * 6` | Sat **8:00 AM ET** | `quant-digest weekly` | **Yes** |
 | **Weekly retry** | `0 9 * * 6` | Sat **9:00 AM ET** | `quant-digest weekly` (idempotent) | If needed |
 
+**ML phase note:** When swing ML work is in progress, `docker/crontab` may run only swing sp500 + scoped ML labels. The table above reflects the **full** schedule; see [ML Ops](ML_OPS.md) for the active ML-phase cron.
+
 Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 
 ```
@@ -285,7 +287,7 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 | Breakout | `quant-scan-all --cache --report both` | All 9 in `universes.json` |
 | Swing | `quant-swing-all --no-email` | All 9 |
 | Lynch | `quant-lynch-all --no-email` | 8 stock universes (`sector_commodity_etfs` skipped via `lynch_enabled: false`) |
-| ML labels | `quant-ml label --since <90d>` | Forward returns for recent scan runs — see [ML Foundation](ML_FOUNDATION.md) |
+| ML labels | `quant-ml label --strategy swing --universe sp500 --since <90d>` | Forward returns — see [ML Ops](ML_OPS.md) |
 
 Manual equivalent inside the container:
 

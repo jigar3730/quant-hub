@@ -28,6 +28,10 @@ viz = [
     "plotly>=5.0.0",
     "streamlit>=1.40.0",
 ]
+ml = [
+    "scikit-learn>=1.5.0",
+    "lightgbm>=4.0.0",
+]
 
 [project.scripts]
 quant-scan = "quant_hub.cli.scan:main"

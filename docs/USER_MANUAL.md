@@ -702,6 +702,24 @@ A: Email notifications include TradingView chart links for actionable tickers an
 
 ---
 
+## ML operations
+
+Quant Hub can backfill historical swing scans, compute forward-return labels, and export training Parquet. This is **operator-only** — the dashboard does not run ML jobs.
+
+| Task | Doc |
+|------|-----|
+| Backfill, label, export, verify | **[ML Ops Guide](ML_OPS.md)** |
+| Schema, leakage rules, retention | [ML Foundation](ML_FOUNDATION.md) |
+
+Quick status:
+
+```bash
+docker exec quant-hub quant-hub status
+docker exec quant-hub quant-ml status
+```
+
+---
+
 ## Support
 
 For installation, backups, cron failures, and database issues, see **RUNBOOK.md** (administrator guide) or contact your homelab administrator.
