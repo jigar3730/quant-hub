@@ -1,6 +1,6 @@
-# ML Foundation (Phase 1)
+# ML Foundation
 
-**Status:** Phase 1 — labels + feature export (no training models yet)  
+**Status:** Phase 2 — labels, backfill, train/eval; Phase 1 data layer complete  
 **Audience:** Operators and anyone building Phase 2 models  
 **Related:** [ML Ops](ML_OPS.md) (operator guide) · [Data Model](DATA_MODEL.md) · [Runbook](RUNBOOK.md) · [Analytics Guide](ANALYTICS_GUIDE.md)
 
@@ -32,17 +32,24 @@ docker exec quant-hub quant-ml export-features --strategy swing --universe sp500
 **Backfill** — historical swing sp500 scans for ML training:
 
 ```bash
+# Check missing Fridays before a long backfill
+docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01
+
 # 1. Backfill weekly swing signals (point-in-time from 10y weekly parquet)
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01
 
 # 2. Warm extended daily cache (~5y) for forward-return labels
 docker exec quant-hub quant-ml warm-cache --universe sp500
 
 # 3. Label all backfilled runs
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since 2020-01-01
 
 # 4. Export training features
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --since 2020-01-01
+
+# 5. Train / evaluate (optional)
+docker exec quant-hub quant-ml train --strategy swing --universe sp500 --since 2020-01-01 --name swing_v2
+docker exec quant-hub quant-ml evaluate --model-id 1 --walk-forward
 ```
 
 `quant-backfill swing` truncates weekly OHLCV to each Friday, skips staleness checks, and sets `metadata.data_provenance.backfill=true`. Re-run with `--no-resume` to overwrite dates.
@@ -217,10 +224,10 @@ Re-run labeling manually after bulk historical imports.
 
 **Exit criteria (Phase 2):**
 
-- [ ] `quant-ml train` produces a registered model from swing sp500 backfill data
-- [ ] `quant-ml evaluate` reports walk-forward metrics on held-out weeks
-- [ ] Documented comparison: ML top-N vs `swing_score` top-N on 10d forward return
-- [ ] Unit tests for training set filters, walk-forward date logic, no feature leakage
+- [x] `quant-ml train` produces a registered model from swing sp500 backfill data
+- [x] `quant-ml evaluate` reports walk-forward metrics on held-out weeks
+- [x] Unit tests for training set filters, walk-forward date logic, no feature leakage
+- [ ] Documented comparison: ML top-N vs `swing_score` top-N on 10d forward return (holdout; see ML Ops)
 
 **Deferred:** dashboard ML UI, live inference, breakout/lynch models, point-in-time universe backfill.
 

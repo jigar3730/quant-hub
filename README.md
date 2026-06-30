@@ -38,15 +38,18 @@ docker exec quant-hub quant-view                      # dashboard (Postgres-back
 | `quant-daily` | Scheduled breakout workflow (cache on; cron uses `--no-email`) |
 | `quant-digest` | Consolidated daily/weekly digest emails |
 | `quant-analytics` | Build weekly analytics payload (no email) |
-| `quant-ml label\|export-features\|warm-cache\|status` | ML labels + feature export ([ML Ops](docs/ML_OPS.md) · [ML Foundation](docs/ML_FOUNDATION.md)) |
-| `quant-backfill swing` | Historical point-in-time swing scans for ML training |
+| `quant-ml label\|export-features\|warm-cache\|train\|evaluate\|models\|status` | ML pipeline ([ML Ops](docs/ML_OPS.md) · [ML Foundation](docs/ML_FOUNDATION.md)) |
+| `quant-backfill swing\|coverage` | Historical swing backfill + gap report before long runs |
 | `quant-universe list\|show\|refresh` | Inspect or refresh universe registry |
 | `quant-hub status` | DB ping, table counts, recent runs |
 | `quant-hub cleanup-fixtures` | Remove test scan rows from Postgres |
 | `quant-hub init-db` | Apply Postgres schema |
 | `quant-view` | Streamlit dashboard |
+| `weekly-full-coverage` | Breakout + swing + Lynch for all universes (~45–90 min cached); script in `/app/scripts` |
 
 ## Dashboard highlights
+
+- Scan date dropdown loads up to **500** historical runs (covers ~10y weekly backfill)
 
 - **Breakout:** takeaway banner, near-miss panel, full-universe table with Yahoo ticker links, actionable signal tooltips
 - **Swing:** weekly setups ranked by **quality score** (partial rule credit − penalties), grade A–D, full-universe indicators for every ticker

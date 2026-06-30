@@ -160,11 +160,30 @@ docker exec quant-hub quant-ml export-features --strategy swing --universe sp500
 
 Replays **historical Fridays** using truncated weekly parquet — no lookahead.
 
+**Check coverage before a long run** (shows missing Fridays vs Postgres):
+
 ```bash
+docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01
+docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01 --until 2023-12-31
+```
+
+Example output when 2020–2023 is missing but 2024+ exists:
+
+```text
+swing/sp500 range=2020-01-03..2026-06-27 planned=340 existing=131 missing=209
+  db_range=2024-01-05..2026-06-27 (131 Fridays in range)
+  first_missing=[2020-01-03, 2020-01-10, ... +204 more]
+```
+
+**Run backfill** (default `--resume` skips dates already in Postgres; only **missing** weeks are written):
+
+```bash
+# Fill 2020–2023 gap without re-scanning 2024+
+docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01 --until 2023-12-31
+
 docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01 --until 2024-06-30
 docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-06-07 --until 2024-06-07 --no-resume
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01 --dry-run
+docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01 --dry-run
 ```
 
 | Flag | Effect |
@@ -173,6 +192,8 @@ docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01 -
 | `--until` | Last Friday on or before this date (default: today) |
 | `--no-resume` | Overwrite dates already in Postgres (default: skip existing) |
 | `--dry-run` | Compute only; no DB writes |
+
+**Pre-flight:** `quant-backfill swing` prints `pre-flight: planned=… missing=…` before writing. Progress logs every 25 Fridays in `backfill.log`.
 
 **What gets written:**
 
@@ -186,6 +207,8 @@ docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01 -
 - Uses **today's** sp500 membership for all dates (survivorship bias)
 - Only **swing** strategy supported
 - Requires existing **10y weekly parquet** (no per-date yfinance re-download)
+- Earliest reliable `--since` ≈ **2016** (10y cache minus 60 weekly bars for indicators). **2020-01-01 is supported.**
+- **Resume is not the problem** when extending history: if DB starts at 2024, `--since 2020-01-01` still writes 2020–2023. Use `coverage` to confirm missing weeks before/after a run.
 
 ---
 
@@ -370,6 +393,7 @@ See [Runbook § Backup](RUNBOOK.md#6-backup-and-restore).
 
 | Command | Purpose |
 |---------|---------|
+| `quant-backfill coverage --since YYYY-MM-DD` | Show missing Fridays vs Postgres before backfill |
 | `quant-backfill swing --since YYYY-MM-DD` | Historical swing scans |
 | `quant-ml warm-cache --universe sp500` | Download 5y daily OHLCV |
 | `quant-ml label --strategy swing --universe sp500` | Compute forward returns |
@@ -412,7 +436,7 @@ Trains on **setups only** (`SETUP_LONG` / `SETUP_SHORT`) with `label_status = ok
 docker exec quant-hub quant-ml train \
   --strategy swing \
   --universe sp500 \
-  --since 2024-01-01 \
+  --since 2020-01-01 \
   --horizon 10 \
   --name swing_v1
 ```
@@ -436,9 +460,9 @@ Metrics include **AUC**, **precision/recall**, and **mean forward return of top-
 
 ### Success criteria
 
-- [ ] `quant-ml train` registers a model from swing sp500 backfill data
-- [ ] `quant-ml evaluate --walk-forward` reports metrics on held-out weeks only
-- [ ] Documented comparison: ML top-N vs `swing_score` top-N on 10d forward return
+- [x] `quant-ml train` registers a model from swing sp500 backfill data
+- [x] `quant-ml evaluate --walk-forward` reports metrics on held-out weeks
+- [x] Documented comparison: ML top-N vs `swing_score` top-N on 10d forward return (see evaluate output)
 
 ---
 

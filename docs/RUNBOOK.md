@@ -392,8 +392,15 @@ docker exec quant-hub quant-scan --universe mid_cap_growth --cache
 # All universes breakout + email after each (9 emails)
 docker exec quant-hub quant-scan-all --cache --email --report both
 
-# Full weekly coverage (breakout + swing + Lynch, no email)
+# Full weekly coverage (breakout + swing + Lynch, no email; ~45–90 min cached)
 docker exec quant-hub weekly-full-coverage
+# equivalent: docker exec quant-hub bash /app/scripts/weekly-full-coverage.sh
+
+# ML: swing historical backfill + gap report
+docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01
+docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01
+
+# After DB cleanup — see ML_OPS.md §5 for full ML rebuild (backfill → warm-cache → label)
 
 # Breakout daily workflow for sp500
 docker exec quant-hub quant-daily --universe sp500 --no-email

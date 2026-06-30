@@ -14,6 +14,8 @@ from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 NEAR_MISS_NORMALIZED_GAP = 5.0
 NEAR_MISS_FINAL_GAP = 5.0
+# Sidebar scan-date dropdown + cross-strategy lookup (covers ~10y weekly backfill)
+DASHBOARD_RUN_LOOKUP_LIMIT = 500
 
 
 def scanned_universe_ids(repo: ScanRepository, strategy_id: str) -> set[str]:
@@ -36,7 +38,11 @@ def cross_strategy_snapshot(
     for strategy_id in ("breakout", "swing", "lynch"):
         runs = [
             r
-            for r in repo.list_runs(strategy_id=strategy_id, limit=30, exclude_fixtures=True)
+            for r in repo.list_runs(
+                strategy_id=strategy_id,
+                limit=DASHBOARD_RUN_LOOKUP_LIMIT,
+                exclude_fixtures=True,
+            )
             if r["universe_id"] == universe_id
         ]
         if scan_date is not None:

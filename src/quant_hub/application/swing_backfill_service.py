@@ -15,7 +15,13 @@ from quant_hub.data.provenance import build_data_provenance
 from quant_hub.data.quality import max_bar_date
 from quant_hub.infrastructure.market.weekly_prices import download_weekly_prices
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
-from quant_hub.ml.backfill_dates import iter_weekly_scan_dates, truncate_weekly_to_date
+from quant_hub.ml.backfill_dates import (
+    as_scan_date,
+    compute_backfill_coverage,
+    earliest_backfill_supported,
+    iter_weekly_scan_dates,
+    truncate_weekly_to_date,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +36,24 @@ class SwingBackfillStats:
     dates_written: int = 0
     dates_failed: int = 0
     total_setups: int = 0
+    dates_missing_before: int = 0
+    earliest_written: date | None = None
+    latest_written: date | None = None
     errors: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
-        return (
-            f"planned={self.dates_planned} written={self.dates_written} "
-            f"skipped={self.dates_skipped} failed={self.dates_failed} "
-            f"setups={self.total_setups}"
-        )
+        parts = [
+            f"planned={self.dates_planned}",
+            f"written={self.dates_written}",
+            f"skipped={self.dates_skipped}",
+            f"failed={self.dates_failed}",
+            f"setups={self.total_setups}",
+        ]
+        if self.dates_missing_before:
+            parts.append(f"missing_before_run={self.dates_missing_before}")
+        if self.earliest_written:
+            parts.append(f"written_range={self.earliest_written}..{self.latest_written}")
+        return " ".join(parts)
 
 
 class SwingBackfillService:
@@ -72,24 +88,44 @@ class SwingBackfillService:
             logger.warning("No Friday scan dates in range %s .. %s", since, until)
             return stats
 
-        existing: set[date] = set()
-        if resume and persist and not dry_run:
+        existing_dates: list[date] = []
+        if resume:
             for run in self.scan_repo.list_runs_filtered(
                 strategy_id="swing",
                 universe_id=resolved_id,
                 since=since,
                 until=until,
             ):
-                existing.add(run["scan_date"])
+                normalized = as_scan_date(run["scan_date"])
+                if normalized is not None:
+                    existing_dates.append(normalized)
+
+        coverage = compute_backfill_coverage(
+            since=since,
+            until=until,
+            existing_dates=existing_dates,
+        )
+        stats.dates_missing_before = len(coverage.missing_dates)
+        existing = coverage.existing_dates if resume else set()
+
+        supported_since = earliest_backfill_supported(min_weekly_bars=SWING_MIN_BARS)
+        if scan_dates[0] < supported_since:
+            logger.warning(
+                "Earliest requested Friday %s is before reliable 10y weekly cache support (~%s). "
+                "Early dates may fail or produce sparse indicators.",
+                scan_dates[0],
+                supported_since,
+            )
 
         logger.info(
-            "Swing backfill %s: %d Fridays (%s .. %s), resume=%s",
+            "Swing backfill %s: %s resume=%s dry_run=%s",
             resolved_id,
-            len(scan_dates),
-            scan_dates[0],
-            scan_dates[-1],
+            coverage.summary(),
             resume,
+            dry_run,
         )
+        for line in coverage.detail_lines():
+            logger.info("  %s", line)
 
         price_map_full = download_weekly_prices(
             sorted(set(universe) | {BENCHMARK_TICKER}),
@@ -104,7 +140,10 @@ class SwingBackfillService:
             job_id = self.job_repo.start_job(job_name, tickers_requested=len(universe))
 
         try:
-            for scan_date in scan_dates:
+            to_write = sum(1 for d in scan_dates if not (resume and d in existing))
+            logger.info("Processing %d Fridays (%d to write, %d to skip)", len(scan_dates), to_write, len(scan_dates) - to_write)
+
+            for idx, scan_date in enumerate(scan_dates, start=1):
                 if resume and scan_date in existing:
                     stats.dates_skipped += 1
                     continue
@@ -119,6 +158,19 @@ class SwingBackfillService:
                     )
                     stats.dates_written += 1
                     stats.total_setups += setups_count
+                    if stats.earliest_written is None or scan_date < stats.earliest_written:
+                        stats.earliest_written = scan_date
+                    if stats.latest_written is None or scan_date > stats.latest_written:
+                        stats.latest_written = scan_date
+                    if idx % 25 == 0 or idx == len(scan_dates):
+                        logger.info(
+                            "Backfill progress %d/%d written=%d failed=%d last=%s",
+                            idx,
+                            len(scan_dates),
+                            stats.dates_written,
+                            stats.dates_failed,
+                            scan_date,
+                        )
                 except Exception as exc:
                     stats.dates_failed += 1
                     msg = f"{scan_date}: {exc}"
@@ -216,3 +268,29 @@ class SwingBackfillService:
             )
 
         return len(setups)
+
+    def coverage(
+        self,
+        *,
+        universe_id: str = "sp500",
+        since: date,
+        until: date | None = None,
+    ):
+        """Report planned vs existing Friday scan dates without running scans."""
+        until = until or date.today()
+        resolved_id, _universe = self.universe_service.resolve(universe_id=universe_id)
+        existing_dates: list[date] = []
+        for run in self.scan_repo.list_runs_filtered(
+            strategy_id="swing",
+            universe_id=resolved_id,
+            since=since,
+            until=until,
+        ):
+            normalized = as_scan_date(run["scan_date"])
+            if normalized is not None:
+                existing_dates.append(normalized)
+        return compute_backfill_coverage(
+            since=since,
+            until=until,
+            existing_dates=existing_dates,
+        )

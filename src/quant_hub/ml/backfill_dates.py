@@ -2,9 +2,100 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta
 
 import pandas as pd
+
+
+def as_scan_date(value: date | datetime | str | None) -> date | None:
+    """Normalize Postgres / CLI values to plain scan dates."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+@dataclass
+class BackfillCoverage:
+    since: date
+    until: date
+    planned_dates: list[date]
+    existing_dates: set[date] = field(default_factory=set)
+
+    @property
+    def missing_dates(self) -> list[date]:
+        existing = self.existing_dates
+        return [d for d in self.planned_dates if d not in existing]
+
+    @property
+    def earliest_planned(self) -> date | None:
+        return self.planned_dates[0] if self.planned_dates else None
+
+    @property
+    def latest_planned(self) -> date | None:
+        return self.planned_dates[-1] if self.planned_dates else None
+
+    @property
+    def earliest_existing(self) -> date | None:
+        return min(self.existing_dates) if self.existing_dates else None
+
+    @property
+    def latest_existing(self) -> date | None:
+        return max(self.existing_dates) if self.existing_dates else None
+
+    def summary(self) -> str:
+        return (
+            f"range={self.earliest_planned}..{self.latest_planned} "
+            f"planned={len(self.planned_dates)} existing={len(self.existing_dates)} "
+            f"missing={len(self.missing_dates)}"
+        )
+
+    def detail_lines(self, *, missing_preview: int = 5) -> list[str]:
+        lines = [self.summary()]
+        if self.earliest_existing:
+            lines.append(
+                f"db_range={self.earliest_existing}..{self.latest_existing} "
+                f"({len(self.existing_dates)} Fridays in range)"
+            )
+        else:
+            lines.append("db_range=empty (no scan_runs in requested window)")
+        missing = self.missing_dates
+        if missing:
+            preview = ", ".join(str(d) for d in missing[:missing_preview])
+            suffix = f" ... +{len(missing) - missing_preview} more" if len(missing) > missing_preview else ""
+            lines.append(f"first_missing=[{preview}{suffix}]")
+        return lines
+
+
+def compute_backfill_coverage(
+    *,
+    since: date,
+    until: date,
+    existing_dates: list[date] | set[date] | None = None,
+) -> BackfillCoverage:
+    planned = iter_weekly_scan_dates(since, until)
+    existing = {as_scan_date(d) for d in (existing_dates or []) if as_scan_date(d) is not None}
+    return BackfillCoverage(
+        since=since,
+        until=until,
+        planned_dates=planned,
+        existing_dates=existing,
+    )
+
+
+def earliest_backfill_supported(*, today: date | None = None, min_weekly_bars: int = 60) -> date:
+    """
+    Earliest scan_date with enough truncated 10y weekly history for swing indicators.
+
+    yfinance 10y weekly cache spans ~520 weeks ending today; backfill keeps bars <= scan_date.
+    """
+    today = today or date.today()
+    weeks_of_history = 520 - min_weekly_bars
+    return today - timedelta(days=weeks_of_history * 7)
 
 
 def iter_weekly_scan_dates(since: date, until: date) -> list[date]:

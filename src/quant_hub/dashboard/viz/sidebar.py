@@ -13,7 +13,11 @@ from quant_hub.dashboard.viz.navigation import apply_pending_navigation, sync_de
 from quant_hub.dashboard.viz.score_guide import render_score_component_guide
 from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
 from quant_hub.dashboard.viz.swing_filters import SwingFilters
-from quant_hub.dashboard.viz.ux_helpers import scanned_universe_ids, sorted_universe_ids
+from quant_hub.dashboard.viz.ux_helpers import (
+    DASHBOARD_RUN_LOOKUP_LIMIT,
+    scanned_universe_ids,
+    sorted_universe_ids,
+)
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 STRATEGY_LABELS = {
@@ -57,7 +61,11 @@ def render_sidebar_controls(
         key="sidebar_universe",
     )
 
-    runs = repo.list_runs(strategy_id=strategy_id, limit=30, exclude_fixtures=True)
+    runs = repo.list_runs(
+        strategy_id=strategy_id,
+        limit=DASHBOARD_RUN_LOOKUP_LIMIT,
+        exclude_fixtures=True,
+    )
     universe_runs = [r for r in runs if r["universe_id"] == universe_id]
     scan_date: date | None = None
     if universe_runs:

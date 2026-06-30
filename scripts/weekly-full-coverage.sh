@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Weekly full coverage: breakout + swing + Lynch across all configured universes.
-# Intended for cron (Saturday overnight) or manual: docker exec quant-hub weekly-full-coverage
+# Intended for cron (Saturday overnight) or manual:
+#   docker exec quant-hub weekly-full-coverage
+#   docker exec quant-hub bash /app/scripts/weekly-full-coverage.sh
 set -euo pipefail
 
 LOG="${QUANT_WEEKLY_COVERAGE_LOG:-/app/logs/weekly_coverage.log}"

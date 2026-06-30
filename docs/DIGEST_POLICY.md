@@ -71,7 +71,7 @@ docker exec quant-hub quant-digest daily
 docker exec quant-hub quant-analytics weekly
 docker exec quant-hub quant-digest weekly --rebuild-analytics
 docker exec quant-hub quant-digest daily --no-email
-docker exec quant-hub weekly-full-coverage   # manual full scan (all universes)
+docker exec quant-hub weekly-full-coverage   # or: bash /app/scripts/weekly-full-coverage.sh (~45–90 min cached)
 ```
 
 ---

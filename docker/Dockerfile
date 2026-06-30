@@ -12,7 +12,7 @@ RUN ln -snf /usr/share/zoneinfo/America/New_York /etc/localtime && \
     echo "America/New_York" > /etc/timezone
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:${PATH}"
+ENV PATH="/app/scripts:/root/.local/bin:${PATH}"
 
 WORKDIR /app
 

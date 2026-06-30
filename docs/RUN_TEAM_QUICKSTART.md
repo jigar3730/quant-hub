@@ -156,7 +156,7 @@ docker exec quant-hub quant-swing --universe sp500 --no-email
 # 6. Manual Lynch scan
 docker exec quant-hub quant-lynch --universe sp500 --no-email
 
-# 7. Full weekly coverage (all universes, ~30–90 min)
+# 7. Full weekly coverage (all universes, ~45–90 min cached)
 docker exec quant-hub weekly-full-coverage
 
 # 8. List configured universes

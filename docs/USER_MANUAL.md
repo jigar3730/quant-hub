@@ -105,7 +105,7 @@ Docker deployment: `http://<host>:5002`
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
 | **Strategy**              | Breakout (daily), Swing (weekly), or Lynch (fundamental)                                                |
 | **Universe**              | Select which ticker list to view (`sp500`, `most_actives`, etc.); universes with scans are listed first |
-| **Scan date**             | Pick a historical run for that universe (most recent at top)                                            |
+| **Scan date**             | Pick a historical run (up to **500** Fridays — includes ML backfill from ~2020)                         |
 | **Filters**               | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only)                |
 | **Score / rubric guides** | Breakout: stock metrics cheat sheet. Swing: setup quality rubric (partial credit + penalties)           |
 | **Search ticker**         | Filter tables by symbol                                                                                 |
