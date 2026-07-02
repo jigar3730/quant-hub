@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 from quant_hub.infrastructure.postgres.connection import get_connection
 from quant_hub.infrastructure.postgres.fixtures import (
     FIXTURE_UNIVERSE_IDS,
-    is_fixture_scan_date,
 )
 from quant_hub.serialization.json_util import json_dumps
 
@@ -130,7 +129,7 @@ class ScanRepository:
         summary = report["scan_summary"]
         tiers = summary["tier_counts"]
         tier1, tier2, tier3, filtered = _tier_counts_from_report(strategy_id, tiers)
-        scan_time = scan_time or datetime.now(timezone.utc)
+        scan_time = scan_time or datetime.now(UTC)
         metadata = _build_scan_metadata(report)
 
         with get_connection() as conn:

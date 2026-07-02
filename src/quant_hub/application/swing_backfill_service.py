@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from quant_hub.application.swing_scan_core import scan_universe_weekly
 from quant_hub.application.swing_service import build_swing_report
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.config import BENCHMARK_TICKER, SWING_MIN_BARS
+from quant_hub.config import BENCHMARK_TICKER, PRIMARY_INDEX_UNIVERSE, SWING_MIN_BARS
 from quant_hub.data.provenance import build_data_provenance
 from quant_hub.data.quality import max_bar_date
 from quant_hub.infrastructure.market.weekly_prices import download_weekly_prices
@@ -71,7 +71,7 @@ class SwingBackfillService:
     def run(
         self,
         *,
-        universe_id: str = "sp500",
+        universe_id: str = PRIMARY_INDEX_UNIVERSE,
         since: date,
         until: date | None = None,
         resume: bool = True,
@@ -272,7 +272,7 @@ class SwingBackfillService:
     def coverage(
         self,
         *,
-        universe_id: str = "sp500",
+        universe_id: str = PRIMARY_INDEX_UNIVERSE,
         since: date,
         until: date | None = None,
     ):

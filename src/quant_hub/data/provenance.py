@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 
@@ -18,7 +18,7 @@ def build_data_provenance(
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Standard lineage block for JSON reports and Postgres metadata."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     block: dict[str, Any] = {
         "scan_date": str(scan_date or date.today()),
         "scan_time_utc": now.isoformat(),

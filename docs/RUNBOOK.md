@@ -83,7 +83,7 @@ All containers use `TZ=America/New_York`. Cron runs in Eastern Time.
 
 ```bash
 cd /opt/stacks/quant-hub
-ls pyproject.toml docker-compose.yml data/universes/sp500.txt
+ls pyproject.toml docker-compose.yml data/universes/sp500_index.txt
 ```
 
 ### Step 2 — Environment file
@@ -131,14 +131,14 @@ docker exec quant-hub quant-hub status
 ### Step 5 — First scan
 
 ```bash
-docker exec quant-hub quant-scan --universe sp500 --cache
+docker exec quant-hub quant-scan --universe sp500_index --cache
 ```
 
 Or from host (with venv + DATABASE_URL):
 
 ```bash
 pip install -e ".[dev,viz]"
-quant-scan --universe sp500 --cache
+quant-scan --universe sp500_index --cache
 ```
 
 ### Step 6 — Verify dashboard
@@ -157,7 +157,7 @@ docker compose up -d --force-recreate quant-hub
 Test:
 
 ```bash
-docker exec quant-hub quant-daily --universe sp500 --no-cache
+docker exec quant-hub quant-daily --universe sp500_index --no-cache
 # Remove --no-cache in production; use for forced test only
 ```
 
@@ -181,13 +181,13 @@ docker exec quant-hub quant-daily --universe sp500 --no-cache
 quant-hub status
 
 # Latest scan summary (JSON)
-quant-hub report --universe sp500
+quant-hub report --universe sp500_index
 
 # Manual scan with cache
-quant-scan --universe sp500 --cache
+quant-scan --universe sp500_index --cache
 
 # Force full price refresh
-quant-scan --universe sp500 --cache --force-refresh
+quant-scan --universe sp500_index --cache --force-refresh
 
 # List universes
 quant-universe list
@@ -204,7 +204,7 @@ tail -f /mnt/fast/quant-data/logs/dashboard.log
 
 ```bash
 docker exec quant-hub quant-hub status
-docker exec quant-hub quant-scan --universe sp500 --cache
+docker exec quant-hub quant-scan --universe sp500_index --cache
 docker exec -it quant-hub bash
 ```
 
@@ -233,7 +233,7 @@ Quant Hub ships three active strategies. Both persist to Postgres and can export
 
 **Manual only (no email by default):** ad-hoc `quant-scan` without `--email`.
 
-Configured universes (see `data/universes.json`): `sp500`, `sp500_index`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sector_commodity_etfs`.
+Configured universes (see `data/universes.json`): `sp500_index`, `sp500_index`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sector_commodity_etfs`.
 
 ### Automated schedule (container cron)
 
@@ -244,11 +244,11 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 
 | Job | Cron | When | Command | Email |
 |-----|------|------|---------|-------|
-| **Breakout daily** | `0 17 * * 1-5` | Mon–Fri **5:00 PM ET** | `quant-daily --universe sp500 --no-email` | No |
+| **Breakout daily** | `0 17 * * 1-5` | Mon–Fri **5:00 PM ET** | `quant-daily --universe sp500_index --no-email` | No |
 | **Daily digest** | `35 17 * * 1-5` | Mon–Fri **5:35 PM ET** | `quant-digest daily` | **Yes** |
 | **ETF breakout** | `30 16 * * 5` | Fri **4:30 PM ET** | `quant-daily --universe sector_commodity_etfs --no-email` | No |
 | **ETF swing** | `35 16 * * 5` | Fri **4:35 PM ET** | `quant-swing --universe sector_commodity_etfs --no-email` | No |
-| **Swing weekly** | `45 17 * * 5` | Fri **5:45 PM ET** | `quant-swing --universe sp500 --no-email` | No |
+| **Swing weekly** | `45 17 * * 5` | Fri **5:45 PM ET** | `quant-swing --universe sp500_index --no-email` | No |
 | **SPY holdings refresh** | `30 0 1-7 1,4,7,10 6` | First Sat of quarter **12:30 AM ET** | `quant-universe refresh sp500_index` | No |
 | **Breakout full coverage** | `0 1 * * 6` | Sat **1:00 AM ET** | `quant-scan-all --cache --report both` | No |
 | **Swing full coverage** | `0 4 * * 6` | Sat **4:00 AM ET** | `quant-swing-all --no-email` | No |
@@ -263,11 +263,11 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 
 ```
-0 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 --no-email >> /app/logs/cron.log 2>&1
+0 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
 35 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
 30 16 * * 5 root . /etc/environment; quant-daily --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
 35 16 * * 5 root . /etc/environment; quant-swing --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
-45 17 * * 5 root . /etc/environment; quant-swing --universe sp500 --no-email >> /app/logs/cron.log 2>&1
+45 17 * * 5 root . /etc/environment; quant-swing --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
 30 0 1-7 1,4,7,10 6 root . /etc/environment; quant-universe refresh sp500_index >> /app/logs/cron.log 2>&1
 0 1 * * 6 root . /etc/environment; quant-scan-all --cache --report both >> /app/logs/cron.log 2>&1
 0 4 * * 6 root . /etc/environment; quant-swing-all --no-email >> /app/logs/cron.log 2>&1
@@ -287,7 +287,7 @@ Crontab entries (stdout/stderr → `/app/logs/cron.log`):
 | Breakout | `quant-scan-all --cache --report both` | All 9 in `universes.json` |
 | Swing | `quant-swing-all --no-email` | All 9 |
 | Lynch | `quant-lynch-all --no-email` | 8 stock universes (`sector_commodity_etfs` skipped via `lynch_enabled: false`) |
-| ML labels | `quant-ml label --strategy swing --universe sp500 --since <90d>` | Forward returns — see [ML Ops](ML_OPS.md) |
+| ML labels | `quant-ml label --strategy swing --universe sp500_index --since <90d>` | Forward returns — see [ML Ops](ML_OPS.md) |
 
 Manual equivalent inside the container:
 
@@ -299,24 +299,24 @@ quant-swing-all --no-email
 quant-lynch-all --no-email
 ```
 
-Digests still highlight **`sp500`** only; full coverage populates Postgres and the dashboard for every universe.
+Digests still highlight **`sp500_index`** only; full coverage populates Postgres and the dashboard for every universe.
 
 ### What each scheduled job does
 
-#### Breakout — `quant-daily --universe sp500`
+#### Breakout — `quant-daily --universe sp500_index`
 
-1. Resolve `sp500` universe (~193 tickers)
+1. Resolve `sp500_index` universe (~193 tickers)
 2. Download daily prices (parquet cache ON, 24h TTL) and fundamentals (7-day cache)
 3. Compute breakout scores; classify Tier 1 / 2 / 3
 4. Derive SPY market regime (label + multiplier)
 5. Upsert Postgres `scan_runs` + `ticker_results` for `(today, breakout, sp500)`
 6. Write exports: CSV + JSON + MD under `data/output/breakout/sp500/` (plus legacy sp500 copies)
-7. Record `job_runs` row (`breakout-sp500-daily`)
+7. Record `job_runs` row (`breakout-sp500-index-daily`)
 8. **Send breakout email** to all `EMAIL_TO` addresses (always sent when SMTP is configured, even if zero actionable tickers)
 
 **Reference:** [Breakout Scanner — data pipeline](BREAKOUT_SCANNER.md) (eligibility, 9 factors, regime multiplier, tiers, Postgres `detail` JSON, near-miss logic).
 
-#### Swing — `quant-swing --universe sp500`
+#### Swing — `quant-swing --universe sp500_index`
 
 1. Resolve universe tickers
 2. Download **weekly** OHLCV (10y history; parquet cache ON by default)
@@ -397,19 +397,19 @@ docker exec quant-hub weekly-full-coverage
 # equivalent: docker exec quant-hub bash /app/scripts/weekly-full-coverage.sh
 
 # ML: swing historical backfill + gap report
-docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01
+docker exec quant-hub quant-backfill coverage --universe sp500_index --since 2020-01-01
+docker exec quant-hub quant-backfill swing --universe sp500_index --since 2020-01-01
 
 # After DB cleanup — see ML_OPS.md §5 for full ML rebuild (backfill → warm-cache → label)
 
 # Breakout daily workflow for sp500
-docker exec quant-hub quant-daily --universe sp500 --no-email
+docker exec quant-hub quant-daily --universe sp500_index --no-email
 
 # Swing / Lynch batch or single universe
 docker exec quant-hub quant-swing-all --no-email
 docker exec quant-hub quant-lynch-all --no-email
 docker exec quant-hub quant-swing --universe dividend_growers --no-email
-docker exec quant-hub quant-lynch --universe sp500 --no-email
+docker exec quant-hub quant-lynch --universe sp500_index --no-email
 
 # One-shot container entrypoint (no cron)
 docker compose run --rm quant-hub scan   # uses UNIVERSE env, default sp500
@@ -430,9 +430,9 @@ tail -50 /mnt/fast/quant-data/logs/cron.log
 1. Edit `docker/crontab` — **stagger** times to avoid Yahoo rate limits:
 
    ```
-   17 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500 >> /app/logs/cron.log 2>&1
+   17 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500_index >> /app/logs/cron.log 2>&1
    47 17 * * 1-5 root . /etc/environment; quant-daily --universe most_actives >> /app/logs/cron.log 2>&1
-   17 18 * * 5 root . /etc/environment; quant-swing --universe sp500 >> /app/logs/cron.log 2>&1
+   17 18 * * 5 root . /etc/environment; quant-swing --universe sp500_index >> /app/logs/cron.log 2>&1
    47 18 * * 5 root . /etc/environment; quant-swing --universe most_actives >> /app/logs/cron.log 2>&1
    ```
 
@@ -476,7 +476,7 @@ Recent scans:
   2026-06-28 sp500 actionable=5 regime=strong
 
 Latest job:
-  breakout-sp500-daily status=success started=... fetched=193/193
+  breakout-sp500-index-daily status=success started=... fetched=193/193
 ```
 
 ### Dashboard System tab
@@ -493,7 +493,7 @@ docker exec -it quant-hub-db psql -U quant -d quant_hub
 -- Latest sp500 run
 SELECT scan_date, scan_time, actionable_count, tier1_count, tier2_count, regime_label
 FROM scan_runs
-WHERE universe_id = 'sp500'
+WHERE universe_id = 'sp500_index'
 ORDER BY scan_date DESC, scan_time DESC
 LIMIT 5;
 
@@ -504,7 +504,7 @@ SELECT * FROM job_runs WHERE status != 'success' ORDER BY started_at DESC LIMIT 
 SELECT sr.scan_date, COUNT(tr.ticker)
 FROM scan_runs sr
 JOIN ticker_results tr ON tr.run_id = sr.id
-WHERE sr.universe_id = 'sp500'
+WHERE sr.universe_id = 'sp500_index'
 GROUP BY sr.id, sr.scan_date
 ORDER BY sr.scan_date DESC
 LIMIT 3;
@@ -594,14 +594,14 @@ Cache is regenerable; backup optional. Deleting cache only increases next scan d
 | `EMAIL_FROM` | No | SMTP_USER | From address |
 | `EMAIL_TO` | No | — | Comma-separated recipients |
 | `SMTP_USE_TLS` | No | `true` | TLS toggle |
-| `UNIVERSE` | No | `sp500` | Override for `entrypoint.sh scan` mode |
+| `UNIVERSE` | No | `sp500_index` | Override for `entrypoint.sh scan` mode |
 
 ### Key paths (inside container)
 
 | Path | Purpose |
 |------|---------|
 | `/app/data/universes.json` | Universe registry |
-| `/app/data/universes/sp500.txt` | Default ticker list |
+| `/app/data/universes/sp500_index.txt` | Default ticker list |
 | `/app/data/cache/prices/1d/2y/` | Per-ticker parquet cache |
 | `/app/data/output/` | CSV/JSON/MD exports |
 | `/app/logs/` | Application logs |
@@ -682,10 +682,10 @@ If using Docker bind mount for `/app/data`, place files under `/mnt/fast/quant-d
 
 ### Update sp500 ticker list
 
-Edit `data/universes/sp500.txt` (or bind-mounted copy), then:
+Edit `data/universes/sp500_index.txt` (or bind-mounted copy), then:
 
 ```bash
-quant-scan --universe sp500 --cache --force-refresh
+quant-scan --universe sp500_index --cache --force-refresh
 ```
 
 ### Refresh sp500_index from SPY holdings
@@ -759,13 +759,13 @@ echo $DATABASE_URL
 
 ```bash
 quant-hub status
-quant-hub report --universe sp500
+quant-hub report --universe sp500_index
 ```
 
 **Fixes:**
 
 ```bash
-quant-scan --universe sp500 --cache
+quant-scan --universe sp500_index --cache
 ```
 
 Ensure universe has tickers: `quant-universe show sp500 | wc -l`
@@ -792,7 +792,7 @@ docker exec quant-hub quant-hub status
 
 ```bash
 docker compose up -d quant-hub
-docker exec quant-hub quant-daily --universe sp500 --no-email
+docker exec quant-hub quant-daily --universe sp500_index --no-email
 ```
 
 ---
@@ -973,7 +973,7 @@ docker compose down
 sudo rm -rf /mnt/fast/quant-data/postgres/*
 docker compose up -d
 quant-hub init-db
-quant-scan --universe sp500 --cache
+quant-scan --universe sp500_index --cache
 ```
 
 ---
@@ -986,7 +986,7 @@ docker compose ps
 quant-hub status
 
 # Manual scan
-quant-scan --universe sp500 --cache
+quant-scan --universe sp500_index --cache
 
 # Logs
 tail -f /mnt/fast/quant-data/logs/cron.log

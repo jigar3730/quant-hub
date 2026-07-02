@@ -6,15 +6,12 @@ import logging
 from datetime import date
 from pathlib import Path
 
-import pandas as pd
-
 from quant_hub.application.run_result import ServiceRunResult
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.config import LEGACY_LYNCH_OUTPUTS, scan_output_paths
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE, scan_output_paths
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.lynch.runner import LynchScannerRunner
 from quant_hub.notify.email import send_lynch_email
-from quant_hub.report.export import copy_to_legacy
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +31,7 @@ class LynchScanService:
     def run(
         self,
         *,
-        universe_id: str = "sp500",
+        universe_id: str = PRIMARY_INDEX_UNIVERSE,
         tickers: list[str] | None = None,
         tickers_file: Path | None = None,
         preset: str = "summary",
@@ -70,13 +67,6 @@ class LynchScanService:
                 universe_id=resolved_id,
             )
             df, scan_report = runner.run()
-
-            if resolved_id == "sp500":
-                copy_to_legacy(paths["csv"], LEGACY_LYNCH_OUTPUTS["csv"])
-                if report in ("json", "both"):
-                    copy_to_legacy(paths["json"], LEGACY_LYNCH_OUTPUTS["json"])
-                if report in ("md", "both"):
-                    copy_to_legacy(paths["md"], LEGACY_LYNCH_OUTPUTS["md"])
 
             if persist:
                 run_id = self.scan_repo.upsert_scan(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from quant_hub.infrastructure.postgres.connection import get_connection
@@ -21,7 +21,7 @@ class OutcomesRepository:
     ) -> int:
         if not rows:
             return 0
-        computed_at = datetime.now(timezone.utc)
+        computed_at = datetime.now(UTC)
         with get_connection() as conn:
             with conn.cursor() as cur:
                 for row in rows:

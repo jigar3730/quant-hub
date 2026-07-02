@@ -12,7 +12,6 @@ from quant_hub.strategies.swing.constants import (
     SWING_CORE_RULE_POINTS,
     SWING_MAX_BASE,
     SWING_RS_POINTS,
-    SWING_RULE_COUNT,
     SWING_VOLUME_POINTS,
 )
 from quant_hub.strategies.swing.metrics import pullback_zone

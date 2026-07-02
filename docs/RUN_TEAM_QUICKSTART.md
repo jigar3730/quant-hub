@@ -148,13 +148,13 @@ docker exec quant-hub quant-hub status
 tail -50 /mnt/fast/quant-data/logs/cron.log
 
 # 4. Manual breakout scan (same as weekday job, no email)
-docker exec quant-hub quant-daily --universe sp500 --no-email
+docker exec quant-hub quant-daily --universe sp500_index --no-email
 
 # 5. Manual swing scan
-docker exec quant-hub quant-swing --universe sp500 --no-email
+docker exec quant-hub quant-swing --universe sp500_index --no-email
 
 # 6. Manual Lynch scan
-docker exec quant-hub quant-lynch --universe sp500 --no-email
+docker exec quant-hub quant-lynch --universe sp500_index --no-email
 
 # 7. Full weekly coverage (all universes, ~45–90 min cached)
 docker exec quant-hub weekly-full-coverage
@@ -184,11 +184,11 @@ Authoritative file: `docker/crontab`. After edits → `docker compose up -d --bu
 
 | Job | When | Command | Email |
 |-----|------|---------|-------|
-| Breakout daily | Mon–Fri **5:00 PM** | `quant-daily --universe sp500 --no-email` | No |
+| Breakout daily | Mon–Fri **5:00 PM** | `quant-daily --universe sp500_index --no-email` | No |
 | **Daily digest** | Mon–Fri **5:35 PM** | `quant-digest daily` | **Yes** |
 | ETF breakout | Fri **4:30 PM** | `quant-daily --universe sector_commodity_etfs --no-email` | No |
 | ETF swing | Fri **4:35 PM** | `quant-swing --universe sector_commodity_etfs --no-email` | No |
-| Swing weekly | Fri **5:45 PM** | `quant-swing --universe sp500 --no-email` | No |
+| Swing weekly | Fri **5:45 PM** | `quant-swing --universe sp500_index --no-email` | No |
 | SPY holdings refresh | First Sat of quarter **12:30 AM** | `quant-universe refresh sp500_index` | No |
 | Breakout full coverage | Sat **1:00 AM** | `quant-scan-all --cache --report both` | No |
 | Swing full coverage | Sat **4:00 AM** | `quant-swing-all --no-email` | No |
@@ -302,12 +302,12 @@ tail -50 /mnt/fast/quant-data/logs/cron.log
 
 ### 6.4 Update tickers in an existing universe (e.g. sp500)
 
-1. Edit **`/mnt/fast/quant-data/data/universes/sp500.txt`** (one symbol per line).
+1. Edit **`/mnt/fast/quant-data/data/universes/sp500_index.txt`** (one symbol per line).
 
 2. Rescan:
 
    ```bash
-   docker exec quant-hub quant-scan --universe sp500 --cache --force-refresh
+   docker exec quant-hub quant-scan --universe sp500_index --cache --force-refresh
    ```
 
 Same-day reruns **upsert** — safe to run again without DB cleanup.
@@ -332,7 +332,7 @@ pytest tests/unit -q    # optional, from host with DATABASE_URL set
 | Symptom | First checks | Likely fix |
 |---------|--------------|------------|
 | **Dashboard shows DB error** | `docker compose ps`; `docker exec quant-hub quant-hub status` | `docker compose up -d postgres`; verify `.env` password |
-| **Dashboard: "No scan found"** | `quant-hub status`; pick correct universe/date in sidebar | `docker exec quant-hub quant-daily --universe sp500 --cache` |
+| **Dashboard: "No scan found"** | `quant-hub status`; pick correct universe/date in sidebar | `docker exec quant-hub quant-daily --universe sp500_index --cache` |
 | **Cron didn't run** | `docker compose ps`; `tail -100 .../cron.log`; `ps aux \| grep cron` inside container | `docker compose up -d quant-hub`; run job manually |
 | **Email not received** | `.env` SMTP vars; `docker exec quant-hub printenv EMAIL_TO` | Fix `.env` → `docker compose up -d --force-recreate quant-hub` |
 | **Scan very slow / Yahoo errors** | `tail scan.log` for 429/404 | Use `--cache`; stagger cron; retry later |
@@ -406,7 +406,7 @@ cd /opt/stacks/quant-hub
 docker compose ps
 docker exec quant-hub quant-hub status
 tail -f /mnt/fast/quant-data/logs/cron.log
-docker exec quant-hub quant-daily --universe sp500 --no-email
+docker exec quant-hub quant-daily --universe sp500_index --no-email
 docker compose up -d --force-recreate quant-hub   # after .env change
 docker compose up -d --build quant-hub          # after crontab/code change
 docker compose restart quant-hub                  # quick app bounce

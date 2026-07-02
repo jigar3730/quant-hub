@@ -6,7 +6,7 @@ import pandas as pd
 
 from quant_hub.engine.context import ScanContext
 from quant_hub.factors.base import make_factor_result
-from quant_hub.indicators import atr, ema, resample_weekly, rsi, return_over_days
+from quant_hub.indicators import atr, ema, resample_weekly, return_over_days, rsi
 
 
 def _rs_bucket(score_pct: float) -> float:

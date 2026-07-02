@@ -22,7 +22,7 @@ All scheduled scans use `--no-email`. Manual scans can still send individual ema
 
 ## Daily digest (Mon–Fri)
 
-**After:** `quant-daily --universe sp500 --no-email` (5:00 PM)
+**After:** `quant-daily --universe sp500_index --no-email` (5:00 PM)
 
 | Section | Rule |
 |---------|------|

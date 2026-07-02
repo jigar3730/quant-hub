@@ -18,6 +18,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY tests ./tests
 COPY data/universes.json data/universes.json
 COPY data/universes/ data/universes/
 
@@ -26,11 +27,11 @@ RUN uv pip install --system -e .[dev,viz,ml]
 COPY docker/crontab /etc/cron.d/quant-hub
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY scripts/weekly-full-coverage.sh scripts/weekly-full-coverage /app/scripts/
-COPY scripts/ml-phase-swing-sp500.sh /app/scripts/
+COPY scripts/ml-phase-swing-sp500-index.sh /app/scripts/
 
 RUN chmod 0644 /etc/cron.d/quant-hub && \
     echo "" >> /etc/cron.d/quant-hub && \
-    chmod +x /entrypoint.sh /app/scripts/weekly-full-coverage.sh /app/scripts/weekly-full-coverage /app/scripts/ml-phase-swing-sp500.sh
+    chmod +x /entrypoint.sh /app/scripts/weekly-full-coverage.sh /app/scripts/weekly-full-coverage /app/scripts/ml-phase-swing-sp500-index.sh
 
 RUN mkdir -p /app/data/output /app/data/cache /app/logs
 

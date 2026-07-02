@@ -6,6 +6,7 @@ import argparse
 import logging
 
 from quant_hub.application.swing_service import SwingScanService
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.logging_setup import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def run_swing_scan(
     *,
-    universe_id: str = "sp500",
+    universe_id: str = PRIMARY_INDEX_UNIVERSE,
     send_email: bool = True,
     use_cache: bool = True,
     force_refresh: bool = False,
@@ -35,7 +36,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Weekly swing setup scan (10y / 1wk OHLCV, finance-vibe rules)"
     )
-    parser.add_argument("--universe", default="sp500", help="Universe id (default: sp500)")
+    parser.add_argument(
+        "--universe",
+        default=PRIMARY_INDEX_UNIVERSE,
+        help=f"Universe id (default: {PRIMARY_INDEX_UNIVERSE})",
+    )
     parser.add_argument("--tickers", nargs="+", help="Explicit ticker list")
     parser.add_argument("--tickers-file", type=str, help="Path to ticker file")
     parser.add_argument("--no-email", action="store_true", help="Skip email")
@@ -46,6 +51,11 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         default=None,
         help="CSV path (default: per-universe under data/output/swing/)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Skip Postgres persist and email (smoke test)",
     )
     args = parser.parse_args(argv)
 
@@ -58,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     from pathlib import Path
 
     service = SwingScanService()
+    dry_run = args.dry_run or args.no_persist
     result = service.run(
         universe_id=args.universe,
         tickers=args.tickers,
@@ -65,9 +76,9 @@ def main(argv: list[str] | None = None) -> int:
         use_cache=use_cache,
         force_refresh=args.force_refresh,
         output=Path(args.output) if args.output else None,
-        persist=not args.no_persist,
-        send_email=not args.no_email,
-        job_name=f"swing-{args.universe}-weekly",
+        persist=not dry_run,
+        send_email=not args.no_email and not args.dry_run,
+        job_name=None if args.dry_run else f"swing-{args.universe}-weekly",
     )
     return result.exit_code()
 

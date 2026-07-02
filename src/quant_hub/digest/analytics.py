@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from quant_hub.config import OUTPUT_DIR
 from quant_hub.digest import policy as P
+from quant_hub.digest.humanize import (
+    breakout_why,
+    format_peg,
+    friendly_breakout_tier,
+    friendly_lynch_categories,
+    friendly_swing_grade,
+    friendly_swing_tier,
+    lynch_why,
+    swing_why,
+)
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 DIGEST_OUTPUT_DIR = OUTPUT_DIR / "digest"
@@ -19,10 +29,12 @@ def _ticker_row(t: dict) -> dict[str, Any]:
     return {
         "ticker": t["ticker"],
         "tier": t.get("tier"),
+        "tier_label": friendly_breakout_tier(t.get("tier")),
         "final_score": summary.get("final_adjusted_score") or t.get("final_score"),
         "normalized_score": summary.get("normalized_score"),
         "sector_etf": t.get("sector_etf"),
         "tier_reason": t.get("tier_reason"),
+        "why": breakout_why(t),
     }
 
 
@@ -30,25 +42,33 @@ def _swing_row(t: dict) -> dict[str, Any]:
     setup = t.get("setup_detail") or {}
     summary = t.get("summary") or {}
     score = setup.get("swing_score") or summary.get("swing_score")
+    quality = setup.get("quality_label")
     return {
         "ticker": t["ticker"],
         "tier": t.get("tier"),
+        "tier_label": friendly_swing_tier(t.get("tier")),
         "swing_score": score,
-        "quality_label": setup.get("quality_label"),
+        "quality_label": quality,
+        "grade_label": friendly_swing_grade(quality),
         "rsi": setup.get("rsi") or summary.get("rsi"),
         "close": setup.get("close"),
+        "why": swing_why(t),
     }
 
 
 def _lynch_row(t: dict) -> dict[str, Any]:
+    categories = t.get("categories") or []
     return {
         "ticker": t["ticker"],
         "lynch_score": t.get("lynch_score"),
-        "categories": t.get("categories") or [],
+        "categories": categories,
+        "category_label": friendly_lynch_categories(categories),
         "pe_ratio": t.get("pe_ratio"),
         "peg_ratio": t.get("peg_ratio"),
+        "peg_label": format_peg(t.get("peg_ratio")),
         "company_name": t.get("company_name"),
         "tier_reason": t.get("tier_reason"),
+        "why": lynch_why(t),
     }
 
 
@@ -158,7 +178,7 @@ def build_daily_payload(
     return {
         "digest_type": "daily",
         "scan_date": str(scan_date),
-        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "generated_at": datetime.now(tz=UTC).isoformat(),
         "regime": regime,
         "summary": report.get("scan_summary") or {},
         "tier1": tier1,
@@ -319,7 +339,7 @@ def build_weekly_payload(
         "lynch_date": str(lynch_date),
         "swing_scan_date": str(swing_report["scan_date"]),
         "breakout_scan_date": str(breakout_full["scan_date"]) if breakout_full else None,
-        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "generated_at": datetime.now(tz=UTC).isoformat(),
         "triple_alignment": triple[: P.WEEKLY_TABLE_MAX],
         "double_tech": double_tech[: P.WEEKLY_TABLE_MAX],
         "double_lynch": double_lynch[: P.WEEKLY_TABLE_MAX],

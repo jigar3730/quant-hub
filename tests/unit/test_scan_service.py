@@ -1,4 +1,3 @@
-import pandas as pd
 import pytest
 
 from quant_hub.application.scan_service import ScanService
@@ -45,3 +44,24 @@ def test_engine_breakout_parity_dry_run():
     engine_df = engine.run().to_dataframe()
     assert len(engine_df) == 3
     assert "final_adjusted_score" in engine_df.columns
+
+
+def test_scan_service_sp500_index_dry_run_no_legacy_copy(tmp_path):
+    import inspect
+
+    from quant_hub.application import scan_service as scan_module
+
+    assert "copy_to_legacy" not in inspect.getsource(scan_module)
+
+    service = ScanService()
+    result = service.run(
+        tickers=["AAA", "BBB"],
+        use_cache=False,
+        dry_run=True,
+        report="both",
+        output=tmp_path / "out.csv",
+        report_json=tmp_path / "out.json",
+        report_md=tmp_path / "out.md",
+        persist=False,
+    )
+    assert len(result.dataframe) == 2

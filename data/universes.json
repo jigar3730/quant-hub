@@ -1,13 +1,8 @@
 {
   "universes": {
-    "sp500": {
-      "name": "Large Cap Core",
-      "description": "Curated large-cap watchlist (~193 names; not the full S&P 500 index)",
-      "sources": [{"type": "file", "path": "data/universes/sp500.txt"}]
-    },
     "large_cap_growth": {
       "name": "Large Cap Growth",
-      "description": "Growth-tilted large caps (sp500 minus dividend/value names)",
+      "description": "Growth-tilted large caps (curated watchlist minus dividend/value names)",
       "sources": [{"type": "file", "path": "data/universes/large_cap_growth.txt"}]
     },
     "small_cap_growth": {

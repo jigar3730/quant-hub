@@ -40,7 +40,7 @@ Universe tickers
 
 **Entry point:** `quant-lynch` / `quant-lynch-all` → `LynchScanService.run()` → `LynchScannerRunner.run()` in `src/quant_hub/lynch/runner.py`.
 
-**Schedule:** Saturday **5:00 AM ET** — `quant-lynch-all --no-email` on all stock universes (`lynch_enabled: true`; ETFs skipped). Weekly digest still highlights **`sp500`** Lynch results.
+**Schedule:** Saturday **5:00 AM ET** — `quant-lynch-all --no-email` on all stock universes (`lynch_enabled: true`; ETFs skipped). Weekly digest still highlights **`sp500_index`** Lynch results.
 
 Each scan processes every ticker in the selected universe. Results for the same `(scan_date, lynch, universe_id)` replace the previous run (upsert).
 

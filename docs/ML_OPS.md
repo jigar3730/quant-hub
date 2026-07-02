@@ -30,8 +30,8 @@ Until swing ML is production-ready, cron is narrowed to **swing + sp500 only**:
 
 | Schedule | Job |
 |----------|-----|
-| Fri **5:45 PM ET** | `quant-swing --universe sp500 --no-email` |
-| Sat **6:00 AM ET** | `quant-ml label --strategy swing --universe sp500 --since <90d>` |
+| Fri **5:45 PM ET** | `quant-swing --universe sp500_index --no-email` |
+| Sat **6:00 AM ET** | `quant-ml label --strategy swing --universe sp500_index --since <90d>` |
 
 Breakout, Lynch, other universes, and digests are **disabled** in `docker/crontab`. See [ML Foundation § ML phase scope](ML_FOUNDATION.md#ml-phase-scope-current) to restore full cron.
 
@@ -104,22 +104,22 @@ Run once after a DB cleanup or fresh install:
 
 ```bash
 # 1. Historical weekly signals (point-in-time, ~6–10 min for 2y of Fridays)
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-backfill swing --universe sp500_index --since 2024-01-01
 
 # 2. Extended daily prices for labels (~20 min first run)
-docker exec quant-hub quant-ml warm-cache --universe sp500
+docker exec quant-hub quant-ml warm-cache --universe sp500_index
 
 # 3. Forward-return labels (~15–20 min for full backfill)
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-ml label --strategy swing --universe sp500_index --since 2024-01-01
 
 # 4. Export training Parquet
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500_index --since 2024-01-01
 ```
 
 **One-shot helper** (live scan + warm-cache + label; no backfill):
 
 ```bash
-docker exec quant-hub bash /app/scripts/ml-phase-swing-sp500.sh
+docker exec quant-hub bash /app/scripts/ml-phase-swing-sp500-index.sh
 ```
 
 ---
@@ -128,7 +128,7 @@ docker exec quant-hub bash /app/scripts/ml-phase-swing-sp500.sh
 
 ### Weekly (automatic)
 
-1. **Friday 5:45 PM ET** — new swing scan for `sp500` upserts `(today, swing, sp500)`.
+1. **Friday 5:45 PM ET** — new swing scan for `sp500_index` upserts `(today, swing, sp500)`.
 2. **Saturday 6:00 AM ET** — labels recomputed for the last 90 days of swing sp500 runs.
 
 No action required unless cron fails (check `cron.log`).
@@ -136,8 +136,8 @@ No action required unless cron fails (check `cron.log`).
 ### After manual swing scan
 
 ```bash
-docker exec quant-hub quant-swing --universe sp500 --no-email
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since $(date -d '7 days ago' +%F)
+docker exec quant-hub quant-swing --universe sp500_index --no-email
+docker exec quant-hub quant-ml label --strategy swing --universe sp500_index --since $(date -d '7 days ago' +%F)
 ```
 
 ### Refresh labels when price cache grows
@@ -145,13 +145,13 @@ docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since $
 Re-run labeling after `warm-cache` or when calendar time advances (recent weeks gain forward bars):
 
 ```bash
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-ml label --strategy swing --universe sp500_index --since 2024-01-01
 ```
 
 ### Re-export training data
 
 ```bash
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500_index --since 2024-01-01
 ```
 
 ---
@@ -163,8 +163,8 @@ Replays **historical Fridays** using truncated weekly parquet — no lookahead.
 **Check coverage before a long run** (shows missing Fridays vs Postgres):
 
 ```bash
-docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01
-docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01 --until 2023-12-31
+docker exec quant-hub quant-backfill coverage --universe sp500_index --since 2020-01-01
+docker exec quant-hub quant-backfill coverage --universe sp500_index --since 2020-01-01 --until 2023-12-31
 ```
 
 Example output when 2020–2023 is missing but 2024+ exists:
@@ -179,11 +179,11 @@ swing/sp500 range=2020-01-03..2026-06-27 planned=340 existing=131 missing=209
 
 ```bash
 # Fill 2020–2023 gap without re-scanning 2024+
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01 --until 2023-12-31
+docker exec quant-hub quant-backfill swing --universe sp500_index --since 2020-01-01 --until 2023-12-31
 
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-01-01
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2024-06-07 --until 2024-06-07 --no-resume
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01 --dry-run
+docker exec quant-hub quant-backfill swing --universe sp500_index --since 2024-01-01
+docker exec quant-hub quant-backfill swing --universe sp500_index --since 2024-06-07 --until 2024-06-07 --no-resume
+docker exec quant-hub quant-backfill swing --universe sp500_index --since 2020-01-01 --dry-run
 ```
 
 | Flag | Effect |
@@ -219,9 +219,9 @@ Computes forward returns from **daily** OHLCV for every ticker in every matched 
 ```bash
 docker exec quant-hub quant-ml status
 
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since 2024-01-01
+docker exec quant-hub quant-ml label --strategy swing --universe sp500_index --since 2024-01-01
 docker exec quant-hub quant-ml label --run-id 42
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 \
+docker exec quant-hub quant-ml label --strategy swing --universe sp500_index \
   --since 2024-01-01 --horizons 5,10,20,63 --threshold 2.0
 ```
 
@@ -243,10 +243,10 @@ docker exec quant-hub quant-ml label --strategy swing --universe sp500 \
 Flattens Postgres `detail` JSON into tabular columns for pandas / LightGBM.
 
 ```bash
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --since 2024-01-01
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --horizon 10
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500_index --since 2024-01-01
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500_index --horizon 10
 docker exec quant-hub quant-ml export-features --run-id 42 --per-run
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --no-labels
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500_index --no-labels
 ```
 
 **Output:** `data/ml/features/{strategy}/{universe}/features_{since}_export.parquet`
@@ -274,7 +274,7 @@ SELECT COUNT(*) AS weeks,
        MAX(scan_date) AS last_week,
        SUM(actionable_count) AS total_setups
 FROM scan_runs
-WHERE strategy_id = 'swing' AND universe_id = 'sp500';
+WHERE strategy_id = 'swing' AND universe_id = 'sp500_index';
 ```
 
 ```sql
@@ -282,7 +282,7 @@ SELECT scan_date, actionable_count,
        metadata->'data_provenance'->>'backfill' AS backfill,
        metadata->'data_provenance'->>'as_of_price' AS as_of_price
 FROM scan_runs
-WHERE strategy_id = 'swing' AND universe_id = 'sp500'
+WHERE strategy_id = 'swing' AND universe_id = 'sp500_index'
 ORDER BY scan_date DESC
 LIMIT 10;
 ```
@@ -296,7 +296,7 @@ SELECT tr.ticker, tr.tier, tr.final_score,
 FROM ticker_results tr
 JOIN scan_runs sr ON sr.id = tr.run_id
 WHERE sr.strategy_id = 'swing'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND sr.scan_date = '2025-06-06'
   AND tr.tier IN ('SETUP_LONG', 'SETUP_SHORT')
 ORDER BY tr.final_score DESC;
@@ -308,7 +308,7 @@ ORDER BY tr.final_score DESC;
 SELECT label_status, COUNT(*)
 FROM signal_outcomes so
 JOIN scan_runs sr ON sr.id = so.run_id
-WHERE sr.strategy_id = 'swing' AND sr.universe_id = 'sp500'
+WHERE sr.strategy_id = 'swing' AND sr.universe_id = 'sp500_index'
 GROUP BY label_status;
 ```
 
@@ -321,7 +321,7 @@ FROM scan_runs sr
 JOIN ticker_results tr ON tr.run_id = sr.id
 JOIN signal_outcomes so ON so.run_id = sr.id AND so.ticker = tr.ticker
 WHERE sr.strategy_id = 'swing'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND tr.tier = 'SETUP_LONG'
   AND so.horizon_days = 10
   AND so.label_status = 'ok'
@@ -395,10 +395,10 @@ See [Runbook § Backup](RUNBOOK.md#6-backup-and-restore).
 |---------|---------|
 | `quant-backfill coverage --since YYYY-MM-DD` | Show missing Fridays vs Postgres before backfill |
 | `quant-backfill swing --since YYYY-MM-DD` | Historical swing scans |
-| `quant-ml warm-cache --universe sp500` | Download 5y daily OHLCV |
-| `quant-ml label --strategy swing --universe sp500` | Compute forward returns |
-| `quant-ml export-features --strategy swing --universe sp500` | Write training Parquet |
-| `quant-ml train --strategy swing --universe sp500 --since YYYY-MM-DD` | Train LightGBM + register |
+| `quant-ml warm-cache --universe sp500_index` | Download 5y daily OHLCV |
+| `quant-ml label --strategy swing --universe sp500_index` | Compute forward returns |
+| `quant-ml export-features --strategy swing --universe sp500_index` | Write training Parquet |
+| `quant-ml train --strategy swing --universe sp500_index --since YYYY-MM-DD` | Train LightGBM + register |
 | `quant-ml evaluate --model-id N [--walk-forward]` | Holdout or walk-forward metrics |
 | `quant-ml models` | List `ml_models` registry |
 | `quant-ml status` | `signal_outcomes` counts |
@@ -435,7 +435,7 @@ Trains on **setups only** (`SETUP_LONG` / `SETUP_SHORT`) with `label_status = ok
 ```bash
 docker exec quant-hub quant-ml train \
   --strategy swing \
-  --universe sp500 \
+  --universe sp500_index \
   --since 2020-01-01 \
   --horizon 10 \
   --name swing_v1

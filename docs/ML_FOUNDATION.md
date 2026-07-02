@@ -12,43 +12,43 @@ Until swing ML and historical backfill are solid, the platform runs in **narrow 
 
 | Active | Paused |
 |--------|--------|
-| `quant-swing --universe sp500` (Fri 5:45 PM ET cron) | Breakout, Lynch, other universes |
-| `quant-ml label --strategy swing --universe sp500` (Sat 6 AM ET) | Daily/weekly digests, `quant-swing-all`, `quant-scan-all` |
+| `quant-swing --universe sp500_index` (Fri 5:45 PM ET cron) | Breakout, Lynch, other universes |
+| `quant-ml label --strategy swing --universe sp500_index` (Sat 6 AM ET) | Daily/weekly digests, `quant-swing-all`, `quant-scan-all` |
 
 **Manual one-shot** (scan + label):
 
 ```bash
-docker exec quant-hub bash /app/scripts/ml-phase-swing-sp500.sh
+docker exec quant-hub bash /app/scripts/ml-phase-swing-sp500-index.sh
 ```
 
 **Operator commands** (scoped):
 
 ```bash
-docker exec quant-hub quant-swing --universe sp500 --no-email
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since 2026-01-01
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500
+docker exec quant-hub quant-swing --universe sp500_index --no-email
+docker exec quant-hub quant-ml label --strategy swing --universe sp500_index --since 2026-01-01
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500_index
 ```
 
 **Backfill** — historical swing sp500 scans for ML training:
 
 ```bash
 # Check missing Fridays before a long backfill
-docker exec quant-hub quant-backfill coverage --universe sp500 --since 2020-01-01
+docker exec quant-hub quant-backfill coverage --universe sp500_index --since 2020-01-01
 
 # 1. Backfill weekly swing signals (point-in-time from 10y weekly parquet)
-docker exec quant-hub quant-backfill swing --universe sp500 --since 2020-01-01
+docker exec quant-hub quant-backfill swing --universe sp500_index --since 2020-01-01
 
 # 2. Warm extended daily cache (~5y) for forward-return labels
-docker exec quant-hub quant-ml warm-cache --universe sp500
+docker exec quant-hub quant-ml warm-cache --universe sp500_index
 
 # 3. Label all backfilled runs
-docker exec quant-hub quant-ml label --strategy swing --universe sp500 --since 2020-01-01
+docker exec quant-hub quant-ml label --strategy swing --universe sp500_index --since 2020-01-01
 
 # 4. Export training features
-docker exec quant-hub quant-ml export-features --strategy swing --universe sp500 --since 2020-01-01
+docker exec quant-hub quant-ml export-features --strategy swing --universe sp500_index --since 2020-01-01
 
 # 5. Train / evaluate (optional)
-docker exec quant-hub quant-ml train --strategy swing --universe sp500 --since 2020-01-01 --name swing_v2
+docker exec quant-hub quant-ml train --strategy swing --universe sp500_index --since 2020-01-01 --name swing_v2
 docker exec quant-hub quant-ml evaluate --model-id 1 --walk-forward
 ```
 
@@ -151,9 +151,9 @@ Run inside the container:
 
 ```bash
 docker exec quant-hub quant-ml status
-docker exec quant-hub quant-ml label --strategy breakout --universe sp500 --since 2026-01-01
+docker exec quant-hub quant-ml label --strategy breakout --universe sp500_index --since 2026-01-01
 docker exec quant-hub quant-ml label --run-id 123
-docker exec quant-hub quant-ml export-features --strategy breakout --universe sp500 --since 2026-01-01
+docker exec quant-hub quant-ml export-features --strategy breakout --universe sp500_index --since 2026-01-01
 docker exec quant-hub quant-ml export-features --per-run --no-labels
 ```
 
@@ -169,8 +169,8 @@ docker exec quant-hub quant-hub init-db
 
 During **ML phase**, cron runs only swing sp500 + scoped labels. See [ML Ops § Schedule](ML_OPS.md#2-current-scope-ml-phase).
 
-- **Friday 5:45 PM ET** — `quant-swing --universe sp500 --no-email`
-- **Saturday 6:00 AM ET** — `quant-ml label --strategy swing --universe sp500 --since <90d>`
+- **Friday 5:45 PM ET** — `quant-swing --universe sp500_index --no-email`
+- **Saturday 6:00 AM ET** — `quant-ml label --strategy swing --universe sp500_index --since <90d>`
 
 Re-run labeling manually after bulk historical imports.
 
@@ -242,7 +242,7 @@ FROM scan_runs sr
 JOIN ticker_results tr ON tr.run_id = sr.id
 JOIN signal_outcomes so ON so.run_id = sr.id AND so.ticker = tr.ticker
 WHERE sr.strategy_id = 'breakout'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND tr.tier = 'Tier 1'
   AND so.horizon_days = 10
   AND so.label_status = 'ok'

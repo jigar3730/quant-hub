@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from quant_hub.config import DEFAULT_OUTPUT_JSON
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE, scan_output_paths
 from quant_hub.filters.eligibility import FILTER_LABELS
 
 SCORE_LABELS = {
@@ -38,8 +38,10 @@ TECHNICAL_KEYS = (
 FUNDAMENTAL_KEYS = ("revenue", "eps")
 
 
-def load_report(path: Path | str = DEFAULT_OUTPUT_JSON) -> dict:
-    path = Path(path)
+def load_report(
+    path: Path | str | None = None,
+) -> dict:
+    path = Path(path or scan_output_paths("breakout", PRIMARY_INDEX_UNIVERSE)["json"])
     with path.open() as f:
         return json.load(f)
 

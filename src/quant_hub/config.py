@@ -8,10 +8,8 @@ CACHE_DIR = DATA_DIR / "cache"
 OUTPUT_DIR = DATA_DIR / "output"
 HISTORY_DIR = DATA_DIR / "history"
 UNIVERSES_CONFIG = DATA_DIR / "universes.json"
+PRIMARY_INDEX_UNIVERSE = "sp500_index"
 DEFAULT_TICKERS_FILE = DATA_DIR / "tickers.txt"
-DEFAULT_OUTPUT_CSV = OUTPUT_DIR / "breakout_scan_results.csv"
-DEFAULT_OUTPUT_JSON = OUTPUT_DIR / "breakout_scan_report.json"
-DEFAULT_OUTPUT_MD = OUTPUT_DIR / "breakout_scan_summary.md"
 DRY_RUN_OUTPUT_DIR = OUTPUT_DIR / "dry_run"
 
 UNIVERSE_SIZE = 250
@@ -49,27 +47,11 @@ SWING_INTERVAL = "1wk"
 SWING_MIN_BARS = 60
 DEFAULT_SWING_OUTPUT_CSV = OUTPUT_DIR / "swing_setups.csv"
 
-DEFAULT_LYNCH_CSV = OUTPUT_DIR / "lynch_scan_results.csv"
-DEFAULT_LYNCH_JSON = OUTPUT_DIR / "lynch_scan_report.json"
-DEFAULT_LYNCH_MD = OUTPUT_DIR / "lynch_scan_summary.md"
 LYNCH_FETCH_WORKERS = 3
 LYNCH_FETCH_BATCH_SIZE = 20
 LYNCH_FETCH_BATCH_DELAY_SEC = 2.0
 LYNCH_FETCH_RETRIES = 4
 LYNCH_FETCH_RETRY_BASE_SEC = 1.0
-
-LEGACY_BREAKOUT_OUTPUTS = {
-    "csv": DEFAULT_OUTPUT_CSV,
-    "json": DEFAULT_OUTPUT_JSON,
-    "md": DEFAULT_OUTPUT_MD,
-}
-
-
-LEGACY_LYNCH_OUTPUTS = {
-    "csv": DEFAULT_LYNCH_CSV,
-    "json": DEFAULT_LYNCH_JSON,
-    "md": DEFAULT_LYNCH_MD,
-}
 
 
 def scan_output_paths(

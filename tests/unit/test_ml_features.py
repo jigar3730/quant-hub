@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from quant_hub.ml.constants import FEATURE_SCHEMA_VERSION
 from quant_hub.ml.features import extract_features, merge_outcome_columns
@@ -12,9 +12,9 @@ def _run(strategy_id: str = "breakout") -> dict:
     return {
         "id": 42,
         "scan_date": date(2026, 6, 1),
-        "scan_time": datetime(2026, 6, 1, 17, 0, tzinfo=timezone.utc),
+        "scan_time": datetime(2026, 6, 1, 17, 0, tzinfo=UTC),
         "strategy_id": strategy_id,
-        "universe_id": "sp500",
+        "universe_id": "sp500_index",
         "universe_size": 193,
         "regime_label": "neutral",
         "regime_multiplier": 0.85,

@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+from quant_hub.config import MAX_REASONABLE_GROWTH
 from quant_hub.data.fundamentals.compute import (
     apply_growth_cap,
     eps_combined_growth,
@@ -8,7 +9,6 @@ from quant_hub.data.fundamentals.compute import (
     ttm_yoy,
     yoy_quarterly,
 )
-from quant_hub.config import MAX_REASONABLE_GROWTH
 
 
 def test_yoy_standard_positive_base():

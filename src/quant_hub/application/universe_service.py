@@ -19,9 +19,6 @@ class UniverseService:
         tickers: list[str] | None = None,
         tickers_file: Path | str | None = None,
     ) -> tuple[str, list[str]]:
-        if universe_id:
-            tickers_list = self.registry._resolve_id(universe_id)
-            return universe_id, tickers_list
         return self.registry.resolve(
             universe_id=universe_id,
             tickers=tickers,

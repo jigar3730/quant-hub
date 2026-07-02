@@ -1,85 +1,71 @@
 # Reference schedule — authoritative source is docker/crontab (installed into the container).
 # All times America/New_York (container TZ).
-#
-# ML PHASE: only swing-sp500-weekly + ml-label-swing-sp500 are active.
-# Other jobs are documented here for restore after ML/backfill work completes.
 
 jobs:
-  - name: swing-sp500-weekly
-    cron: "45 17 * * 5"      # Fri 5:45 PM ET
-    command: quant-swing --universe sp500 --no-email
-    strategy: swing
-    universe: sp500
-    email: false
-    cache: true
-    persist: true
-    exports: [csv]
-    job_name: swing-sp500-weekly
-    active: true
-
-  - name: ml-label-swing-sp500
-    cron: "0 6 * * 6"        # Sat 6:00 AM ET
-    command: quant-ml label --strategy swing --universe sp500 --since <90d>
-    strategy: swing
-    universe: sp500
-    email: false
-    job_name: ml-label-swing-sp500
-    active: true
-
-  # --- Inactive during ML phase ---
-  - name: breakout-sp500-daily
+  - name: breakout-sp500-index-daily
     cron: "0 17 * * 1-5"
-    command: quant-daily --universe sp500 --no-email
+    command: quant-daily --universe sp500_index --no-email
     strategy: breakout
-    universe: sp500
-    active: false
+    universe: sp500_index
+    email: false
+    active: true
 
   - name: digest-daily
     cron: "35 17 * * 1-5"
     command: quant-digest daily
-    active: false
+    email: true
+    active: true
 
   - name: breakout-sector-commodity-etfs-weekly
     cron: "30 16 * * 5"
     command: quant-daily --universe sector_commodity_etfs --no-email
-    active: false
+    active: true
 
   - name: swing-sector-commodity-etfs-weekly
     cron: "35 16 * * 5"
     command: quant-swing --universe sector_commodity_etfs --no-email
-    active: false
+    active: true
+
+  - name: swing-sp500-index-weekly
+    cron: "45 17 * * 5"
+    command: quant-swing --universe sp500_index --no-email
+    strategy: swing
+    universe: sp500_index
+    email: false
+    active: true
 
   - name: sp500-index-refresh-quarterly
     cron: "30 0 1-7 1,4,7,10 6"
     command: quant-universe refresh sp500_index
-    active: false
+    active: true
 
   - name: breakout-full-coverage-weekly
     cron: "0 1 * * 6"
     command: quant-scan-all --cache --report both
-    active: false
+    active: true
 
   - name: swing-full-coverage-weekly
     cron: "0 4 * * 6"
     command: quant-swing-all --no-email
-    active: false
+    active: true
 
   - name: lynch-full-coverage-weekly
     cron: "0 5 * * 6"
     command: quant-lynch-all --no-email
-    active: false
+    active: true
+
+  - name: ml-label-swing-sp500-index
+    cron: "0 6 * * 6"
+    command: quant-ml label --strategy swing --universe sp500_index --since <90d>
+    active: true
 
   - name: analytics-weekly
     cron: "50 7 * * 6"
     command: quant-analytics weekly
-    active: false
+    active: true
 
   - name: digest-weekly
     cron: "0 8 * * 6"
     command: quant-digest weekly
-    active: false
-
-  - name: digest-weekly-retry
-    cron: "0 9 * * 6"
-    command: quant-digest weekly
-    active: false
+    email: true
+    active: true

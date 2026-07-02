@@ -7,12 +7,12 @@ touch /app/logs/cron.log /app/logs/dashboard.log
 printenv | grep -E '^(SMTP_|EMAIL_|TZ=|PATH=|PYTHONPATH=|DATABASE_URL|POSTGRES_)' > /etc/environment 2>/dev/null || true
 
 # Apply schema on startup (idempotent)
-quant-hub init-db >> /app/logs/cron.log 2>&1 || true
+quant-hub init-db --quiet >> /app/logs/cron.log 2>&1 || true
 
 case "${1:-scheduler}" in
   scan)
     echo "Running one-time daily scan..."
-    exec quant-daily --universe "${UNIVERSE:-sp500}"
+    exec quant-daily --universe "${UNIVERSE:-sp500_index}"
     ;;
 
   scheduler)

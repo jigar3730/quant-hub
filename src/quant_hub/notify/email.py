@@ -7,6 +7,8 @@ from datetime import date
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
+
 
 @dataclass
 class EmailConfig:
@@ -282,7 +284,7 @@ def build_lynch_email(
     candidates = report.get("candidates") or []
     cats = summary.get("category_counts", {})
     preset_label = summary.get("preset_label", "Peter Lynch Screen")
-    universe_id = report.get("universe_id", "sp500")
+    universe_id = report.get("universe_id", PRIMARY_INDEX_UNIVERSE)
     passed = summary.get("passed_count", len(candidates))
     scanned = summary.get("universe_size", 0)
 

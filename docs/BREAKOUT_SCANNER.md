@@ -44,8 +44,8 @@ Universe tickers
 
 | Command | Service | Typical use |
 |---------|---------|-------------|
-| `quant-daily --universe sp500` | `ScanService` | Scheduled daily job (cache on, email on, reports JSON+MD) |
-| `quant-scan --universe sp500 --cache` | `ScanService` | Manual scan, no email by default |
+| `quant-daily --universe sp500_index` | `ScanService` | Scheduled daily job (cache on, email on, reports JSON+MD) |
+| `quant-scan --universe sp500_index --cache` | `ScanService` | Manual scan, no email by default |
 | `quant-scan-all --cache --email` | `ScanService` | All universes in `universes.json` |
 
 **Strategy spec:** `src/quant_hub/strategies/breakout/spec.py` → `BREAKOUT_STRATEGY`.
@@ -60,7 +60,7 @@ Every ticker in the universe gets a row. Ineligible names are **`filtered`** wit
 
 | When | Command | Universe |
 |------|---------|----------|
-| **Mon–Fri, 5:00 PM ET** | `quant-daily --universe sp500 --no-email` | `sp500` (daily digest at 5:35 PM) |
+| **Mon–Fri, 5:00 PM ET** | `quant-daily --universe sp500_index --no-email` | `sp500_index` (daily digest at 5:35 PM) |
 | **Fri, 4:30 PM ET** | `quant-daily --universe sector_commodity_etfs --no-email` | ETFs |
 | **Sat, 1:00 AM ET** | `quant-scan-all --cache --report both` | All 9 universes |
 
@@ -377,7 +377,7 @@ final_adjusted_score = normalized_score × regime_multiplier
 | Final | `summary.final_adjusted_score` | `final_adjusted_score` |
 | Regime | `summary.regime_multiplier` | `regime_multiplier` |
 
-**Percentile factors** (RS market, RS sector, accumulation) are **relative to the scanned universe** — the same stock can score differently in `sp500` vs `most_actives`.
+**Percentile factors** (RS market, RS sector, accumulation) are **relative to the scanned universe** — the same stock can score differently in `sp500_index` vs `most_actives`.
 
 Component detail for Ticker Detail is built in `src/quant_hub/report/diagnostics.py` → `score_components_detail()` (raw values + plain-English `meaning` per factor).
 
@@ -581,8 +581,8 @@ Indexed columns: `eligible`, `tier`, `final_score`, `filter_reason`, `sector_etf
 ### CLI examples
 
 ```bash
-quant-daily --universe sp500              # scheduled equivalent + email
-quant-daily --universe sp500 --no-email   # no mail
-quant-scan --universe sp500 --cache       # manual, JSON report default
+quant-daily --universe sp500_index              # scheduled equivalent + email
+quant-daily --universe sp500_index --no-email   # no mail
+quant-scan --universe sp500_index --cache       # manual, JSON report default
 quant-scan-all --cache --email            # all universes
 ```

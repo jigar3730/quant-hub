@@ -25,7 +25,7 @@ def _weekly_df(fridays: list[str], base: float = 100.0) -> pd.DataFrame:
 
 @pytest.fixture
 def mock_universe():
-    return "sp500", ["AAA", "BBB"]
+    return "sp500_index", ["AAA", "BBB"]
 
 
 def test_backfill_persists_one_friday(mock_universe):

@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from quant_hub.application.scan_service import ScanService
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.logging_setup import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run breakout scan")
-    parser.add_argument("--universe", help="Named universe id (e.g. sp500)")
+    parser.add_argument("--universe", help=f"Named universe id (e.g. {PRIMARY_INDEX_UNIVERSE})")
     parser.add_argument("--tickers", nargs="+", help="Explicit ticker list")
     parser.add_argument("--tickers-file", type=Path, help="Path to ticker file")
     parser.add_argument("--cache", action="store_true", help="Use parquet price cache")

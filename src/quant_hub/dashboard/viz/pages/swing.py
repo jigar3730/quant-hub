@@ -7,14 +7,18 @@ import streamlit as st
 from quant_hub.dashboard.viz.components import render_eligibility_panel
 from quant_hub.dashboard.viz.labels import tier_friendly
 from quant_hub.dashboard.viz.navigation import set_detail_ticker, ticker_link_html
-from quant_hub.dashboard.viz.table_helpers import merge_column_config, table_column_order, with_yahoo_ticker_links
 from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
-from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
 from quant_hub.dashboard.viz.swing_filters import (
     SwingFilters,
     apply_swing_filters,
     swing_setups_dataframe,
     swing_universe_dataframe,
+)
+from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
+from quant_hub.dashboard.viz.table_helpers import (
+    merge_column_config,
+    table_column_order,
+    with_yahoo_ticker_links,
 )
 from quant_hub.dashboard.viz.ux_helpers import render_swing_takeaway
 from quant_hub.infrastructure.postgres.repository import ScanRepository

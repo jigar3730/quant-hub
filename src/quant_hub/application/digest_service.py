@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from quant_hub.application.run_result import ServiceRunResult
 from quant_hub.digest import policy as P
@@ -49,8 +49,8 @@ class DigestService:
         scan_time = run.get("scan_time")
         if scan_time:
             if scan_time.tzinfo is None:
-                scan_time = scan_time.replace(tzinfo=timezone.utc)
-            age = datetime.now(tz=timezone.utc) - scan_time
+                scan_time = scan_time.replace(tzinfo=UTC)
+            age = datetime.now(tz=UTC) - scan_time
             if age > timedelta(hours=P.DAILY_SCAN_MAX_AGE_HOURS):
                 raise RuntimeError(
                     f"Breakout scan on {scan_date} is stale ({age.total_seconds() / 3600:.1f}h old)"

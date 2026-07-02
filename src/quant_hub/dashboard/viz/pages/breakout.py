@@ -24,12 +24,19 @@ from quant_hub.dashboard.viz.components import (
     tier_badge_html,
 )
 from quant_hub.dashboard.viz.data import full_universe_dataframe, score_heatmap_dataframe
-from quant_hub.dashboard.viz.navigation import set_detail_ticker, dashboard_ticker_link_html, ticker_link_html
-from quant_hub.dashboard.viz.table_helpers import merge_column_config, table_column_order, with_yahoo_ticker_links
 from quant_hub.dashboard.viz.labels import tier_friendly
+from quant_hub.dashboard.viz.navigation import (
+    dashboard_ticker_link_html,
+    set_detail_ticker,
+    ticker_link_html,
+)
 from quant_hub.dashboard.viz.signals import render_signal_insights_panel, signal_insights
 from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
-from quant_hub.dashboard.viz.ux_helpers import render_breakout_takeaway, render_near_miss_panel
+from quant_hub.dashboard.viz.table_helpers import (
+    merge_column_config,
+    table_column_order,
+    with_yahoo_ticker_links,
+)
 from quant_hub.dashboard.viz.universe_panel import (
     apply_universe_controls,
     render_universe_detail_panel,
@@ -37,6 +44,7 @@ from quant_hub.dashboard.viz.universe_panel import (
     universe_display_columns,
     universe_table_column_config,
 )
+from quant_hub.dashboard.viz.ux_helpers import render_breakout_takeaway, render_near_miss_panel
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 

@@ -27,7 +27,7 @@ Related: [Data Model / ERD](DATA_MODEL.md) · [User Manual](USER_MANUAL.md) · [
 
 | Asset | Content |
 |-------|---------|
-| **`scan_runs`** (1 row) | `breakout` + `sp500`: tier counts, SPY regime, filter breakdown in `metadata` |
+| **`scan_runs`** (1 row) | `breakout` + `sp500_index`: tier counts, SPY regime, filter breakdown in `metadata` |
 | **`ticker_results`** (~193 rows) | Every sp500 name: `tier`, `final_score`, `sector_etf`, full `detail` JSON (9 factors, eligibility, fundamentals) |
 | **Exports** | `data/output/breakout/sp500/scan_results.csv`, `report.json`, `summary.md` |
 | **Email** | **Daily digest** (Tier 1 + Tier 2 for sp500 only) |
@@ -40,7 +40,7 @@ Related: [Data Model / ERD](DATA_MODEL.md) · [User Manual](USER_MANUAL.md) · [
 |-----------|-----|---------|
 | Fri **4:30 PM** | Breakout `sector_commodity_etfs` | ~17 sector/commodity ETFs (breakout scores) |
 | Fri **4:35 PM** | Swing `sector_commodity_etfs` | ETF weekly setups + full detail in Postgres |
-| Fri **5:45 PM** | Swing `sp500` | sp500 swing (feeds weekly digest) |
+| Fri **5:45 PM** | Swing `sp500_index` | sp500 swing (feeds weekly digest) |
 | Sat **1:00 AM** | Breakout `quant-scan-all` | All 9 universes (~1,950 tickers total) |
 | Sat **4:00 AM** | Swing `quant-swing-all` | All 9 universes |
 | Sat **5:00 AM** | Lynch `quant-lynch-all` | 8 stock universes (ETFs skipped) |
@@ -86,7 +86,7 @@ Or: `DATABASE_URL=postgresql://quant:<password>@localhost:5433/quant_hub`
 |--------|-----------------|
 | `scan_date` | Time axis |
 | `strategy_id` | `breakout`, `swing`, `lynch` |
-| `universe_id` | e.g. `sp500`, `sector_commodity_etfs` |
+| `universe_id` | e.g. `sp500_index`, `sector_commodity_etfs` |
 | `tier1_count`, `tier2_count`, `tier3_count`, `filtered_count` | Funnel size |
 | `actionable_count` | Breakout T1+T2; swing setups; Lynch passed |
 | `regime_label`, `regime_multiplier` | Market context (breakout) |
@@ -238,7 +238,7 @@ SELECT tr.ticker, tr.tier, tr.final_score, tr.sector_etf
 FROM ticker_results tr
 JOIN scan_runs sr ON sr.id = tr.run_id
 WHERE sr.strategy_id = 'breakout'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND sr.scan_date = CURRENT_DATE
   AND tr.tier IN ('Tier 1', 'Tier 2')
 ORDER BY tr.final_score DESC;
@@ -253,7 +253,7 @@ SELECT tr.ticker,
 FROM ticker_results tr
 JOIN scan_runs sr ON sr.id = tr.run_id
 WHERE sr.strategy_id = 'breakout'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND sr.scan_date >= CURRENT_DATE - INTERVAL '7 days'
   AND tr.tier IN ('Tier 1', 'Tier 2')
 GROUP BY tr.ticker
@@ -269,7 +269,7 @@ WITH today AS (
   FROM ticker_results tr
   JOIN scan_runs sr ON sr.id = tr.run_id
   WHERE sr.strategy_id = 'breakout'
-    AND sr.universe_id = 'sp500'
+    AND sr.universe_id = 'sp500_index'
     AND sr.scan_date = CURRENT_DATE
     AND tr.tier IN ('Tier 1', 'Tier 2')
 ),
@@ -278,7 +278,7 @@ yesterday AS (
   FROM ticker_results tr
   JOIN scan_runs sr ON sr.id = tr.run_id
   WHERE sr.strategy_id = 'breakout'
-    AND sr.universe_id = 'sp500'
+    AND sr.universe_id = 'sp500_index'
     AND sr.scan_date = CURRENT_DATE - INTERVAL '1 day'
     AND tr.tier IN ('Tier 1', 'Tier 2')
 )
@@ -296,7 +296,7 @@ WITH latest AS (
   SELECT strategy_id,
          MAX(scan_date) AS scan_date
   FROM scan_runs
-  WHERE universe_id = 'sp500'
+  WHERE universe_id = 'sp500_index'
     AND strategy_id IN ('breakout', 'swing', 'lynch')
   GROUP BY strategy_id
 ),
@@ -305,7 +305,7 @@ b AS (
   FROM ticker_results tr
   JOIN scan_runs sr ON sr.id = tr.run_id
   JOIN latest l ON l.strategy_id = 'breakout' AND sr.scan_date = l.scan_date
-  WHERE sr.strategy_id = 'breakout' AND sr.universe_id = 'sp500'
+  WHERE sr.strategy_id = 'breakout' AND sr.universe_id = 'sp500_index'
     AND tr.tier IN ('Tier 1', 'Tier 2')
 ),
 s AS (
@@ -313,7 +313,7 @@ s AS (
   FROM ticker_results tr
   JOIN scan_runs sr ON sr.id = tr.run_id
   JOIN latest l ON l.strategy_id = 'swing' AND sr.scan_date = l.scan_date
-  WHERE sr.strategy_id = 'swing' AND sr.universe_id = 'sp500'
+  WHERE sr.strategy_id = 'swing' AND sr.universe_id = 'sp500_index'
     AND tr.tier IN ('SETUP_LONG', 'SETUP_SHORT')
 ),
 lyn AS (
@@ -321,7 +321,7 @@ lyn AS (
   FROM ticker_results tr
   JOIN scan_runs sr ON sr.id = tr.run_id
   JOIN latest l ON l.strategy_id = 'lynch' AND sr.scan_date = l.scan_date
-  WHERE sr.strategy_id = 'lynch' AND sr.universe_id = 'sp500'
+  WHERE sr.strategy_id = 'lynch' AND sr.universe_id = 'sp500_index'
     AND tr.eligible = true
 )
 SELECT b.ticker,
@@ -354,7 +354,7 @@ SELECT sr.scan_date,
        sr.tier2_count
 FROM scan_runs sr
 WHERE sr.strategy_id = 'breakout'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND sr.scan_date >= CURRENT_DATE - INTERVAL '30 days'
 ORDER BY sr.scan_date DESC;
 ```
@@ -370,10 +370,10 @@ SELECT tr.tier,
 FROM ticker_results tr
 JOIN scan_runs sr ON sr.id = tr.run_id
 WHERE sr.strategy_id = 'breakout'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND sr.scan_date = (
     SELECT MAX(scan_date) FROM scan_runs
-    WHERE strategy_id = 'breakout' AND universe_id = 'sp500'
+    WHERE strategy_id = 'breakout' AND universe_id = 'sp500_index'
   )
   AND tr.tier IN ('Tier 1', 'Tier 2', 'Tier 3')
 GROUP BY tr.tier
@@ -391,10 +391,10 @@ SELECT tr.ticker,
 FROM ticker_results tr
 JOIN scan_runs sr ON sr.id = tr.run_id
 WHERE sr.strategy_id = 'swing'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND sr.scan_date = (
     SELECT MAX(scan_date) FROM scan_runs
-    WHERE strategy_id = 'swing' AND universe_id = 'sp500'
+    WHERE strategy_id = 'swing' AND universe_id = 'sp500_index'
   )
   AND tr.tier IN ('SETUP_LONG', 'SETUP_SHORT')
 ORDER BY tr.final_score DESC
@@ -412,10 +412,10 @@ SELECT tr.ticker,
 FROM ticker_results tr
 JOIN scan_runs sr ON sr.id = tr.run_id
 WHERE sr.strategy_id = 'lynch'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
   AND sr.scan_date = (
     SELECT MAX(scan_date) FROM scan_runs
-    WHERE strategy_id = 'lynch' AND universe_id = 'sp500'
+    WHERE strategy_id = 'lynch' AND universe_id = 'sp500_index'
   )
   AND tr.eligible = true
 ORDER BY tr.final_score DESC NULLS LAST;
@@ -470,7 +470,7 @@ SELECT sr.scan_date,
        sr.metadata->'excluded_count' AS excluded
 FROM scan_runs sr
 WHERE sr.strategy_id = 'breakout'
-  AND sr.universe_id = 'sp500'
+  AND sr.universe_id = 'sp500_index'
 ORDER BY sr.scan_date DESC
 LIMIT 10;
 ```
@@ -512,7 +512,7 @@ df = pd.read_sql("""
     SELECT sr.scan_date, tr.ticker, tr.tier, tr.final_score
     FROM ticker_results tr
     JOIN scan_runs sr ON sr.id = tr.run_id
-    WHERE sr.strategy_id = 'breakout' AND sr.universe_id = 'sp500'
+    WHERE sr.strategy_id = 'breakout' AND sr.universe_id = 'sp500_index'
       AND tr.tier IN ('Tier 1', 'Tier 2')
     ORDER BY sr.scan_date, tr.final_score DESC
 """, engine)

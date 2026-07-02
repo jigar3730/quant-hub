@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import streamlit as st
 
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.dashboard.viz.data import tickers_to_dataframe
+from quant_hub.dashboard.viz.digest_components import render_digest_preview_tab
 from quant_hub.dashboard.viz.labels import format_report_label
 from quant_hub.dashboard.viz.lynch_components import render_lynch_tab
 from quant_hub.dashboard.viz.navigation import sync_detail_ticker
@@ -93,6 +95,19 @@ if not ping():
 
 strategy_id, universe_id, scan_date, filters = render_sidebar_controls(repo)
 
+if strategy_id == "digest":
+    digest_kind = st.session_state.get("digest_kind", "daily")
+    render_digest_preview_tab(
+        repo,
+        job_repo,
+        digest_kind=digest_kind,
+        scan_date=scan_date,
+    )
+    with st.expander("System status (admin)"):
+        _render_system_panel(job_repo, repo)
+    render_disclaimer()
+    st.stop()
+
 report = repo.load_report(
     strategy_id=strategy_id,
     universe_id=universe_id,
@@ -102,8 +117,9 @@ report = repo.load_report(
 if report is None:
     st.warning("No scan found for this strategy/universe/date.")
     st.info(
-        "Run `quant-scan --universe sp500 --cache`, `quant-swing --universe sp500`, "
-        "`quant-lynch --universe sp500`, or wait for scheduled cron jobs."
+        f"Run `quant-scan --universe {PRIMARY_INDEX_UNIVERSE} --cache`, "
+        f"`quant-swing --universe {PRIMARY_INDEX_UNIVERSE}`, "
+        f"`quant-lynch --universe {PRIMARY_INDEX_UNIVERSE}`, or wait for scheduled cron jobs."
     )
     with st.expander("System status"):
         _render_system_panel(job_repo, repo)

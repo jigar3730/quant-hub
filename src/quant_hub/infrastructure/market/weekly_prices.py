@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
 
 import pandas as pd
 import yfinance as yf
 
-from quant_hub.config import CACHE_TTL_WEEKLY_HOURS, SWING_INTERVAL, SWING_PERIOD, WEEKLY_CACHE_SUBDIR
+from quant_hub.config import (
+    CACHE_TTL_WEEKLY_HOURS,
+    SWING_INTERVAL,
+    SWING_PERIOD,
+    WEEKLY_CACHE_SUBDIR,
+)
 from quant_hub.infrastructure.cache.parquet_cache import OHLCV_COLUMNS, ParquetCache
 
 logger = logging.getLogger(__name__)

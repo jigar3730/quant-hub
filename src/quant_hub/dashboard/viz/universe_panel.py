@@ -6,21 +6,21 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from quant_hub.filters.eligibility import FILTER_LABELS
 from quant_hub.dashboard.viz.components import (
     apply_chart_style,
     render_ticker_news_panel,
     tier_badge_html,
 )
 from quant_hub.dashboard.viz.data import scores_to_dataframe
-from quant_hub.dashboard.viz.navigation import ticker_link_html
-from quant_hub.dashboard.viz.table_helpers import merge_column_config
+from quant_hub.dashboard.viz.navigation import set_detail_ticker, ticker_link_html
 from quant_hub.dashboard.viz.signals import (
     component_action,
     render_signal_insights_panel,
     signal_insights,
 )
 from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
+from quant_hub.dashboard.viz.table_helpers import merge_column_config
+from quant_hub.filters.eligibility import FILTER_LABELS
 
 SORT_OPTIONS = {
     "Final Score": "final_score",

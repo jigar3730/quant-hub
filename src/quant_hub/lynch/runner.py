@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
+from quant_hub.data.provenance import build_data_provenance
+from quant_hub.data.quality import lynch_metrics_quality_summary
 from quant_hub.lynch import config as lynch_cfg
 from quant_hub.lynch.categories import (
     QUALITATIVE_OVERLAY,
@@ -15,12 +18,14 @@ from quant_hub.lynch.categories import (
     classify_fast_grower,
     classify_stalwart,
 )
-from quant_hub.lynch.explain import build_fundamental_snapshot, build_investor_summary, enrich_checks
+from quant_hub.lynch.explain import (
+    build_fundamental_snapshot,
+    build_investor_summary,
+    enrich_checks,
+)
 from quant_hub.lynch.filters import apply_anti_filters, apply_base_screen, lynch_score
 from quant_hub.lynch.metrics import fetch_lynch_metrics_batch
 from quant_hub.lynch.report import export_json, export_markdown
-from quant_hub.data.provenance import build_data_provenance
-from quant_hub.data.quality import lynch_metrics_quality_summary
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +40,7 @@ class LynchScannerRunner:
         report: str | None = "both",
         report_json: Path | None = None,
         report_md: Path | None = None,
-        universe_id: str = "sp500",
+        universe_id: str = PRIMARY_INDEX_UNIVERSE,
     ) -> None:
         if preset not in lynch_cfg.PRESETS:
             raise ValueError(f"Unknown preset: {preset}")

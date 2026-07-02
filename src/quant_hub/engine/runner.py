@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import pandas as pd
-
 from quant_hub.data.sector import resolve_sector_etf
 from quant_hub.engine.context import ScanContext
 from quant_hub.engine.protocols import StrategySpec

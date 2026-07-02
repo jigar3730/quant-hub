@@ -17,6 +17,7 @@ from quant_hub.config import (
     LYNCH_FETCH_RETRY_BASE_SEC,
     LYNCH_FETCH_WORKERS,
 )
+from quant_hub.data.fundamentals_helpers import cagr, quarterly_series
 from quant_hub.data.quality import (
     growth_to_percent,
     normalize_debt_to_equity,

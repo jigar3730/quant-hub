@@ -10,6 +10,7 @@ from typing import Any
 
 import pandas as pd
 
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.infrastructure.postgres.ml_models_repository import MlModelsRepository
 from quant_hub.ml.evaluate import EvalMetrics, aggregate_fold_metrics, evaluate_predictions
 from quant_hub.ml.train import load_model_artifact
@@ -67,7 +68,7 @@ class MLEvaluateService:
             meta_path = Path(artifact_path) / "features.json"
             meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
             strategy_id = meta.get("strategy_id", "swing")
-            universe_id = meta.get("universe_id", "sp500")
+            universe_id = meta.get("universe_id", PRIMARY_INDEX_UNIVERSE)
             horizon_days = int(meta.get("horizon_days", 10))
             record = None
         else:

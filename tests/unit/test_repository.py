@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import os
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -76,7 +75,7 @@ def test_upsert_same_day_replaces_ticker_rows():
             strategy_id=strategy,
             universe_id=universe,
             report=report,
-            scan_time=datetime(2099, 1, 1, 12, i, 0, tzinfo=timezone.utc),
+            scan_time=datetime(2099, 1, 1, 12, i, 0, tzinfo=UTC),
         )
 
     counts = repo.table_counts()

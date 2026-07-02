@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import streamlit as st
 
-from quant_hub.dashboard.viz.data import SCORE_LABELS, TECHNICAL_KEYS
+from quant_hub.dashboard.viz.data import SCORE_LABELS
 from quant_hub.dashboard.viz.score_guide import COMPONENT_SUMMARY, _all_metrics
 
 METRIC_BY_KEY = {m.key: m for m in _all_metrics()}
@@ -181,7 +181,6 @@ def component_action(key: str, comp: dict) -> str:
             "Earnings growth is insufficient — downgrade fundamental conviction."
         )
 
-    guide = METRIC_BY_KEY.get(key)
     summary = COMPONENT_SUMMARY.get(key, meaning)
     if band == "strong":
         return f"Strength: {summary} ({score:.0f}/{max_pts:.0f} pts)."

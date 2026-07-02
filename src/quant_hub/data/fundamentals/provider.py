@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 import yfinance as yf
@@ -54,7 +54,7 @@ def fetch_fundamentals_snapshot(ticker: str) -> FundamentalsSnapshot:
             eps_cagr_3y=eps_cagr,
             eps_source=eps_source,
             quarters_available=quarters,
-            fetched_at=datetime.now(timezone.utc).isoformat(),
+            fetched_at=datetime.now(UTC).isoformat(),
         )
     except Exception as exc:
         logger.warning("Could not fetch fundamentals for %s: %s", ticker, exc)

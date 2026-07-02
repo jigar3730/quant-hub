@@ -8,6 +8,7 @@ import sys
 from datetime import date
 
 from quant_hub.application.swing_backfill_service import SwingBackfillService
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.infrastructure.postgres.connection import ping
 from quant_hub.logging_setup import setup_logging
 from quant_hub.ml.backfill_dates import earliest_backfill_supported
@@ -16,7 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 def _add_range_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--universe", default="sp500", help="Universe id (default: sp500)")
+    parser.add_argument(
+        "--universe",
+        default=PRIMARY_INDEX_UNIVERSE,
+        help=f"Universe id (default: {PRIMARY_INDEX_UNIVERSE})",
+    )
     parser.add_argument(
         "--since",
         type=date.fromisoformat,

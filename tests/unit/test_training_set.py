@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from quant_hub.ml.constants import SWING_FEATURE_COLUMNS, SWING_SETUP_TIERS
-from quant_hub.ml.training_set import split_features_target
-from quant_hub.ml.training_set import TrainingSetResult
 import pandas as pd
+
+from quant_hub.ml.constants import SWING_FEATURE_COLUMNS, SWING_SETUP_TIERS
+from quant_hub.ml.training_set import TrainingSetResult, split_features_target
 
 
 def test_swing_feature_columns_exclude_leakage():

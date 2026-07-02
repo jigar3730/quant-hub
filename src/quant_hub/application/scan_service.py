@@ -4,11 +4,9 @@ import logging
 from datetime import date
 from pathlib import Path
 
-import pandas as pd
-
 from quant_hub.application.run_result import ServiceRunResult
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.config import LEGACY_BREAKOUT_OUTPUTS, scan_output_paths
+from quant_hub.config import scan_output_paths
 from quant_hub.data.provenance import build_data_provenance
 from quant_hub.data.quality import max_bar_date
 from quant_hub.engine.export import ticker_results_to_legacy_scores
@@ -16,7 +14,7 @@ from quant_hub.engine.runner import StrategyEngine
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.notify.email import send_scan_email
 from quant_hub.report.builder import build_scan_report
-from quant_hub.report.export import copy_to_legacy, export_json_report, export_markdown_report
+from quant_hub.report.export import export_json_report, export_markdown_report
 from quant_hub.scoring.aggregate import export_results
 from quant_hub.strategies.registry import get_strategy
 
@@ -120,13 +118,6 @@ class ScanService:
             if report in ("md", "both"):
                 export_markdown_report(scan_report, report_md)
                 logger.info("Wrote markdown report to %s", report_md)
-
-            if self.strategy_id == "breakout" and resolved_id == "sp500" and not dry_run:
-                copy_to_legacy(output, LEGACY_BREAKOUT_OUTPUTS["csv"])
-                if report in ("json", "both"):
-                    copy_to_legacy(report_json, LEGACY_BREAKOUT_OUTPUTS["json"])
-                if report in ("md", "both"):
-                    copy_to_legacy(report_md, LEGACY_BREAKOUT_OUTPUTS["md"])
 
             if persist:
                 run_id = self.scan_repo.upsert_scan(

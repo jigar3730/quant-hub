@@ -7,7 +7,6 @@ from quant_hub.engine.types import TickerResult
 from quant_hub.regime.market import MarketRegime
 from quant_hub.strategies.breakout.tiers import assign_tier_from_row
 
-
 BREAKOUT_SCORE_COLUMNS = [
     "rs_market_score",
     "rs_sector_score",

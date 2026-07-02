@@ -7,8 +7,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from quant_hub.data.news import fetch_ticker_news, fetch_ticker_snapshot
-from quant_hub.filters.eligibility import FILTER_LABELS
 from quant_hub.dashboard.viz.data import (
     FUNDAMENTAL_KEYS,
     SCORE_LABELS,
@@ -16,12 +14,14 @@ from quant_hub.dashboard.viz.data import (
     TIER_COLORS,
     scores_to_dataframe,
 )
-from quant_hub.dashboard.viz.navigation import ticker_link_html
 from quant_hub.dashboard.viz.labels import tier_friendly
+from quant_hub.dashboard.viz.navigation import ticker_link_html
 from quant_hub.dashboard.viz.score_guide import COMPONENT_HELP, COMPONENT_SUMMARY
 from quant_hub.dashboard.viz.signals import component_action, render_signal_insights_panel
 from quant_hub.dashboard.viz.styles import PLOTLY_LAYOUT, TIER_BADGE_CSS
 from quant_hub.dashboard.viz.validation import regime_looks_synthetic
+from quant_hub.data.news import fetch_ticker_news, fetch_ticker_snapshot
+from quant_hub.filters.eligibility import FILTER_LABELS
 
 
 def apply_chart_style(fig: go.Figure, *, height: int | None = None) -> go.Figure:

@@ -3,19 +3,23 @@ from __future__ import annotations
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
 from quant_hub.application.run_result import ServiceRunResult
+from quant_hub.application.swing_scan_core import scan_universe_weekly
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.config import BENCHMARK_TICKER, SWING_MIN_BARS, scan_output_paths
+from quant_hub.config import (
+    BENCHMARK_TICKER,
+    PRIMARY_INDEX_UNIVERSE,
+    SWING_MIN_BARS,
+    scan_output_paths,
+)
 from quant_hub.data.provenance import build_data_provenance
 from quant_hub.data.quality import max_bar_date
 from quant_hub.infrastructure.market.weekly_prices import download_weekly_prices
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.notify.email import send_swing_email
-from quant_hub.application.swing_scan_core import scan_universe_weekly
 from quant_hub.strategies.swing.scanner import SwingSetup
 
 logger = logging.getLogger(__name__)
@@ -97,7 +101,7 @@ class SwingScanService:
     def run(
         self,
         *,
-        universe_id: str | None = "sp500",
+        universe_id: str | None = PRIMARY_INDEX_UNIVERSE,
         tickers: list[str] | None = None,
         tickers_file: Path | None = None,
         use_cache: bool = True,

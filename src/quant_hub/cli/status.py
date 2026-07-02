@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.infrastructure.postgres.connection import apply_schema, ping
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 
@@ -48,9 +49,10 @@ def _cmd_status() -> int:
     return 0
 
 
-def _cmd_init_db() -> int:
+def _cmd_init_db(args: argparse.Namespace) -> int:
     apply_schema()
-    print("Schema applied.")
+    if not args.quiet:
+        print("Schema applied.")
     return 0
 
 
@@ -76,14 +78,19 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="Database and scan status")
-    sub.add_parser("init-db", help="Apply Postgres schema")
+    init_db = sub.add_parser("init-db", help="Apply Postgres schema")
+    init_db.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress success message (for cron/health checks)",
+    )
     sub.add_parser(
         "cleanup-fixtures",
         help="Delete test fixture scan runs (test-upsert, custom, future dates)",
     )
 
     report = sub.add_parser("report", help="Show latest scan summary")
-    report.add_argument("--universe", default="sp500")
+    report.add_argument("--universe", default=PRIMARY_INDEX_UNIVERSE)
     report.add_argument("--strategy", default="breakout")
 
     args = parser.parse_args(argv)
@@ -91,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "status":
         return _cmd_status()
     if args.command == "init-db":
-        return _cmd_init_db()
+        return _cmd_init_db(args)
     if args.command == "cleanup-fixtures":
         return _cmd_cleanup_fixtures()
     if args.command == "report":

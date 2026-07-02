@@ -38,7 +38,7 @@ Quant Hub is a **stock scanner** for a homelab environment. It runs two strategi
 
 All strategies:
 
-- Load a **named universe** of tickers (e.g. large-cap core list `sp500`)
+- Load a **named universe** of tickers (e.g. large-cap core list `sp500_index`)
 - Download price data from Yahoo Finance (daily for breakout, weekly for swing)
 - Store results in **PostgreSQL** (the system of record)
 - Display results in a **Streamlit web dashboard** (`quant-view`)
@@ -81,7 +81,7 @@ Ask your administrator to confirm:
 
 1. `docker compose ps` shows `quant-hub` and `quant-hub-db` healthy
 2. A scan has been run at least once: `quant-hub status`
-3. You can open the dashboard and select universe **sp500** with a recent **Scan date**
+3. You can open the dashboard and select universe **sp500_index** with a recent **Scan date**
 
 If the dashboard shows *“No scan found for this universe/date”*, run or wait for a scan (see [Section 4](#4-running-scans-manually)).
 
@@ -104,7 +104,7 @@ Docker deployment: `http://<host>:5002`
 | Control                   | Purpose                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
 | **Strategy**              | Breakout (daily), Swing (weekly), or Lynch (fundamental)                                                |
-| **Universe**              | Select which ticker list to view (`sp500`, `most_actives`, etc.); universes with scans are listed first |
+| **Universe**              | Select which ticker list to view (`sp500_index`, `most_actives`, etc.); universes with scans are listed first |
 | **Scan date**             | Pick a historical run (up to **500** Fridays — includes ML backfill from ~2020)                         |
 | **Filters**               | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only)                |
 | **Score / rubric guides** | Breakout: stock metrics cheat sheet. Swing: setup quality rubric (partial credit + penalties)           |
@@ -186,13 +186,13 @@ All scan commands run on the server where Quant Hub is installed (`/opt/stacks/q
 
 | Command                                       | Strategy | Email                  | Typical use                   |
 | --------------------------------------------- | -------- | ---------------------- | ----------------------------- |
-| `quant-daily --universe sp500`                | Breakout | **Yes**                | Same as the weekday cron job  |
-| `quant-scan --universe sp500 --cache`         | Breakout | No                     | Manual scan, no mail          |
+| `quant-daily --universe sp500_index`                | Breakout | **Yes**                | Same as the weekday cron job  |
+| `quant-scan --universe sp500_index --cache`         | Breakout | No                     | Manual scan, no mail          |
 | `quant-scan-all --cache --email`              | Breakout | **Yes** (per universe) | Batch all universes           |
-| `quant-swing --universe sp500`                | Swing    | **Yes**                | Same as the Friday cron job   |
-| `quant-swing --universe sp500 --no-email`     | Swing    | No                     | Manual swing without mail     |
+| `quant-swing --universe sp500_index`                | Swing    | **Yes**                | Same as the Friday cron job   |
+| `quant-swing --universe sp500_index --no-email`     | Swing    | No                     | Manual swing without mail     |
 | `quant-swing-all --no-email`                  | Swing    | No                     | All universes (Saturday cron)   |
-| `quant-lynch --universe sp500 --no-email`     | Lynch    | No                     | Single universe               |
+| `quant-lynch --universe sp500_index --no-email`     | Lynch    | No                     | Single universe               |
 | `quant-lynch-all --no-email`                  | Lynch    | No                     | All stock universes (Sat cron)|
 | `quant-lynch --preset fast_grower --no-email` | Lynch    | No                     | Narrow preset, no mail        |
 
@@ -202,13 +202,13 @@ On production, prefix with `docker exec quant-hub` (CLI runs inside the containe
 ### Standard breakout scan (recommended)
 
 ```bash
-docker exec quant-hub quant-scan --universe sp500 --cache
+docker exec quant-hub quant-scan --universe sp500_index --cache
 ```
 
 
 | Flag               | Meaning                                                                            |
 | ------------------ | ---------------------------------------------------------------------------------- |
-| `--universe sp500` | Use the Large Cap Core list (~193 tickers)                                         |
+| `--universe sp500_index` | Use the Large Cap Core list (~193 tickers)                                         |
 | `--cache`          | Reuse per-ticker price files cached within 24 hours (faster, fewer Yahoo requests) |
 | `--force-refresh`  | Ignore cache and re-download all prices                                            |
 | `--dry-run`        | Synthetic data only; no network (for testing)                                      |
@@ -216,7 +216,7 @@ docker exec quant-hub quant-scan --universe sp500 --cache
 | `--no-persist`     | Skip writing to Postgres (CSV only)                                                |
 
 
-Scheduled job equivalent: `quant-daily --universe sp500` (email on by default). Factor and tier reference: **[BREAKOUT_SCANNER.md](BREAKOUT_SCANNER.md)**.
+Scheduled job equivalent: `quant-daily --universe sp500_index` (email on by default). Factor and tier reference: **[BREAKOUT_SCANNER.md](BREAKOUT_SCANNER.md)**.
 
 ### Scan specific tickers
 
@@ -245,7 +245,7 @@ You must provide at least one of the above.
 ### Swing scan (weekly strategy)
 
 ```bash
-quant-swing --universe sp500
+quant-swing --universe sp500_index
 ```
 
 Uses 10 years of **weekly** OHLCV. Email is sent by default. Every ticker is persisted with indicators and scoring — not just setups. Results appear under the **Swing** strategy in the dashboard and at `data/output/swing/{universe}/setups.csv`.
@@ -281,7 +281,7 @@ Runs breakout on every universe in `data/universes.json` (nine today). With `--e
 ### Lynch scan (fundamental screen)
 
 ```bash
-quant-lynch --universe sp500
+quant-lynch --universe sp500_index
 ```
 
 Screens for Peter Lynch-style growth-at-a-reasonable-price names. Presets: `summary` (default), `fast_grower`, `stalwart`, `asset_play`, `base`. Email is **on** by default with a reader-friendly summary (category counts, top candidates, qualitative checklist).
@@ -289,7 +289,7 @@ Screens for Peter Lynch-style growth-at-a-reasonable-price names. Presets: `summ
 Each result includes **plain-English reasoning**: an investor summary paragraph, a fundamentals table explaining what each metric means, and per-check pass/fail sentences (e.g. “PEG 0.8 — meets Lynch hurdle”). Growth for PEG prefers **recent TTM EPS trend** over stale 5-year averages when available.
 
 ```bash
-quant-lynch --universe sp500 --preset fast_grower --no-email
+quant-lynch --universe sp500_index --preset fast_grower --no-email
 ```
 
 Results: dashboard **Lynch** strategy, `data/output/lynch/{universe}/`, and legacy `data/output/lynch_scan_report.json` for sp500.
@@ -301,8 +301,8 @@ For how PEG, checks, and Postgres storage work, see **[Lynch Scanner — data pi
 
 | Scenario                    | Typical duration                 |
 | --------------------------- | -------------------------------- |
-| Cached sp500 (~193 tickers) | 1–3 minutes                      |
-| Cold cache sp500            | 5–15 minutes (Yahoo rate limits) |
+| Cached sp500_index (~503 tickers) | 1–3 minutes                      |
+| Cold cache sp500_index            | 5–15 minutes (Yahoo rate limits) |
 | Dry-run                     | Under 10 seconds                 |
 
 
@@ -413,15 +413,17 @@ Universes are defined in `data/universes.json` and backed by files or screeners.
 
 | ID                      | Name                     | Source                                                              |
 | ----------------------- | ------------------------ | ------------------------------------------------------------------- |
-| `sp500`                 | Large Cap Core           | Curated watchlist (~193 symbols; not the full S&P 500 index)        |
-| `large_cap_growth`      | Large Cap Growth         | Growth-tilted subset of core list                                   |
+| `sp500_index`           | S&P 500 (SPY holdings)   | SSGA SPY daily holdings file (~503 names; auto-refreshed quarterly) |
+| `large_cap_growth`      | Large Cap Growth         | Growth-tilted large-cap watchlist                                   |
 | `small_cap_growth`      | Small Cap Growth         | VBK-style holdings                                                  |
 | `mid_cap_growth`        | Mid Cap Growth           | Mid cap growth watchlist                                            |
 | `dividend_growers`      | Dividend Growers         | Dividend growth proxy                                               |
 | `fintech_growth`        | Fintech & Digital Growth | FDIG-style list                                                     |
 | `most_actives`          | Most Actives             | Yahoo screener (up to 250 symbols)                                  |
 | `sector_commodity_etfs` | Sector & Commodity ETFs  | 11 GICS sector SPDRs + 6 commodity proxies (17 tickers)             |
-| `sp500_index`           | S&P 500 (SPY holdings)   | SSGA SPY daily holdings file (~503 names; auto-refreshed quarterly) |
+
+
+**Migration note:** The curated `sp500` universe was removed. Historical Postgres rows may still show `universe_id=sp500` for past scan dates; all new scans use `sp500_index` only.
 
 
 ### Refresh a holdings-backed universe
@@ -433,7 +435,7 @@ quant-universe refresh sp500_index --dry-run
 
 Production bind mount: refresh writes to `/mnt/fast/quant-data/data/universes/sp500_index.txt`. Cron refreshes on the **first Saturday of Jan/Apr/Jul/Oct** at **12:30 AM ET** (before the 1 AM breakout sweep).
 
-The curated **`sp500`** list (~193 names) remains the default for weekday scans and digests; use **`sp500_index`** when you want full index coverage.
+**`sp500_index`** is the default for weekday scans, digests, and ML jobs.
 
 ### Scan all universes (batch)
 
@@ -463,7 +465,7 @@ quant-universe list
 ### Show tickers in a universe
 
 ```bash
-quant-universe show sp500
+quant-universe show sp500_index
 ```
 
 ### Adding a universe (requires admin)
@@ -496,7 +498,7 @@ Postgres is the **source of truth**. File exports are optional convenience copie
 ### Quick summary from CLI
 
 ```bash
-quant-hub report --universe sp500
+quant-hub report --universe sp500_index
 ```
 
 Prints JSON scan summary from Postgres (tier counts, universe size, etc.).
@@ -530,7 +532,7 @@ Individual scan emails (`quant-daily`, `quant-swing`, `quant-lynch`) are **off i
 | ------------------------------ | ---------------------------------------- |
 | `quant-digest daily`           | Send today's daily digest                |
 | `quant-digest weekly`          | Send weekly digest (after Fri/Sat scans) |
-| `quant-daily --universe sp500` | Legacy single breakout email             |
+| `quant-daily --universe sp500_index` | Legacy single breakout email             |
 | `quant-swing` / `quant-lynch`  | Legacy single-strategy emails            |
 
 
@@ -575,7 +577,7 @@ All scheduled jobs run **inside the `quant-hub` container** in **America/New_Yor
 
 | Day | Time (ET) | Job | What you receive |
 |-----|-----------|-----|------------------|
-| Mon–Fri | **5:00 PM** | Breakout (`quant-daily --universe sp500 --no-email`) | No scan email |
+| Mon–Fri | **5:00 PM** | Breakout (`quant-daily --universe sp500_index --no-email`) | No scan email |
 | Mon–Fri | **5:35 PM** | Daily digest (`quant-digest daily`) | **Daily digest email** (sp500 Tier 1/2) |
 | Friday | **4:30 PM** | Breakout (`sector_commodity_etfs --no-email`) | Dashboard only |
 | Friday | **4:35 PM** | Swing (`sector_commodity_etfs --no-email`) | Dashboard only |
@@ -591,7 +593,7 @@ All scheduled jobs run **inside the `quant-hub` container** in **America/New_Yor
 
 | Universe | Breakout | Swing | Lynch |
 |----------|----------|-------|-------|
-| `sp500` | daily + Sat | Fri + Sat | Sat |
+| `sp500_index` | daily + Sat | Fri + Sat | Sat |
 | `sp500_index` | Sat | Sat | Sat |
 | `large_cap_growth` | Sat | Sat | Sat |
 | `small_cap_growth` | Sat | Sat | Sat |
@@ -601,14 +603,14 @@ All scheduled jobs run **inside the `quant-hub` container** in **America/New_Yor
 | `most_actives` | Sat | Sat | Sat |
 | `sector_commodity_etfs` | Fri + Sat | Fri + Sat | — |
 
-Digests highlight **`sp500`** only. All universes appear in the dashboard after Saturday overnight runs.
+Digests highlight **`sp500_index`** only. All universes appear in the dashboard after Saturday overnight runs.
 
 ### Typical user routine
 
 **Weekdays (breakout)**
 
 1. After **~5:35 PM ET** — check the **daily digest** email (or open the dashboard)
-2. Open `http://<host>:5002`, select **Breakout**, universe **sp500**, today’s **Scan date**
+2. Open `http://<host>:5002`, select **Breakout**, universe **sp500_index**, today’s **Scan date**
 3. Review **Actionable Watchlist** (Tier 1 first); use **Ticker Detail** for confirmation
 
 **Fridays (swing + ETFs)**
@@ -636,9 +638,9 @@ Expect **~30–90 minutes** cached (longer on cold cache or Lynch rate limits on
 If cron failed or you need a refresh:
 
 ```bash
-docker exec quant-hub quant-daily --universe sp500 --no-email
-docker exec quant-hub quant-swing --universe sp500 --no-email
-docker exec quant-hub quant-lynch --universe sp500 --no-email
+docker exec quant-hub quant-daily --universe sp500_index --no-email
+docker exec quant-hub quant-swing --universe sp500_index --no-email
+docker exec quant-hub quant-lynch --universe sp500_index --no-email
 docker exec quant-hub quant-scan --universe large_cap_growth --cache
 docker exec quant-hub weekly-full-coverage
 ```
@@ -650,7 +652,7 @@ Same-day reruns replace the previous run for that (date, strategy, universe) —
 ## 10. FAQ
 
 **Q: The dashboard is empty.**  
-A: No scan exists for that universe/date. Run `quant-scan --universe sp500 --cache` or check `quant-hub status`.
+A: No scan exists for that universe/date. Run `quant-scan --universe sp500_index --cache` or check `quant-hub status`.
 
 **Q: Scores changed after I ran the scan twice today.**  
 A: Expected. Same-day reruns replace the canonical run with latest data.

@@ -13,7 +13,6 @@ from quant_hub.strategies.swing.constants import (
 from quant_hub.strategies.swing.scoring import (
     SWING_MAX_PENALTY,
     SWING_PENALTY_RUBRIC,
-    SWING_RULE_POINTS,
     SWING_SCORE_RUBRIC,
 )
 

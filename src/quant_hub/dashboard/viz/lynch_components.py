@@ -6,11 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from quant_hub.history.duckdb_store import get_lynch_ticker_history
-from quant_hub.lynch.categories import QUALITATIVE_OVERLAY
 from quant_hub.dashboard.viz.components import apply_chart_style
-from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
-from quant_hub.dashboard.viz.ux_helpers import render_lynch_takeaway
 from quant_hub.dashboard.viz.display import format_display_value
 from quant_hub.dashboard.viz.lynch_data import (
     CATEGORY_COLORS,
@@ -18,7 +14,15 @@ from quant_hub.dashboard.viz.lynch_data import (
     lynch_tickers_to_dataframe,
 )
 from quant_hub.dashboard.viz.navigation import ticker_link_html
-from quant_hub.dashboard.viz.table_helpers import merge_column_config, table_column_order, with_yahoo_ticker_links
+from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
+from quant_hub.dashboard.viz.table_helpers import (
+    merge_column_config,
+    table_column_order,
+    with_yahoo_ticker_links,
+)
+from quant_hub.dashboard.viz.ux_helpers import render_lynch_takeaway
+from quant_hub.history.duckdb_store import get_lynch_ticker_history
+from quant_hub.lynch.categories import QUALITATIVE_OVERLAY
 
 
 def render_lynch_header(report_path: str, summary: dict) -> None:

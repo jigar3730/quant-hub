@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 MetricStatus = Literal["OK", "MISSING", "NOT_APPLICABLE", "CAPPED", "NEGATIVE"]
@@ -19,7 +19,7 @@ class FundamentalsSnapshot:
     eps_cagr_3y: float | None = None
     eps_source: str = ""
     quarters_available: int = 0
-    fetched_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    fetched_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     fetch_error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:

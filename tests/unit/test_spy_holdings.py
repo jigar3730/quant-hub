@@ -115,9 +115,9 @@ def test_refresh_unknown_universe_raises():
         service.refresh("not-a-universe")
 
 
-def test_refresh_sp500_without_provider_raises():
+def test_refresh_sp500_unknown_raises():
     service = UniverseRefreshService()
-    with pytest.raises(ValueError, match="no refresh provider"):
+    with pytest.raises(ValueError, match="Unknown universe"):
         service.refresh("sp500")
 
 

@@ -15,7 +15,6 @@ from quant_hub.ml.constants import MODEL_TYPE_LIGHTGBM_CLASSIFIER
 from quant_hub.ml.evaluate import EvalMetrics, evaluate_predictions
 from quant_hub.ml.train import save_model_artifact, train_lightgbm_classifier
 from quant_hub.ml.training_set import (
-    TrainingSetResult,
     build_training_frame,
     split_features_target,
 )

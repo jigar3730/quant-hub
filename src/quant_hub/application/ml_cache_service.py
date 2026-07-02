@@ -11,6 +11,7 @@ from quant_hub.config import (
     ML_LABEL_CACHE_SUBDIR,
     ML_LABEL_CACHE_TTL_HOURS,
     ML_LABEL_LOOKBACK_DAYS,
+    PRIMARY_INDEX_UNIVERSE,
 )
 from quant_hub.infrastructure.cache.parquet_cache import ParquetCache
 from quant_hub.infrastructure.market.yfinance_prices import download_prices
@@ -40,7 +41,7 @@ class MLCacheService:
     def warm_daily_prices(
         self,
         *,
-        universe_id: str = "sp500",
+        universe_id: str = PRIMARY_INDEX_UNIVERSE,
         force_refresh: bool = False,
     ) -> MLCacheWarmStats:
         _resolved_id, universe = self.universe_service.resolve(universe_id=universe_id)

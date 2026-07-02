@@ -8,11 +8,12 @@ import streamlit as st
 
 from quant_hub.application.universe_service import UniverseService
 from quant_hub.dashboard.viz.breakout_filters import BreakoutFilters
+from quant_hub.digest import policy as P
 from quant_hub.dashboard.viz.labels import format_universe_option
 from quant_hub.dashboard.viz.navigation import apply_pending_navigation, sync_detail_ticker
 from quant_hub.dashboard.viz.score_guide import render_score_component_guide
-from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
 from quant_hub.dashboard.viz.swing_filters import SwingFilters
+from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
 from quant_hub.dashboard.viz.ux_helpers import (
     DASHBOARD_RUN_LOOKUP_LIMIT,
     scanned_universe_ids,
@@ -24,6 +25,7 @@ STRATEGY_LABELS = {
     "breakout": "Breakout (daily)",
     "swing": "Swing (weekly)",
     "lynch": "Lynch (fundamental)",
+    "digest": "Email digests",
 }
 
 
@@ -42,6 +44,33 @@ def render_sidebar_controls(
         format_func=lambda k: STRATEGY_LABELS[k],
         key="sidebar_strategy",
     )
+
+    if strategy_id == "digest":
+        digest_kind = st.sidebar.selectbox(
+            "Digest type",
+            options=["daily", "weekly"],
+            format_func=lambda k: "Daily breakout brief" if k == "daily" else "Weekly cross-strategy",
+            key="digest_kind",
+        )
+        lookup_strategy = "breakout" if digest_kind == "daily" else "lynch"
+        lookup_universe = (
+            P.DAILY_BREAKOUT_UNIVERSE if digest_kind == "daily" else P.WEEKLY_LYNCH_UNIVERSE
+        )
+        runs = repo.list_runs(
+            strategy_id=lookup_strategy,
+            limit=DASHBOARD_RUN_LOOKUP_LIMIT,
+            exclude_fixtures=True,
+        )
+        universe_runs = [r for r in runs if r["universe_id"] == lookup_universe]
+        scan_date: date | None = None
+        if universe_runs:
+            date_options = [str(r["scan_date"]) for r in universe_runs]
+            selected = st.sidebar.selectbox("Digest date", options=date_options, index=0)
+            scan_date = date.fromisoformat(selected)
+        else:
+            st.sidebar.caption("No scans available for this digest yet.")
+        st.sidebar.caption("Preview matches scheduled `quant-digest` emails.")
+        return strategy_id, lookup_universe, scan_date, BreakoutFilters()
 
     universes = UniverseService().list_universes()
     scanned = scanned_universe_ids(repo, strategy_id)

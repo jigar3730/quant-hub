@@ -9,7 +9,11 @@ import streamlit as st
 
 from quant_hub.dashboard.viz.labels import format_report_label, tier_friendly
 from quant_hub.dashboard.viz.navigation import navigate_to
-from quant_hub.dashboard.viz.table_helpers import merge_column_config, table_column_order, with_yahoo_ticker_links
+from quant_hub.dashboard.viz.table_helpers import (
+    merge_column_config,
+    table_column_order,
+    with_yahoo_ticker_links,
+)
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 NEAR_MISS_NORMALIZED_GAP = 5.0

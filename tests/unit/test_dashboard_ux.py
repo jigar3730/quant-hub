@@ -34,9 +34,9 @@ def test_table_column_order():
 def test_format_report_label():
     assert format_report_label(
         strategy_id="breakout",
-        universe_id="sp500",
+        universe_id="sp500_index",
         scan_date="2026-06-27",
-    ) == "SP500 · Breakout · 2026-06-27"
+    ) == "SP500 INDEX · Breakout · 2026-06-27"
 
 
 def test_tier_friendly():

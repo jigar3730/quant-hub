@@ -197,10 +197,10 @@ Registry of named universes. Not stored in Postgres.
 
 | type | Fields | Example |
 |------|--------|---------|
-| `file` | `path` → ticker list `.txt` | `data/universes/sp500.txt` |
+| `file` | `path` → ticker list `.txt` | `data/universes/sp500_index.txt` |
 | `screener` | `screener`, `count` | Yahoo most-actives, 250 symbols |
 
-**Built-in universe IDs:** `sp500`, `sp500_index`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sector_commodity_etfs`.
+**Built-in universe IDs:** `sp500_index`, `sp500_index`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sector_commodity_etfs`.
 
 **Refreshable universes:** `sp500_index` uses `refresh.provider: ssga_spy` — `quant-universe refresh sp500_index` downloads SSGA's SPY holdings XLSX and rewrites `data/universes/sp500_index.txt`.
 
@@ -290,7 +290,7 @@ One row per `(scan_date, strategy_id, universe_id)`.
 | `scan_date` | DATE | CLI / cron | Calendar date of scan (local today unless overridden) |
 | `scan_time` | TIMESTAMPTZ | upsert time | UTC timestamp when persisted |
 | `strategy_id` | VARCHAR(32) | service | `breakout`, `swing`, or `lynch` |
-| `universe_id` | VARCHAR(64) | universe registry | e.g. `sp500`, `sector_commodity_etfs` |
+| `universe_id` | VARCHAR(64) | universe registry | e.g. `sp500_index`, `sector_commodity_etfs` |
 | `universe_size` | INT | scan | Tickers in universe |
 | `tier1_count` | INT | aggregated | Breakout: Tier 1; Swing: SETUP_LONG; Lynch: fast_grower |
 | `tier2_count` | INT | aggregated | Breakout: Tier 2; Swing: SETUP_SHORT; Lynch: stalwart |
@@ -364,7 +364,7 @@ Optional audit log when scans run with `job_name`.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | BIGSERIAL PK | Job id |
-| `job_name` | VARCHAR(128) | e.g. `breakout-sp500-daily`, `swing-weekly` |
+| `job_name` | VARCHAR(128) | e.g. `breakout-sp500-index-daily`, `swing-weekly` |
 | `started_at` | TIMESTAMPTZ | Job start |
 | `finished_at` | TIMESTAMPTZ | Job end |
 | `status` | VARCHAR(16) | `success` or `failed` |

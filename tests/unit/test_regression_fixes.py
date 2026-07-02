@@ -3,18 +3,18 @@
 import pytest
 
 from quant_hub.application.run_result import ServiceRunResult
-from quant_hub.application.swing_service import _data_error_report, build_swing_report
+from quant_hub.application.swing_scan_core import data_error_report
+from quant_hub.application.swing_service import build_swing_report
 from quant_hub.config import DRY_RUN_OUTPUT_DIR, OUTPUT_DIR, scan_output_paths
 from quant_hub.engine.runner import StrategyEngine
-from quant_hub.engine.types import TickerResult
 from quant_hub.strategies.registry import get_strategy
 from quant_hub.strategies.swing.scanner import SwingSetup
 
 
 def test_scan_output_paths_per_universe():
-    paths = scan_output_paths("breakout", "sp500")
-    assert paths["csv"] == OUTPUT_DIR / "breakout" / "sp500" / "scan_results.csv"
-    assert paths["json"] == OUTPUT_DIR / "breakout" / "sp500" / "report.json"
+    paths = scan_output_paths("breakout", "sp500_index")
+    assert paths["csv"] == OUTPUT_DIR / "breakout" / "sp500_index" / "scan_results.csv"
+    assert paths["json"] == OUTPUT_DIR / "breakout" / "sp500_index" / "report.json"
 
 
 def test_dry_run_output_isolated():
@@ -61,7 +61,7 @@ def test_swing_report_includes_full_universe():
             "tier": "filtered",
             "eligibility": {"passed": False, "fail_reason": "no_setup", "checks": []},
         },
-        _data_error_report("CCC", "insufficient_data"),
+        data_error_report("CCC", "insufficient_data"),
     ]
     report = build_swing_report(
         universe=["AAA", "BBB", "CCC"],

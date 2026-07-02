@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from quant_hub.strategies.swing.scanner import add_indicators, analyze_swing
+from quant_hub.strategies.swing.scanner import analyze_swing
 from quant_hub.strategies.swing.scoring import SWING_MAX_PENALTY, quality_label
 
 

@@ -15,11 +15,11 @@ quant-hub status
 Manual scan (inside container on production):
 
 ```bash
-docker exec quant-hub quant-scan --universe sp500 --cache
+docker exec quant-hub quant-scan --universe sp500_index --cache
 docker exec quant-hub quant-scan-all --cache          # all configured universes
-docker exec quant-hub quant-swing --universe sp500
+docker exec quant-hub quant-swing --universe sp500_index
 docker exec quant-hub quant-swing-all --no-email
-docker exec quant-hub quant-lynch --universe sp500
+docker exec quant-hub quant-lynch --universe sp500_index
 docker exec quant-hub quant-lynch-all --no-email
 docker exec quant-hub weekly-full-coverage            # breakout + swing + Lynch
 docker exec quant-hub quant-view                      # dashboard (Postgres-backed)

@@ -7,8 +7,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from quant_hub.config import DEFAULT_LYNCH_JSON, HISTORY_DIR
+from quant_hub.config import HISTORY_DIR, PRIMARY_INDEX_UNIVERSE, scan_output_paths
 from quant_hub.dashboard.viz.display import format_display_value
+
+DEFAULT_LYNCH_JSON = scan_output_paths("lynch", PRIMARY_INDEX_UNIVERSE)["json"]
 
 CATEGORY_COLORS = {
     "fast_grower": "#22c55e",
@@ -28,7 +30,7 @@ def list_lynch_report_paths() -> dict[str, str]:
     """Map path string -> sidebar label (latest first)."""
     options: dict[str, str] = {}
     if DEFAULT_LYNCH_JSON.exists():
-        options[str(DEFAULT_LYNCH_JSON)] = "Latest (data/output)"
+        options[str(DEFAULT_LYNCH_JSON)] = f"Latest ({PRIMARY_INDEX_UNIVERSE})"
     for p in sorted(HISTORY_DIR.glob("*/lynch_scan_report.json"), reverse=True):
         options[str(p)] = f"Archive {p.parent.name}"
     return options

@@ -1,14 +1,13 @@
+import pandas as pd
+
 from quant_hub.lynch.categories import (
     assign_categories,
-    classify_asset_play,
     classify_fast_grower,
-    classify_stalwart,
 )
 from quant_hub.lynch.filters import apply_anti_filters, apply_base_screen, lynch_score
 from quant_hub.lynch.metrics import compute_peg, normalize_debt_to_equity
 from quant_hub.lynch.runner import LynchScannerRunner
 from quant_hub.notify.email import build_lynch_email
-import pandas as pd
 
 
 def _ideal_metrics(**overrides) -> dict:
@@ -155,7 +154,7 @@ def test_enrich_checks_adds_plain_language():
 
 def test_build_lynch_email_includes_candidates():
     report = {
-        "universe_id": "sp500",
+        "universe_id": "sp500_index",
         "scan_summary": {
             "preset_label": "Full Lynch Scan",
             "universe_size": 10,

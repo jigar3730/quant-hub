@@ -8,12 +8,12 @@ import logging
 import sys
 from datetime import date
 
+from quant_hub.application.ml_cache_service import MLCacheService
 from quant_hub.application.ml_evaluate_service import MLEvaluateService
 from quant_hub.application.ml_export_service import MLExportService
 from quant_hub.application.ml_label_service import MLLabelService
-from quant_hub.application.ml_cache_service import MLCacheService
 from quant_hub.application.ml_train_service import MLTrainService
-from quant_hub.config import DEFAULT_LABEL_HORIZONS
+from quant_hub.config import DEFAULT_LABEL_HORIZONS, PRIMARY_INDEX_UNIVERSE
 from quant_hub.infrastructure.postgres.connection import ping
 from quant_hub.infrastructure.postgres.ml_models_repository import MlModelsRepository
 from quant_hub.infrastructure.postgres.outcomes_repository import OutcomesRepository
@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     label = sub.add_parser("label", help="Compute forward-return labels for scan runs")
     label.add_argument("--run-id", type=int, help="Label a single scan run by id")
     label.add_argument("--strategy", choices=("breakout", "swing", "lynch"))
-    label.add_argument("--universe", help="Universe id filter (e.g. sp500)")
+    label.add_argument("--universe", help=f"Universe id filter (e.g. {PRIMARY_INDEX_UNIVERSE})")
     label.add_argument("--since", type=date.fromisoformat)
     label.add_argument("--until", type=date.fromisoformat)
     label.add_argument(
@@ -186,7 +186,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("status", help="Show signal_outcomes counts")
 
     warm = sub.add_parser("warm-cache", help="Download extended daily OHLCV for labeling")
-    warm.add_argument("--universe", default="sp500", help="Universe id (default: sp500)")
+    warm.add_argument(
+        "--universe",
+        default=PRIMARY_INDEX_UNIVERSE,
+        help=f"Universe id (default: {PRIMARY_INDEX_UNIVERSE})",
+    )
     warm.add_argument(
         "--force-refresh",
         action="store_true",
@@ -195,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
 
     train = sub.add_parser("train", help="Train a LightGBM classifier on labeled setups")
     train.add_argument("--strategy", choices=("breakout", "swing", "lynch"), default="swing")
-    train.add_argument("--universe", default="sp500")
+    train.add_argument("--universe", default=PRIMARY_INDEX_UNIVERSE)
     train.add_argument("--since", type=date.fromisoformat, required=True)
     train.add_argument("--until", type=date.fromisoformat)
     train.add_argument("--horizon", type=int, default=10, help="Label horizon days (default: 10)")

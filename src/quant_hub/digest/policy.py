@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from quant_hub.config import PRIMARY_INDEX_UNIVERSE
+
 # Universes
-DAILY_BREAKOUT_UNIVERSE = "sp500"
-WEEKLY_SWING_UNIVERSE = "sp500"
-WEEKLY_LYNCH_UNIVERSE = "sp500"
+DAILY_BREAKOUT_UNIVERSE = PRIMARY_INDEX_UNIVERSE
+WEEKLY_SWING_UNIVERSE = PRIMARY_INDEX_UNIVERSE
+WEEKLY_LYNCH_UNIVERSE = PRIMARY_INDEX_UNIVERSE
 WEEKLY_ETF_UNIVERSE = "sector_commodity_etfs"
 
 # Breakout (matches strategies/breakout/tiers.py)
