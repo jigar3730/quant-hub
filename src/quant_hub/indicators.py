@@ -78,11 +78,21 @@ def pct_above_low(price: float, low: float) -> float | None:
     return (price - low) / low
 
 
-def bollinger_width(close: pd.Series, window: int = 20) -> pd.Series:
+def bollinger_bands(
+    close: pd.Series,
+    window: int = 20,
+    num_std: float = 2.0,
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Return (upper, mid, lower) Bollinger bands."""
     mid = sma(close, window)
     std = close.rolling(window, min_periods=window).std()
-    upper = mid + 2 * std
-    lower = mid - 2 * std
+    upper = mid + num_std * std
+    lower = mid - num_std * std
+    return upper, mid, lower
+
+
+def bollinger_width(close: pd.Series, window: int = 20) -> pd.Series:
+    upper, mid, lower = bollinger_bands(close, window)
     return (upper - lower) / mid
 
 
@@ -102,6 +112,17 @@ def find_swing_lows(lows: pd.Series, order: int = 2) -> list[tuple[int, float]]:
     for i in range(order, len(values) - order):
         window = values[i - order : i + order + 1]
         if values[i] == np.min(window):
+            swings.append((i, float(values[i])))
+    return swings
+
+
+def find_swing_highs(highs: pd.Series, order: int = 2) -> list[tuple[int, float]]:
+    """Local maxima using a symmetric window of `order` bars on each side."""
+    values = highs.to_numpy()
+    swings: list[tuple[int, float]] = []
+    for i in range(order, len(values) - order):
+        window = values[i - order : i + order + 1]
+        if values[i] == np.max(window):
             swings.append((i, float(values[i])))
     return swings
 

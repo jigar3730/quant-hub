@@ -49,6 +49,13 @@ def _build_scan_metadata(report: dict) -> dict[str, Any]:
                 "metrics_quality": summary.get("metrics_quality"),
             }
         )
+    if report.get("strategy_id") == "mean_reversion":
+        metadata.update(
+            {
+                "high_conviction_count": summary.get("high_conviction_count"),
+                "watchlist_count": summary.get("watchlist_count"),
+            }
+        )
     if report.get("data_provenance"):
         metadata["data_provenance"] = report["data_provenance"]
     return metadata
@@ -85,6 +92,12 @@ def _tier_counts_from_run(run: dict[str, Any], metadata: dict[str, Any]) -> dict
             "asset_play": cats.get("asset_play", run.get("tier3_count", 0)),
             "filtered": run.get("filtered_count", 0),
         }
+    if strategy_id == "mean_reversion":
+        return {
+            "HIGH_CONVICTION": run.get("tier1_count", 0),
+            "WATCHLIST": run.get("tier2_count", 0),
+            "filtered": run.get("filtered_count", 0),
+        }
     return {
         "Tier 1": run.get("tier1_count", 0),
         "Tier 2": run.get("tier2_count", 0),
@@ -106,6 +119,13 @@ def _tier_counts_from_report(strategy_id: str, tiers: dict[str, int]) -> tuple[i
             tiers.get("fast_grower", 0),
             tiers.get("stalwart", 0),
             tiers.get("asset_play", 0),
+            tiers.get("filtered", 0),
+        )
+    if strategy_id == "mean_reversion":
+        return (
+            tiers.get("HIGH_CONVICTION", 0),
+            tiers.get("WATCHLIST", 0),
+            0,
             tiers.get("filtered", 0),
         )
     return (

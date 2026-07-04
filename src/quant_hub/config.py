@@ -47,6 +47,12 @@ SWING_INTERVAL = "1wk"
 SWING_MIN_BARS = 60
 DEFAULT_SWING_OUTPUT_CSV = OUTPUT_DIR / "swing_setups.csv"
 
+MEAN_REVERSION_LOOKBACK_DAYS = 600
+MEAN_REVERSION_MIN_BARS = 520
+MEAN_REVERSION_HIGH_CONVICTION = 71
+MEAN_REVERSION_WATCHLIST = 62
+DEFAULT_MEAN_REVERSION_UNIVERSE = "mean_reversion_core"
+
 LYNCH_FETCH_WORKERS = 3
 LYNCH_FETCH_BATCH_SIZE = 20
 LYNCH_FETCH_BATCH_DELAY_SEC = 2.0
@@ -67,15 +73,20 @@ def scan_output_paths(
         "breakout": ("scan_results.csv", "report.json", "summary.md"),
         "swing": ("setups.csv", "report.json", "summary.md"),
         "lynch": ("scan_results.csv", "report.json", "summary.md"),
+        "mean_reversion": ("high_conviction.csv", "report.json", "summary.md"),
     }
     csv_name, json_name, md_name = names.get(
         strategy_id, ("scan_results.csv", "report.json", "summary.md")
     )
-    return {
+    paths = {
         "csv": base / csv_name,
         "json": base / json_name,
         "md": base / md_name,
     }
+    if strategy_id == "mean_reversion":
+        paths["watchlist_csv"] = base / "watchlist.csv"
+        paths["full_scan_csv"] = base / "full_scan.csv"
+    return paths
 
 BENCHMARK_TICKER = "SPY"
 FALLBACK_SECTOR_ETF = "SPY"
