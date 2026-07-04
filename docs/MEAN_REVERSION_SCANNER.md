@@ -10,6 +10,20 @@ quant-mean-reversion --tickers QQQ SPY XLV --no-persist
 quant-mean-reversion --universe mean_reversion_core --force-refresh
 ```
 
+### Docker (production bind mount)
+
+The container uses `/mnt/fast/quant-data/data` for `/app/data`, not the git repo’s `data/` tree. After adding a universe in the repo, sync to the live data volume:
+
+```bash
+cp data/universes.json /mnt/fast/quant-data/data/universes.json
+cp data/universes/mean_reversion_core.txt /mnt/fast/quant-data/data/universes/
+docker compose exec quant-hub quant-mean-reversion --universe mean_reversion_core --force-refresh
+```
+
+Run each `docker compose exec …` as its own command (do not paste a host-side `quant-mean-reversion` line after `exec`).
+
+First live run should use `--force-refresh` so daily cache includes ~520+ bars for the 500 EMA (default 2y cache may only have ~277 bars).
+
 ## Universe
 
 Default universe id: `mean_reversion_core` (QQQ, SPY, XLK, XLC, XLY, XLP, XLE, XLF, XLV, XLI, XLB, XLU).
