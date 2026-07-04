@@ -71,7 +71,7 @@ class ParquetCache:
         max_bar_age_days: int | None = None,
     ) -> tuple[list[str], list[str]]:
         if not use_cache:
-            return tickers, []
+            return [], tickers
         cached: list[str] = []
         stale: list[str] = []
         for ticker in tickers:

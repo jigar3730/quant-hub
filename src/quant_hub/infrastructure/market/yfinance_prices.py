@@ -87,11 +87,10 @@ def download_prices(
             if chunk_df.empty:
                 continue
             frames.append(chunk_df)
-            if use_cache:
-                for ticker in chunk:
-                    sub = chunk_df[chunk_df["ticker"] == ticker]
-                    if not sub.empty:
-                        cache.write(ticker, sub)
+            for ticker in chunk:
+                sub = chunk_df[chunk_df["ticker"] == ticker]
+                if not sub.empty:
+                    cache.write(ticker, sub)
             if i + CHUNK_SIZE < len(stale_tickers):
                 time.sleep(CHUNK_PAUSE_SEC)
 
