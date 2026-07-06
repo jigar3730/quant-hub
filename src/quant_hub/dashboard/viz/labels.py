@@ -8,6 +8,7 @@ STRATEGY_DISPLAY = {
     "breakout": "Breakout",
     "swing": "Swing",
     "lynch": "Lynch",
+    "mean_reversion": "Mean Reversion",
 }
 
 TIER_FRIENDLY = {
@@ -17,6 +18,12 @@ TIER_FRIENDLY = {
     "filtered": "Excluded",
     "SETUP_LONG": "Long setup",
     "SETUP_SHORT": "Short setup",
+    "HIGH_CONVICTION": "High conviction",
+    "WATCHLIST": "Watchlist",
+    "fast_grower": "Fast grower",
+    "stalwart": "Stalwart",
+    "asset_play": "Asset play",
+    "passed": "Passed",
 }
 
 TIER_FRIENDLY_SHORT = {

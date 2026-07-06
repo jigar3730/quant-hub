@@ -2,25 +2,51 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import streamlit as st
 
 DETAIL_TICKER_KEY = "detail_ticker"
 NAV_STRATEGY_KEY = "_nav_strategy"
 NAV_UNIVERSE_KEY = "_nav_universe"
+NAV_SCAN_DATE_KEY = "_nav_scan_date"
+SHOW_GLOBAL_HISTORY_KEY = "show_global_history"
+HISTORY_PAGE_OFFSET_KEY = "ticker_history_offset"
 
 
-def apply_pending_navigation() -> None:
-    """Apply one-shot strategy/universe jumps from takeaway buttons."""
+def apply_pending_navigation() -> date | None:
+    """Apply one-shot strategy/universe/scan-date jumps from takeaway buttons."""
     if NAV_STRATEGY_KEY in st.session_state:
         st.session_state["sidebar_strategy"] = st.session_state.pop(NAV_STRATEGY_KEY)
     if NAV_UNIVERSE_KEY in st.session_state:
         st.session_state["sidebar_universe"] = st.session_state.pop(NAV_UNIVERSE_KEY)
+    pending_date = st.session_state.pop(NAV_SCAN_DATE_KEY, None)
+    if pending_date is not None:
+        return date.fromisoformat(str(pending_date))
+    return None
 
 
 def navigate_to(strategy_id: str, universe_id: str | None = None) -> None:
     st.session_state[NAV_STRATEGY_KEY] = strategy_id
     if universe_id:
         st.session_state[NAV_UNIVERSE_KEY] = universe_id
+    st.rerun()
+
+
+def navigate_to_scan(
+    strategy_id: str,
+    universe_id: str,
+    scan_date: date | str,
+    *,
+    detail_ticker: str | None = None,
+) -> None:
+    """Jump to a specific persisted scan (strategy, universe, date)."""
+    st.session_state[NAV_STRATEGY_KEY] = strategy_id
+    st.session_state[NAV_UNIVERSE_KEY] = universe_id
+    st.session_state[NAV_SCAN_DATE_KEY] = str(scan_date)
+    st.session_state[SHOW_GLOBAL_HISTORY_KEY] = False
+    if detail_ticker:
+        set_detail_ticker(detail_ticker)
     st.rerun()
 
 

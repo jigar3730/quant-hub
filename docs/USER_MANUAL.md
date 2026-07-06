@@ -103,14 +103,28 @@ Docker deployment: `http://<host>:5002`
 
 | Control                   | Purpose                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Lookup ticker history** | Cross-scan search: when/where a symbol appeared as **actionable** (all strategies, all universes)       |
 | **Strategy**              | Breakout (daily), Swing (weekly), or Lynch (fundamental)                                                |
 | **Universe**              | Select which ticker list to view (`sp500_index`, `most_actives`, etc.); universes with scans are listed first |
 | **Scan date**             | Pick a historical run (up to **500** Fridays — includes ML backfill from ~2020)                         |
 | **Filters**               | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only)                |
 | **Score / rubric guides** | Breakout: stock metrics cheat sheet. Swing: setup quality rubric (partial credit + penalties)           |
-| **Search ticker**         | Filter tables by symbol                                                                                 |
-| **Ticker Detail picker**  | Open a single-ticker profile (in-app; separate from Yahoo links in tables)                              |
+| **Search ticker**         | Filter tables by symbol in the current scan                                                             |
+| **Ticker Detail picker**  | Open a single-ticker profile; includes **actionable scan history** across all strategies                  |
 
+
+### Ticker history (accuracy review)
+
+Use **Lookup ticker history** in the sidebar or `quant-hub ticker history SYMBOL` to see every **actionable** appearance:
+
+- Breakout Tier 1/2, Swing setups, Lynch passed, Mean Reversion high conviction
+- Lynch rows include point-in-time **institutional %** and analyst count from that scan date
+- **Open this scan** jumps to the exact strategy/universe/date snapshot
+
+```bash
+quant-hub ticker history NVDA --json
+quant-hub ticker show NVDA --strategy lynch --universe sp500_index --date 2024-06-07 --json
+```
 
 ### Ticker links
 

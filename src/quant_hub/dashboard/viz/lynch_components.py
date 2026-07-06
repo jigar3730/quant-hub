@@ -20,8 +20,10 @@ from quant_hub.dashboard.viz.table_helpers import (
     table_column_order,
     with_yahoo_ticker_links,
 )
+from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.dashboard.viz.ux_helpers import render_lynch_takeaway
 from quant_hub.history.duckdb_store import get_lynch_ticker_history
+from quant_hub.infrastructure.postgres.repository import ScanRepository
 from quant_hub.lynch.categories import QUALITATIVE_OVERLAY
 
 
@@ -148,7 +150,12 @@ def get_lynch_ticker_by_name(tickers: list[dict], symbol: str) -> dict | None:
     return None
 
 
-def render_lynch_ticker_detail(ticker: str, data: dict) -> None:
+def render_lynch_ticker_detail(
+    ticker: str,
+    data: dict,
+    *,
+    repo: ScanRepository | None = None,
+) -> None:
     st.markdown(f"### {ticker_link_html(ticker)}", unsafe_allow_html=True)
     if data.get("company_name"):
         st.caption(f"{data['company_name']} · {data.get('sector') or '—'}")
@@ -160,12 +167,13 @@ def render_lynch_ticker_detail(ticker: str, data: dict) -> None:
         )
 
     score = data.get("lynch_score")
-    cols = st.columns(5)
+    cols = st.columns(6)
     cols[0].metric("Lynch Score", "—" if score is None else f"{score:.0f}")
     cols[1].metric("P/E", _fmt_num(data.get("pe_ratio")))
     cols[2].metric("PEG", _fmt_num(data.get("peg_ratio")))
     cols[3].metric("EPS Gr 5Y", _fmt_pct(data.get("eps_growth_5y_pct")))
-    cols[4].metric("Passed", "Yes" if data.get("passed") else "No")
+    cols[4].metric("Inst %", _fmt_pct(data.get("institutional_pct")))
+    cols[5].metric("Passed", "Yes" if data.get("passed") else "No")
 
     cats = data.get("categories") or []
     if cats:
@@ -200,7 +208,12 @@ def render_lynch_ticker_detail(ticker: str, data: dict) -> None:
 
     hist_fig = render_lynch_history_chart(ticker)
     if hist_fig:
+        st.markdown("#### Lynch score trend")
         st.plotly_chart(hist_fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+    if repo is not None:
+        st.divider()
+        render_ticker_history_panel(repo, ticker, key_prefix="lynch_detail", show_header=True)
 
     checks_df = lynch_checks_dataframe(data)
     if not checks_df.empty:
@@ -223,7 +236,7 @@ def render_lynch_ticker_detail(ticker: str, data: dict) -> None:
             st.dataframe(pd.DataFrame(metric_rows), use_container_width=True, hide_index=True)
 
 
-def render_lynch_tab(report: dict, report_path: str) -> None:
+def render_lynch_tab(report: dict, report_path: str, *, repo: ScanRepository | None = None) -> None:
     summary = report["scan_summary"]
     tickers = report["tickers"]
     candidates = report.get("candidates", [])
@@ -255,7 +268,7 @@ def render_lynch_tab(report: dict, report_path: str) -> None:
                     f"{t['ticker']} — score {t.get('lynch_score', 0):.0f}",
                     expanded=len(candidates) <= 3,
                 ):
-                    render_lynch_ticker_detail(t["ticker"], t)
+                    render_lynch_ticker_detail(t["ticker"], t, repo=repo)
 
     with sub_overview:
         mq = summary.get("metrics_quality")
@@ -331,7 +344,7 @@ def render_lynch_tab(report: dict, report_path: str) -> None:
         pick = st.selectbox("Select ticker", symbols, key="lynch_detail_pick")
         ticker_data = get_lynch_ticker_by_name(tickers, pick)
         if ticker_data:
-            render_lynch_ticker_detail(pick, ticker_data)
+            render_lynch_ticker_detail(pick, ticker_data, repo=repo)
         else:
             st.warning(f"No data for {pick}.")
 

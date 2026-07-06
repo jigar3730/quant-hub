@@ -30,6 +30,8 @@ from quant_hub.dashboard.viz.navigation import (
     set_detail_ticker,
     ticker_link_html,
 )
+from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
+from quant_hub.infrastructure.postgres.repository import ScanRepository
 from quant_hub.dashboard.viz.signals import render_signal_insights_panel, signal_insights
 from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
 from quant_hub.dashboard.viz.table_helpers import (
@@ -200,24 +202,36 @@ def render_ticker_detail_tab(
     all_symbols: list[str],
     detail_ticker: str | None,
     scan_date: str | None = None,
+    repo: ScanRepository | None = None,
 ) -> None:
     st.markdown("### Ticker Profile")
     st.caption("Fundamentals, technical scores, eligibility checks, and news.")
 
-    pick_index = all_symbols.index(detail_ticker) if detail_ticker in all_symbols else 0
-    active = st.selectbox(
-        "Select ticker",
-        all_symbols,
-        index=pick_index,
-        key="detail_tab_pick",
-    )
-    if active != detail_ticker:
-        set_detail_ticker(active)
-    ticker_data = get_ticker_by_name(tickers, active)
-    if ticker_data:
-        render_ticker_detail(active, ticker_data, scan_date=scan_date)
+    active = detail_ticker
+    if all_symbols:
+        pick_index = all_symbols.index(detail_ticker) if detail_ticker in all_symbols else 0
+        active = st.selectbox(
+            "Select ticker",
+            all_symbols,
+            index=pick_index,
+            key="detail_tab_pick",
+        )
+        if active != detail_ticker:
+            set_detail_ticker(active)
+    elif detail_ticker:
+        active = detail_ticker
+        st.markdown(f"**{detail_ticker}** — not in this scan's universe.")
     else:
-        st.warning(f"No data for {active}.")
+        st.info("Select a ticker from the sidebar lookup or universe table.")
+        return
+
+    ticker_data = get_ticker_by_name(tickers, active) if active else None
+    if ticker_data:
+        render_ticker_detail(active, ticker_data, scan_date=scan_date, repo=repo)
+    elif active and repo is not None:
+        render_ticker_history_panel(repo, active, key_prefix="breakout_orphan")
+    elif active:
+        st.warning(f"No data for {active} in this scan.")
 
 
 def render_watchlist_tab(

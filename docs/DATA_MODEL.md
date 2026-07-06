@@ -570,6 +570,7 @@ Attached to JSON reports and `scan_runs.metadata`.
 | PK | `scan_runs` | `(scan_date, strategy_id, universe_id)` UNIQUE |
 | PK | `ticker_results` | `(run_id, ticker)` |
 | `idx_scan_runs_date` | `scan_runs` | `scan_date DESC` |
+| `idx_ticker_results_ticker` | `ticker_results` | `ticker` |
 | `idx_job_runs_started` | `job_runs` | `started_at DESC` |
 
 ### Retention

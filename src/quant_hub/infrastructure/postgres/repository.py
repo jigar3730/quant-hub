@@ -5,6 +5,8 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
+from quant_hub.history.actionable import actionable_sql_clause, is_actionable
+from quant_hub.history.ticker_projection import project_row
 from quant_hub.infrastructure.postgres.connection import get_connection
 from quant_hub.infrastructure.postgres.fixtures import (
     FIXTURE_UNIVERSE_IDS,
@@ -364,40 +366,172 @@ class ScanRepository:
             )
         return result
 
-    def lynch_ticker_history(self, ticker: str, *, limit: int = 24) -> list[dict[str, Any]]:
-        """Prior Lynch scan snapshots for a ticker (for dashboard score history)."""
-        symbol = ticker.upper()
+    def _ticker_history_where(
+        self,
+        *,
+        ticker: str,
+        strategy_id: str | None,
+        universe_id: str | None,
+        since: date | None,
+        until: date | None,
+        exclude_fixtures: bool,
+        actionable_only: bool,
+    ) -> tuple[str, list[Any]]:
+        clauses = ["tr.ticker = %s", "sr.scan_date <= CURRENT_DATE"]
+        params: list[Any] = [ticker.upper()]
+        if strategy_id:
+            clauses.append("sr.strategy_id = %s")
+            params.append(strategy_id)
+        if universe_id:
+            clauses.append("sr.universe_id = %s")
+            params.append(universe_id)
+        if since:
+            clauses.append("sr.scan_date >= %s")
+            params.append(since)
+        if until:
+            clauses.append("sr.scan_date <= %s")
+            params.append(until)
+        if exclude_fixtures:
+            fixture_clause, fixture_params = _fixture_sql_clause(True)
+            clauses.append(fixture_clause)
+            params.extend(fixture_params)
+        if actionable_only:
+            clauses.append(actionable_sql_clause())
+        return " AND ".join(clauses), params
+
+    def ticker_history_count(
+        self,
+        ticker: str,
+        *,
+        actionable_only: bool = True,
+        strategy_id: str | None = None,
+        universe_id: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+        exclude_fixtures: bool = True,
+    ) -> int:
+        where, params = self._ticker_history_where(
+            ticker=ticker,
+            strategy_id=strategy_id,
+            universe_id=universe_id,
+            since=since,
+            until=until,
+            exclude_fixtures=exclude_fixtures,
+            actionable_only=actionable_only,
+        )
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
-                    SELECT sr.scan_date, tr.detail
+                    f"""
+                    SELECT COUNT(*)
                     FROM ticker_results tr
                     JOIN scan_runs sr ON sr.id = tr.run_id
-                    WHERE sr.strategy_id = 'lynch'
-                      AND tr.ticker = %s
-                      AND sr.scan_date <= CURRENT_DATE
-                    ORDER BY sr.scan_date DESC
-                    LIMIT %s
+                    WHERE {where}
                     """,
-                    (symbol, limit),
+                    params,
+                )
+                return int(cur.fetchone()[0])
+
+    def ticker_history(
+        self,
+        ticker: str,
+        *,
+        actionable_only: bool = True,
+        strategy_id: str | None = None,
+        universe_id: str | None = None,
+        since: date | None = None,
+        until: date | None = None,
+        exclude_fixtures: bool = True,
+        limit: int = 500,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Cross-scan actionable appearances for a ticker."""
+        where, params = self._ticker_history_where(
+            ticker=ticker,
+            strategy_id=strategy_id,
+            universe_id=universe_id,
+            since=since,
+            until=until,
+            exclude_fixtures=exclude_fixtures,
+            actionable_only=actionable_only,
+        )
+        query_params = list(params)
+        limit_clause = ""
+        if limit > 0:
+            limit_clause = " LIMIT %s OFFSET %s"
+            query_params.extend([limit, offset])
+
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT sr.id, sr.scan_date, sr.scan_time, sr.strategy_id, sr.universe_id,
+                           sr.regime_label, sr.regime_multiplier,
+                           tr.ticker, tr.eligible, tr.tier, tr.sector_etf,
+                           tr.final_score, tr.filter_reason, tr.detail
+                    FROM ticker_results tr
+                    JOIN scan_runs sr ON sr.id = tr.run_id
+                    WHERE {where}
+                    ORDER BY sr.scan_date DESC, sr.strategy_id, sr.universe_id
+                    {limit_clause}
+                    """,
+                    query_params,
                 )
                 rows = cur.fetchall()
 
         history: list[dict[str, Any]] = []
-        for scan_date, detail in rows:
+        for row in rows:
+            detail = row[13]
             if isinstance(detail, str):
                 detail = json.loads(detail)
+            if actionable_only and not is_actionable(
+                row[3],
+                tier=row[9],
+                eligible=row[8],
+                detail=detail if isinstance(detail, dict) else None,
+            ):
+                continue
             history.append(
-                {
-                    "scan_date": str(scan_date),
-                    "lynch_score": detail.get("lynch_score"),
-                    "passed": detail.get("passed"),
-                    "peg_ratio": detail.get("peg_ratio"),
-                    "categories": detail.get("categories") or [],
-                }
+                project_row(
+                    run_id=row[0],
+                    scan_date=row[1],
+                    scan_time=row[2],
+                    strategy_id=row[3],
+                    universe_id=row[4],
+                    regime_label=row[5],
+                    regime_multiplier=row[6],
+                    ticker=row[7],
+                    eligible=row[8],
+                    tier=row[9],
+                    sector_etf=row[10],
+                    final_score=row[11],
+                    filter_reason=row[12],
+                    detail=detail,
+                )
             )
         return history
+
+    def lynch_ticker_history(self, ticker: str, *, limit: int = 24) -> list[dict[str, Any]]:
+        """Prior Lynch scan snapshots for a ticker (for dashboard score history)."""
+        rows = self.ticker_history(
+            ticker,
+            actionable_only=False,
+            strategy_id="lynch",
+            limit=limit,
+            offset=0,
+        )
+        return [
+            {
+                "scan_date": row["scan_date"],
+                "lynch_score": row.get("lynch_score"),
+                "passed": row.get("passed"),
+                "peg_ratio": row.get("peg_ratio"),
+                "categories": (row.get("categories") or "").split(", ")
+                if row.get("categories")
+                else [],
+            }
+            for row in rows
+        ]
 
     def list_runs(
         self,

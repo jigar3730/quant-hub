@@ -20,7 +20,7 @@ from quant_hub.dashboard.viz.table_helpers import (
     table_column_order,
     with_yahoo_ticker_links,
 )
-from quant_hub.dashboard.viz.ux_helpers import render_swing_takeaway
+from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 from quant_hub.strategies.swing.scanner import SWING_FILTER_LABELS
 
@@ -121,7 +121,12 @@ def _swing_display_columns(df, *, setups_only: bool = False) -> list[str]:
     return [column for column in preferred if column in df.columns]
 
 
-def render_swing_ticker_detail(ticker: str, data: dict) -> None:
+def render_swing_ticker_detail(
+    ticker: str,
+    data: dict,
+    *,
+    repo: ScanRepository | None = None,
+) -> None:
     detail = data.get("setup_detail") or {}
     tier = data.get("tier", "filtered")
     summary = data.get("summary") or {}
@@ -235,6 +240,10 @@ def render_swing_ticker_detail(ticker: str, data: dict) -> None:
                 label = check.get("label") or check.get("rule", "")
                 st.markdown(f"{badge} **{label}** — {check.get('threshold', '')}")
 
+    if repo is not None:
+        st.divider()
+        render_ticker_history_panel(repo, ticker, key_prefix="swing_detail", show_header=True)
+
 
 def render_swing_setups_tab(
     tickers: list[dict],
@@ -339,21 +348,32 @@ def render_swing_detail_tab(
     tickers: list[dict],
     all_symbols: list[str],
     detail_ticker: str | None,
+    *,
+    repo: ScanRepository | None = None,
 ) -> None:
     st.markdown("### Ticker Setup Profile")
     st.caption("Weekly indicators and long/short rule checklist for any ticker in the scan.")
-    if not all_symbols:
-        st.warning("No tickers in this scan.")
-        return
-    pick_index = all_symbols.index(detail_ticker) if detail_ticker in all_symbols else 0
-    active = st.selectbox("Select ticker", all_symbols, index=pick_index, key="swing_detail_pick")
-    if active != detail_ticker:
-        set_detail_ticker(active)
-    data = get_swing_ticker_by_name(tickers, active)
-    if data:
-        render_swing_ticker_detail(active, data)
+
+    active = detail_ticker
+    if all_symbols:
+        pick_index = all_symbols.index(detail_ticker) if detail_ticker in all_symbols else 0
+        active = st.selectbox("Select ticker", all_symbols, index=pick_index, key="swing_detail_pick")
+        if active != detail_ticker:
+            set_detail_ticker(active)
+    elif detail_ticker:
+        active = detail_ticker
+        st.markdown(f"**{detail_ticker}** — not in this scan's universe.")
     else:
-        st.warning(f"No data for {active}.")
+        st.info("Select a ticker from the sidebar lookup or universe table.")
+        return
+
+    data = get_swing_ticker_by_name(tickers, active) if active else None
+    if data:
+        render_swing_ticker_detail(active, data, repo=repo)
+    elif active and repo is not None:
+        render_ticker_history_panel(repo, active, key_prefix="swing_orphan")
+    elif active:
+        st.warning(f"No data for {active} in this scan.")
 
 
 def render_swing_rejection_tab(summary: dict) -> None:

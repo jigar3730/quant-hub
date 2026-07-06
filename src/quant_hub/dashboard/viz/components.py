@@ -16,6 +16,8 @@ from quant_hub.dashboard.viz.data import (
 )
 from quant_hub.dashboard.viz.labels import tier_friendly
 from quant_hub.dashboard.viz.navigation import ticker_link_html
+from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
+from quant_hub.infrastructure.postgres.repository import ScanRepository
 from quant_hub.dashboard.viz.score_guide import COMPONENT_HELP, COMPONENT_SUMMARY
 from quant_hub.dashboard.viz.signals import component_action, render_signal_insights_panel
 from quant_hub.dashboard.viz.styles import PLOTLY_LAYOUT, TIER_BADGE_CSS
@@ -490,6 +492,7 @@ def render_ticker_detail(
     compact_news: bool = False,
     show_history: bool = True,
     scan_date: str | None = None,
+    repo: ScanRepository | None = None,
 ) -> None:
     """Unified detail: news, fundamentals, technical scores, eligibility, history."""
     tier = ticker_data.get("tier", "filtered")
@@ -516,8 +519,6 @@ def render_ticker_detail(
 
     render_ticker_news_panel(ticker, compact=compact_news, scan_date=scan_date)
 
-    # Score history from Postgres deferred to a future release (v1 uses latest run only).
-
     tab_fund, tab_tech, tab_elig = st.tabs(["Fundamentals", "Technical", "Eligibility"])
     with tab_fund:
         render_fundamentals_panel(ticker_data)
@@ -525,6 +526,10 @@ def render_ticker_detail(
         render_technical_panel(ticker_data, ticker)
     with tab_elig:
         render_eligibility_panel(ticker_data)
+
+    if show_history and repo is not None:
+        st.divider()
+        render_ticker_history_panel(repo, ticker, key_prefix="breakout_detail", show_header=True)
 
 
 def build_leaderboard_df(df: pd.DataFrame) -> pd.DataFrame:

@@ -108,3 +108,81 @@ def test_market_regime_roundtrip():
     assert regime["sma50"] == 495.0
     assert regime["meaning"] == "Test regime"
     repo.delete_fixture_runs()
+
+
+def _lynch_report(*, ticker: str, passed: bool, tier: str) -> dict:
+    return {
+        "strategy_id": "lynch",
+        "scan_summary": {
+            "universe_size": 1,
+            "eligible_count": 1 if passed else 0,
+            "excluded_count": 0 if passed else 1,
+            "tier_counts": {"fast_grower": 1 if passed else 0, "filtered": 0 if passed else 1},
+            "actionable_count": 1 if passed else 0,
+            "passed_count": 1 if passed else 0,
+            "category_counts": {"fast_grower": 1 if passed else 0},
+            "filter_breakdown": {},
+            "preset": "summary",
+            "preset_label": "Summary",
+        },
+        "market_regime": {"label": "neutral", "multiplier": 1.0},
+        "tickers": [
+            {
+                "ticker": ticker,
+                "eligible": passed,
+                "passed": passed,
+                "tier": tier,
+                "lynch_score": 80 if passed else None,
+                "institutional_pct": 35.0,
+                "analyst_count": 4,
+                "peg_ratio": 0.8,
+                "categories": ["fast_grower"] if passed else [],
+                "summary": {"final_adjusted_score": 80 if passed else 0},
+                "metrics": {},
+            }
+        ],
+    }
+
+
+def test_ticker_history_actionable_filter():
+    repo = ScanRepository()
+    universe = "test-ticker-history"
+    ticker = "HIST1"
+
+    repo.upsert_scan(
+        scan_date=date(2099, 2, 1),
+        strategy_id="breakout",
+        universe_id=universe,
+        report=_sample_report(),
+    )
+    report = _sample_report()
+    report["tickers"][0]["ticker"] = ticker
+    repo.upsert_scan(
+        scan_date=date(2099, 2, 2),
+        strategy_id="breakout",
+        universe_id=universe,
+        report=report,
+    )
+
+    repo.upsert_scan(
+        scan_date=date(2099, 2, 3),
+        strategy_id="lynch",
+        universe_id=universe,
+        report=_lynch_report(ticker=ticker, passed=True, tier="fast_grower"),
+    )
+    repo.upsert_scan(
+        scan_date=date(2099, 2, 4),
+        strategy_id="lynch",
+        universe_id=universe,
+        report=_lynch_report(ticker=ticker, passed=False, tier="filtered"),
+    )
+
+    rows = repo.ticker_history(ticker, actionable_only=True, exclude_fixtures=False)
+    assert len(rows) == 2
+    assert {r["strategy_id"] for r in rows} == {"breakout", "lynch"}
+    lynch_row = next(r for r in rows if r["strategy_id"] == "lynch")
+    assert lynch_row["institutional_pct"] == 35.0
+
+    assert repo.ticker_history_count(ticker, actionable_only=True, exclude_fixtures=False) == 2
+    repo.delete_fixture_runs()
+

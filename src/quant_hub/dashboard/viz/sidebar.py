@@ -10,7 +10,13 @@ from quant_hub.application.universe_service import UniverseService
 from quant_hub.dashboard.viz.breakout_filters import BreakoutFilters
 from quant_hub.digest import policy as P
 from quant_hub.dashboard.viz.labels import format_universe_option
-from quant_hub.dashboard.viz.navigation import apply_pending_navigation, sync_detail_ticker
+from quant_hub.dashboard.viz.navigation import (
+    HISTORY_PAGE_OFFSET_KEY,
+    SHOW_GLOBAL_HISTORY_KEY,
+    apply_pending_navigation,
+    set_detail_ticker,
+    sync_detail_ticker,
+)
 from quant_hub.dashboard.viz.score_guide import render_score_component_guide
 from quant_hub.dashboard.viz.swing_filters import SwingFilters
 from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
@@ -29,11 +35,39 @@ STRATEGY_LABELS = {
 }
 
 
+def _render_global_ticker_lookup() -> None:
+    """Omnibar: cross-scan ticker history lookup."""
+    st.sidebar.markdown("**Ticker lookup**")
+    lookup = st.sidebar.text_input(
+        "Lookup ticker history",
+        value="",
+        key="global_ticker_lookup",
+        placeholder="e.g. NVDA",
+    ).strip().upper()
+    if st.sidebar.button("Search history", key="global_ticker_lookup_btn"):
+        if lookup:
+            set_detail_ticker(lookup)
+            st.session_state[SHOW_GLOBAL_HISTORY_KEY] = True
+            st.session_state[f"history_{HISTORY_PAGE_OFFSET_KEY}"] = 0
+            st.rerun()
+        else:
+            st.sidebar.caption("Enter a ticker symbol.")
+    st.sidebar.divider()
+
+
+def _scan_date_index(date_options: list[str], pending: date | None) -> int:
+    if pending is None:
+        return 0
+    pending_s = str(pending)
+    return date_options.index(pending_s) if pending_s in date_options else 0
+
+
 def render_sidebar_controls(
     repo: ScanRepository,
 ) -> tuple[str, str, date | None, BreakoutFilters | SwingFilters]:
-    apply_pending_navigation()
+    pending_scan_date = apply_pending_navigation()
     st.sidebar.title("Quant Hub")
+    _render_global_ticker_lookup()
 
     if "sidebar_strategy" not in st.session_state:
         st.session_state["sidebar_strategy"] = "breakout"
@@ -65,7 +99,11 @@ def render_sidebar_controls(
         scan_date: date | None = None
         if universe_runs:
             date_options = [str(r["scan_date"]) for r in universe_runs]
-            selected = st.sidebar.selectbox("Digest date", options=date_options, index=0)
+            selected = st.sidebar.selectbox(
+                "Digest date",
+                options=date_options,
+                index=_scan_date_index(date_options, pending_scan_date),
+            )
             scan_date = date.fromisoformat(selected)
         else:
             st.sidebar.caption("No scans available for this digest yet.")
@@ -99,7 +137,11 @@ def render_sidebar_controls(
     scan_date: date | None = None
     if universe_runs:
         date_options = [str(r["scan_date"]) for r in universe_runs]
-        selected = st.sidebar.selectbox("Scan date", options=date_options, index=0)
+        selected = st.sidebar.selectbox(
+            "Scan date",
+            options=date_options,
+            index=_scan_date_index(date_options, pending_scan_date),
+        )
         scan_date = date.fromisoformat(selected)
     else:
         st.sidebar.caption("No scans for this universe yet.")

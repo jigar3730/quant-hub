@@ -9,7 +9,8 @@ from quant_hub.dashboard.viz.data import tickers_to_dataframe
 from quant_hub.dashboard.viz.digest_components import render_digest_preview_tab
 from quant_hub.dashboard.viz.labels import format_report_label
 from quant_hub.dashboard.viz.lynch_components import render_lynch_tab
-from quant_hub.dashboard.viz.navigation import sync_detail_ticker
+from quant_hub.dashboard.viz.navigation import SHOW_GLOBAL_HISTORY_KEY, sync_detail_ticker
+from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.dashboard.viz.pages.breakout import (
     render_all_tickers_tab,
     render_breakout_header,
@@ -94,6 +95,11 @@ if not ping():
     st.stop()
 
 strategy_id, universe_id, scan_date, filters = render_sidebar_controls(repo)
+detail_ticker = sync_detail_ticker()
+
+if st.session_state.get(SHOW_GLOBAL_HISTORY_KEY) and detail_ticker:
+    render_ticker_history_panel(repo, detail_ticker, key_prefix="global")
+    st.divider()
 
 if strategy_id == "digest":
     digest_kind = st.session_state.get("digest_kind", "daily")
@@ -116,6 +122,8 @@ report = repo.load_report(
 )
 if report is None:
     st.warning("No scan found for this strategy/universe/date.")
+    if detail_ticker and not st.session_state.get(SHOW_GLOBAL_HISTORY_KEY):
+        render_ticker_history_panel(repo, detail_ticker, key_prefix="orphan")
     st.info(
         f"Run `quant-scan --universe {PRIMARY_INDEX_UNIVERSE} --cache`, "
         f"`quant-swing --universe {PRIMARY_INDEX_UNIVERSE}`, "
@@ -138,7 +146,7 @@ report_label = format_report_label(
 )
 provenance = report.get("data_provenance")
 
-detail_ticker = render_sidebar_ticker_picker(all_symbols) if all_symbols else sync_detail_ticker()
+detail_ticker = render_sidebar_ticker_picker(all_symbols) if all_symbols else detail_ticker
 
 if strategy_id == "swing":
     render_swing_header(summary, regime, report_label, scan_date=scan_date_str)
@@ -168,7 +176,7 @@ if strategy_id == "swing":
             detail_ticker=detail_ticker,
         )
     with tab_map["Ticker Detail"]:
-        render_swing_detail_tab(tickers, all_symbols, detail_ticker)
+        render_swing_detail_tab(tickers, all_symbols, detail_ticker, repo=repo)
     with tab_map["Rejection Breakdown"]:
         render_swing_rejection_tab(summary)
     with st.expander("System status (admin)"):
@@ -177,7 +185,7 @@ if strategy_id == "swing":
     st.stop()
 
 if strategy_id == "lynch":
-    render_lynch_tab(report, report_label)
+    render_lynch_tab(report, report_label, repo=repo)
     render_scan_provenance_footer(
         strategy_id=strategy_id,
         universe_id=universe_id,
@@ -233,6 +241,7 @@ with tab_map["Ticker Detail"]:
         all_symbols=all_symbols,
         detail_ticker=detail_ticker,
         scan_date=scan_date_str,
+        repo=repo,
     )
 
 with tab_map["Actionable Watchlist"]:

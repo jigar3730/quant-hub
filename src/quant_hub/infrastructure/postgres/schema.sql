@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS job_runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_scan_runs_date ON scan_runs (scan_date DESC);
+CREATE INDEX IF NOT EXISTS idx_ticker_results_ticker ON ticker_results (ticker);
 CREATE INDEX IF NOT EXISTS idx_job_runs_started ON job_runs (started_at DESC);
 
 -- ML foundation: forward-return labels per signal (Phase 1)

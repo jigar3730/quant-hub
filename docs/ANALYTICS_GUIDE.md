@@ -554,7 +554,7 @@ pivot = df.pivot_table(index="ticker", columns="scan_date", values="final_score"
 | One snapshot per day per strategy/universe | No intraday analysis |
 | Same-day rerun overwrites | No multiple runs per day preserved |
 | Swing CSV = setups only | Use Postgres for full swing universe analytics |
-| Breakout score history | Stored in Postgres; dashboard shows latest run only (Lynch history chart exists) |
+| Breakout score history | Cross-scan actionable history via omnibar, Ticker Detail, and `quant-hub ticker history` |
 | No forward P&amp;L | You must join signals to future prices for backtests |
 | Yahoo data quality | Scores can be stale or null on fetch failures — check `job_runs` and filter breakdown; Lynch batch runs may rate-limit on large universes |
 | Retention | History grows until manual prune — see [Architecture Gaps](ARCHITECTURE_GAPS.md) |
@@ -568,5 +568,6 @@ pivot = df.pivot_table(index="ticker", columns="scan_date", values="final_score"
 | Schema | `src/quant_hub/infrastructure/postgres/schema.sql` |
 | Repository queries | `src/quant_hub/infrastructure/postgres/repository.py` |
 | Lynch history API | `repository.lynch_ticker_history()` |
+| Global ticker history | `repository.ticker_history()` · `quant-hub ticker history` |
 | Breakout exports | `data/output/breakout/{universe_id}/report.json` |
 | Swing setups CSV | `data/output/swing/{universe_id}/setups.csv` |
