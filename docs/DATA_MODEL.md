@@ -4,7 +4,7 @@
 **Audience:** Developers, analysts, and operators  
 **Last updated:** 2026-06-28
 
-Related: [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Runbook](RUNBOOK.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md)
+Related: [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Runbook](RUNBOOK.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md)
 
 ---
 

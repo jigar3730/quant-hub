@@ -392,6 +392,7 @@ More detail: [Runbook §9 Troubleshooting](RUNBOOK.md#9-troubleshooting) · [Eme
 | [ML Ops](ML_OPS.md) | Backfill, labels, feature export, verification |
 | [ML Foundation](ML_FOUNDATION.md) | ML schema, leakage rules, retention |
 | [Analytics Guide](ANALYTICS_GUIDE.md) | SQL insights, cross-strategy analysis, weekly playbook |
+| [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) | Postgres schema primer + day-to-day queries for developers |
 | [User Manual](USER_MANUAL.md) | Dashboard for analysts |
 | [Data Model](DATA_MODEL.md) | Postgres tables, caches, exports |
 | [Architecture Gaps](ARCHITECTURE_GAPS.md) | Known monitoring/security gaps (lead ops) |

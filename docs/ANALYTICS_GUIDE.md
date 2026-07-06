@@ -4,7 +4,7 @@
 **Audience:** Analysts, traders, and operators extracting insights from scan data  
 **Last updated:** 2026-06-29
 
-Related: [Data Model / ERD](DATA_MODEL.md) · [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Breakout](BREAKOUT_SCANNER.md) · [Swing](SWING_SCANNER.md) · [Lynch](LYNCH_SCANNER.md)
+Related: [Data Model / ERD](DATA_MODEL.md) · [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) · [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Breakout](BREAKOUT_SCANNER.md) · [Swing](SWING_SCANNER.md) · [Lynch](LYNCH_SCANNER.md)
 
 ---
 

@@ -20,7 +20,7 @@
 9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
 
-**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
+**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
 
 ---
 

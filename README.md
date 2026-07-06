@@ -42,6 +42,7 @@ docker exec quant-hub quant-view                      # dashboard (Postgres-back
 | `quant-backfill swing\|coverage` | Historical swing backfill + gap report before long runs |
 | `quant-universe list\|show\|refresh` | Inspect or refresh universe registry |
 | `quant-hub status` | DB ping, table counts, recent runs |
+| `quant-hub ticker history\|show` | Cross-scan ticker lookup and single-snapshot drill-down |
 | `quant-hub cleanup-fixtures` | Remove test scan rows from Postgres |
 | `quant-hub init-db` | Apply Postgres schema |
 | `quant-view` | Streamlit dashboard |
@@ -81,4 +82,5 @@ Universes are config-driven via `data/universes.json` + ticker files under `data
 | [docs/SWING_SCANNER.md](docs/SWING_SCANNER.md) | Swing pipeline — weekly indicators, setup gate, quality score |
 | [docs/BREAKOUT_SCANNER.md](docs/BREAKOUT_SCANNER.md) | Breakout pipeline — daily factors, eligibility, tiers, regime |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | ERD + data dictionary — all inputs, caches, Postgres, exports |
+| [docs/JUNIOR_DEV_DATABASE_GUIDE.md](docs/JUNIOR_DEV_DATABASE_GUIDE.md) | **Developers** — Postgres schema primer + day-to-day SQL/CLI |
 | [docs/ARCHITECTURE_GAPS.md](docs/ARCHITECTURE_GAPS.md) | Known gaps, risks, and phased remediation plan |
