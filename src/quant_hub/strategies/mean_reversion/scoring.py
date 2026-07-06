@@ -1,4 +1,4 @@
-"""Mean reversion rubric v2.2 scoring (0–100)."""
+"""Mean reversion rubric v2.2 scoring (0–100) — daily close OHLCV."""
 
 from __future__ import annotations
 
@@ -186,7 +186,7 @@ def score_mean_reversion(
     *,
     rs_percentile: float | None = None,
 ) -> MeanReversionScoreResult:
-    """Score both long and short; winning side becomes bias."""
+    """Score both long and short independently; higher side is bias (rubric v2.2)."""
     latest = df.iloc[-1]
     close = float(latest["Close"])
     ema500 = float(latest["EMA500"])

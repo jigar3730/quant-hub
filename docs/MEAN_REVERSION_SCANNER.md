@@ -44,16 +44,16 @@ Outputs under `data/output/mean_reversion/{universe_id}/`:
 
 ## Rubric v2.2 (0–100)
 
-Both long and short are scored; the higher side is the bias.
+Independent mean-reversion rubric on **daily close OHLCV**. Both long and short are scored; the higher side is the bias. Components sum to 100.
 
-| Category | Max | Summary |
-|----------|-----|---------|
-| Macro Trend | 20 | Close vs 500 EMA |
-| Price Extension | 30 | Proximity to lower BB (long) or upper BB (short) |
-| RSI Momentum Hook | 25 | At band + RSI hook (zone + direction) |
-| Volume Confirmation | 10 | Relative volume vs 20-day average |
-| Sector Rotation | 8 | RS vs SPY percentile across scan universe |
-| Volatility Regime | 7 | BB width not compressed (≥ 40th percentile of 120d) |
+| Category | Max | Long | Short |
+|----------|-----|------|-------|
+| Macro Trend | 20 | Close > 500 EMA (10 if within 1% below) | Close < 500 EMA (10 if within 1% above) |
+| Price Extension | 30 | At/below lower BB → 30; within 25% → 20; within 50% → 10 | Mirror vs upper BB |
+| RSI Momentum Hook | 25 | At band zone + cross/hook from oversold (zone + direction) | At band zone + cross/hook from overbought |
+| Volume Confirmation | 10 | Relative volume vs 20-day average | Same |
+| Sector Rotation | 8 | RS vs SPY percentile across scan universe | Same (short favors weak RS) |
+| Volatility Regime | 7 | BB width ≥ 40th percentile of 120d | Same |
 
 ## Tiers and signals
 

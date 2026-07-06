@@ -56,3 +56,4 @@ def test_both_sides_scored():
     assert result.long_score >= 0
     assert result.short_score >= 0
     assert len(result.rule_breakdown) == 6
+    assert result.scored_side in ("long", "short")

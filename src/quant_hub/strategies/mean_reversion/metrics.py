@@ -1,10 +1,10 @@
-"""Mean reversion metric helpers."""
+"""Mean reversion metric helpers — rubric v2.2 per spec."""
 
 from __future__ import annotations
 
 import pandas as pd
 
-from quant_hub.indicators import bollinger_bands, bollinger_width
+from quant_hub.indicators import bollinger_width
 
 
 def band_width(upper: float, lower: float) -> float:
@@ -38,6 +38,7 @@ def at_band_zone(
     lower: float,
     max_distance_pct: float = 0.5,
 ) -> bool:
+    """RSI hook zone: at/past band or within 50% of band width."""
     return extension_distance_pct(
         close, lower if side == "long" else upper, side=side, upper=upper, lower=lower
     ) <= max_distance_pct
@@ -55,9 +56,9 @@ def bb_width_percentile(df: pd.DataFrame, lookback: int = 120) -> float | None:
 
 def rsi_hook_state(rsi: pd.Series, *, side: str) -> tuple[float, str]:
     """
-    Score RSI momentum hook (0–25 scale returned as points + detail label).
+    RSI Momentum Hook (25 pts) — zone + direction per spec.
 
-    Long: at lower BB context — cross from oversold or rising hook.
+    Long: at lower BB — cross from oversold, hook forming, or RSI 30–40 rising.
     Short: mirror at upper BB vs overbought.
     """
     if len(rsi) < 4:
@@ -90,6 +91,7 @@ def rsi_hook_state(rsi: pd.Series, *, side: str) -> tuple[float, str]:
 
 
 def macro_trend_points(close: float, ema500: float, *, side: str, max_pts: float) -> tuple[float, str]:
+    """Macro Trend (20 pts): Price > 500 EMA (Long) or < 500 EMA (Short)."""
     if ema500 <= 0:
         return 0.0, "invalid_ema500"
     if side == "long":
@@ -115,7 +117,10 @@ def price_extension_points(
     lower: float,
     max_pts: float,
 ) -> tuple[float, str]:
-    dist = extension_distance_pct(close, lower if side == "long" else upper, side=side, upper=upper, lower=lower)
+    """Price Extension (30 pts): near/at lower BB (long) or upper BB (short)."""
+    dist = extension_distance_pct(
+        close, lower if side == "long" else upper, side=side, upper=upper, lower=lower
+    )
     if dist <= 0:
         return max_pts, "at_or_past_band"
     if dist <= 0.25:
