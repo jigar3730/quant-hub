@@ -32,7 +32,6 @@ from quant_hub.dashboard.viz.launchpad_filters import (
     launchpad_scatter_dataframe,
 )
 from quant_hub.dashboard.viz.navigation import (
-    dashboard_ticker_link_html,
     set_detail_ticker,
     ticker_link_html,
 )
@@ -304,7 +303,6 @@ def render_launchpad_header(
     report_path: str,
     summary: dict,
     regime: dict,
-    detail_ticker: str | None,
     scan_date: str | None = None,
 ) -> None:
     render_scan_header(
@@ -313,12 +311,4 @@ def render_launchpad_header(
         regime,
         scan_date=scan_date,
         title="Launchpad Reversal",
-    )
-    if not detail_ticker:
-        return
-    link = dashboard_ticker_link_html(detail_ticker)
-    st.markdown(
-        f'<div class="info-card">Viewing profile: <strong>{link}</strong> '
-        f"— open the <em>Ticker Detail</em> tab for the full scan breakdown.</div>",
-        unsafe_allow_html=True,
     )

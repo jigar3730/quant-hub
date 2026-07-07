@@ -54,7 +54,6 @@ def render_swing_header(
         """,
         unsafe_allow_html=True,
     )
-    st.caption(f"Report: {report_label}")
 
 
 def _swing_table_columns(*, setups_only: bool = False) -> dict:

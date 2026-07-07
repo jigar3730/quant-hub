@@ -7,9 +7,20 @@ import pandas as pd
 from quant_hub.ml.backfill_dates import (
     as_scan_date,
     compute_backfill_coverage,
+    iter_saturday_scan_dates,
     iter_weekly_scan_dates,
     truncate_weekly_to_date,
 )
+
+
+def test_iter_saturday_scan_dates():
+    dates = iter_saturday_scan_dates(date(2024, 1, 1), date(2024, 1, 31))
+    assert dates == [
+        date(2024, 1, 6),
+        date(2024, 1, 13),
+        date(2024, 1, 20),
+        date(2024, 1, 27),
+    ]
 
 
 def test_iter_weekly_scan_dates_fridays():

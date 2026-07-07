@@ -29,7 +29,16 @@ CUSTOM_CSS = f"""
 <style>
 {CSS_VARS}
 
-    .block-container {{ padding-top: var(--space-lg); max-width: 1400px; }}
+    .block-container {{
+        padding-top: var(--space-lg);
+        max-width: 100%;
+        padding-left: var(--space-md);
+        padding-right: var(--space-md);
+    }}
+
+    section.main > div {{
+        max-width: 100%;
+    }}
 
     .scan-header {{
         background: linear-gradient(135deg, var(--color-banner-start) 0%, var(--color-banner-end) 100%);

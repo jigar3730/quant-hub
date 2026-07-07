@@ -58,7 +58,6 @@ def render_lynch_header(report_path: str, summary: dict) -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.caption(f"Report: {report_path}")
 
 
 def render_category_chart(category_counts: dict) -> go.Figure:

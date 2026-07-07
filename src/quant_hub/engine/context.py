@@ -156,6 +156,47 @@ class ScanContext:
             },
         )
 
+    @classmethod
+    def from_prices(
+        cls,
+        prices: pd.DataFrame,
+        *,
+        universe: list[str],
+        eligibility_mode: str = "stock",
+        dry_run: bool = False,
+    ) -> ScanContext:
+        """Build scan context from an already-loaded (and optionally truncated) price frame."""
+        spy_df = ticker_df(prices, BENCHMARK_TICKER)
+        if spy_df is None or spy_df.empty:
+            raise RuntimeError(f"Missing benchmark data for {BENCHMARK_TICKER}")
+
+        regime = compute_market_regime(spy_df)
+        regime_info = regime_detail(spy_df)
+        sector_dfs = {etf: ticker_df(prices, etf) for etf in ALL_SECTOR_ETFS}
+
+        stock_dfs: dict[str, pd.DataFrame] = {}
+        for ticker in universe:
+            df = ticker_df(prices, ticker)
+            if df is not None and not df.empty:
+                stock_dfs[ticker] = df
+
+        return cls(
+            universe=list(universe),
+            stock_dfs=stock_dfs,
+            spy_df=spy_df,
+            sector_dfs=sector_dfs,
+            fund_map={},
+            sector_etfs={},
+            regime=regime,
+            regime_detail=regime_info,
+            dry_run=dry_run,
+            extras={
+                "fundamentals_quality": None,
+                "eligibility_mode": eligibility_mode,
+                "load_fundamentals": False,
+            },
+        )
+
     def stock_df(self, ticker: str) -> pd.DataFrame | None:
         return self.stock_dfs.get(ticker)
 

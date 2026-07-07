@@ -72,10 +72,6 @@ def render_scan_header(
         """,
         unsafe_allow_html=True,
     )
-    if scan_date:
-        st.caption(f"Report: {report_path}")
-    else:
-        st.caption(f"Report: `{report_path}`")
 
 
 def render_regime_panel(regime: dict) -> None:

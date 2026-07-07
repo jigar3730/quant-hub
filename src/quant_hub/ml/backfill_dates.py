@@ -124,3 +124,36 @@ def truncate_weekly_to_date(df: pd.DataFrame | None, as_of: date) -> pd.DataFram
     if trimmed.empty:
         return trimmed.reset_index(drop=True)
     return trimmed.reset_index(drop=True)
+
+
+def truncate_daily_to_date(df: pd.DataFrame | None, as_of: date) -> pd.DataFrame | None:
+    """Keep daily OHLCV rows on or before `as_of` (point-in-time, no lookahead)."""
+    return truncate_weekly_to_date(df, as_of)
+
+
+def iter_saturday_scan_dates(since: date, until: date) -> list[date]:
+    """Saturdays from `since` through `until` (inclusive)."""
+    if since > until:
+        return []
+    current = since
+    while current.weekday() != 5:
+        current += timedelta(days=1)
+        if current > until:
+            return []
+    dates: list[date] = []
+    while current <= until:
+        dates.append(current)
+        current += timedelta(days=7)
+    return dates
+
+
+def earliest_daily_backfill_supported(
+    *,
+    today: date | None = None,
+    min_daily_bars: int = 200,
+    lookback_days: int = 1260,
+) -> date:
+    """Earliest scan_date with enough truncated daily history for launchpad/breakout."""
+    today = today or date.today()
+    calendar_span = int(lookback_days * 1.6)
+    return today - timedelta(days=max(calendar_span - min_daily_bars, min_daily_bars))

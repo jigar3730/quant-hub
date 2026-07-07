@@ -38,7 +38,7 @@ from quant_hub.dashboard.viz.pages.swing import (
 from quant_hub.dashboard.viz.sidebar import render_sidebar_controls, render_sidebar_ticker_picker
 from quant_hub.dashboard.viz.styles import CUSTOM_CSS
 from quant_hub.dashboard.viz.swing_filters import SwingFilters
-from quant_hub.dashboard.viz.ux_helpers import render_disclaimer, render_scan_provenance_footer
+from quant_hub.dashboard.viz.ux_helpers import render_disclaimer
 from quant_hub.infrastructure.postgres.connection import ping
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 
@@ -172,18 +172,11 @@ report_label = format_report_label(
     universe_id=universe_id,
     scan_date=scan_date_str,
 )
-provenance = report.get("data_provenance")
 
 detail_ticker = render_sidebar_ticker_picker(all_symbols) if all_symbols else detail_ticker
 
 if strategy_id == "swing":
     render_swing_header(summary, regime, report_label, scan_date=scan_date_str)
-    render_scan_provenance_footer(
-        strategy_id=strategy_id,
-        universe_id=universe_id,
-        scan_date=scan_date_str,
-        provenance=provenance,
-    )
     tab_names = ["Setups", "Full Universe", "Ticker Detail", "Rejection Breakdown"]
     tabs = st.tabs(tab_names)
     tab_map = dict(zip(tab_names, tabs, strict=True))
@@ -214,12 +207,6 @@ if strategy_id == "swing":
 
 if strategy_id == "lynch":
     render_lynch_tab(report, report_label, repo=repo)
-    render_scan_provenance_footer(
-        strategy_id=strategy_id,
-        universe_id=universe_id,
-        scan_date=scan_date_str,
-        provenance=provenance,
-    )
     with st.expander("System status (admin)"):
         _render_system_panel(job_repo, repo)
     render_disclaimer()
@@ -230,14 +217,7 @@ if strategy_id == "launchpad":
         report_path=report_label,
         summary=summary,
         regime=regime,
-        detail_ticker=detail_ticker,
         scan_date=scan_date_str,
-    )
-    render_scan_provenance_footer(
-        strategy_id=strategy_id,
-        universe_id=universe_id,
-        scan_date=scan_date_str,
-        provenance=provenance,
     )
     tab_names = ["Overview", "Full Universe", "Ticker Detail", "Actionable Watchlist", "Compare"]
     tabs = st.tabs(tab_names)
@@ -278,14 +258,7 @@ render_breakout_header(
     report_path=report_label,
     summary=summary,
     regime=regime,
-    detail_ticker=detail_ticker,
     scan_date=scan_date_str,
-)
-render_scan_provenance_footer(
-    strategy_id=strategy_id,
-    universe_id=universe_id,
-    scan_date=scan_date_str,
-    provenance=provenance,
 )
 
 tab_names = ["Overview", "Full Universe", "Ticker Detail", "Actionable Watchlist", "Compare"]
