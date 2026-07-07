@@ -15,6 +15,7 @@ from quant_hub.dashboard.viz.data import (
     TIER_COLORS,
     scores_to_dataframe,
 )
+from quant_hub.dashboard.viz.design_tokens import CHART_PALETTE, COLORS
 from quant_hub.dashboard.viz.launchpad_score_guide import (
     LAUNCHPAD_COMPONENT_HELP,
     LAUNCHPAD_COMPONENT_SUMMARY,
@@ -148,7 +149,7 @@ def render_score_histogram(eligible_df: pd.DataFrame) -> go.Figure:
         eligible_df,
         x="final_score",
         nbins=12,
-        color_discrete_sequence=["#3b82f6"],
+        color_discrete_sequence=[COLORS["primary"]],
         labels={"final_score": "Final Score"},
     )
     fig.update_layout(title="Score Distribution (Eligible)")
@@ -228,8 +229,8 @@ def render_radar(scores_df: pd.DataFrame, ticker: str) -> go.Figure:
             theta=scores_df["component"].tolist(),
             fill="toself",
             name=ticker,
-            line_color="#3b82f6",
-            fillcolor="rgba(59,130,246,0.25)",
+            line_color=COLORS["primary"],
+            fillcolor="rgba(79,70,229,0.25)",
         )
     )
     fig.update_layout(
@@ -242,7 +243,7 @@ def render_radar(scores_df: pd.DataFrame, ticker: str) -> go.Figure:
 
 def render_compare_radar(ticker_list: list[dict]) -> go.Figure | None:
     fig = go.Figure()
-    palette = ["#3b82f6", "#f59e0b", "#10b981"]
+    palette = CHART_PALETTE
     for i, t in enumerate(ticker_list):
         scores_df = scores_to_dataframe(t)
         if scores_df.empty:
@@ -331,11 +332,11 @@ def _render_score_cards(
             <div class="component-card">
               <strong>{label}</strong>
               <span style="float:right">{score:.1f} / {max_pts}</span>
-              <div style="background:#e2e8f0;border-radius:4px;height:6px;margin:6px 0;">
-                <div style="background:#3b82f6;width:{pct:.0f}%;
+              <div style="background:{COLORS['border']};border-radius:4px;height:6px;margin:6px 0;">
+                <div style="background:{COLORS['primary']};width:{pct:.0f}%;
                      height:6px;border-radius:4px;"></div>
               </div>
-              <small style="color:#64748b">{comp.get('meaning', '') or summary_text}</small>
+              <small style="color:{COLORS['text_secondary']}">{comp.get('meaning', '') or summary_text}</small>
             </div>
             """,
             unsafe_allow_html=True,
@@ -454,7 +455,7 @@ def render_score_history(history: list[dict], ticker: str) -> go.Figure | None:
             y=df["final_score"],
             mode="lines+markers",
             name="Final score",
-            line=dict(color="#3b82f6", width=2),
+            line=dict(color=COLORS["primary"], width=2),
         )
     )
     fig.add_trace(
@@ -463,7 +464,7 @@ def render_score_history(history: list[dict], ticker: str) -> go.Figure | None:
             y=df["normalized_score"],
             mode="lines+markers",
             name="Normalized",
-            line=dict(color="#94a3b8", width=1, dash="dot"),
+            line=dict(color=COLORS["text_muted"], width=1, dash="dot"),
         )
     )
     fig.update_layout(

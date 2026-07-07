@@ -99,13 +99,34 @@ quant-view
 Default browser URL when run manually: `http://localhost:8501`  
 Docker deployment: `http://<host>:5002`
 
+### Command Center (daily 360°)
+
+The **Command Center** is the first option in the Strategy dropdown and is the recommended
+morning landing page. It rolls up **every scanner and every universe** for a single scan
+date into one briefing instead of forcing you to page through one strategy at a time.
+
+Pick a date in the sidebar; the page then shows:
+
+- **Summary metrics** — total actionable signals per strategy plus the multi-scanner convergence count.
+- **Coverage heatmap** — rows are strategies, columns are universes, and each cell shows the
+  actionable count. A blank cell means that pair was **not scanned** that day (for example,
+  Launchpad on ETF universes, or Swing on a weekday), so a blank is never misread as "zero signals."
+- **Multi-scanner convergence** — tickers that were actionable in **two or more** scanners on that
+  date, with the tiers they fired at and their best score. Selecting a row loads its Ticker 360 profile.
+- **Signal changes vs prior scan** — New / Dropped / Persistent tabs comparing each
+  strategy+universe to its previous scan date. Persistent names are those that stayed actionable
+  across the recent scan window.
+- **Ticker 360** — the full cross-strategy history for any convergence ticker (or the one you picked).
+
+Each table offers a CSV download so you can export the day's signals without a flat mega-table.
+
 ### Sidebar controls
 
 
 | Control                   | Purpose                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
 | **Lookup ticker history** | Cross-scan search: when/where a symbol appeared as **actionable** (all strategies, all universes)       |
-| **Strategy**              | Breakout, Launchpad Reversal (daily), Swing (weekly), or Lynch (fundamental)                           |
+| **Strategy**              | Command Center (daily 360°), Breakout, Launchpad Reversal (daily), Swing (weekly), or Lynch (fundamental) |
 | **Universe**              | Select which ticker list to view (`sp500_index`, `most_actives`, etc.); universes with scans are listed first |
 | **Scan date**             | Pick a historical run (up to **500** Fridays — includes ML backfill from ~2020)                         |
 | **Filters**               | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only)                |

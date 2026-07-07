@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from quant_hub.dashboard.viz.components import apply_chart_style
+from quant_hub.dashboard.viz.design_tokens import COLORS
 from quant_hub.dashboard.viz.display import format_display_value
 from quant_hub.dashboard.viz.lynch_data import (
     CATEGORY_COLORS,
@@ -35,7 +36,7 @@ def render_lynch_header(report_path: str, summary: dict) -> None:
     if fetch_pct is not None and fetch_pct < 90:
         errors = mq.get("fetch_errors", 0)
         fetch_banner = (
-            f"<p style='color:#fca5a5;margin-top:0.5rem'>"
+            f"<p style='color:{COLORS['danger_on_dark']};margin-top:0.5rem'>"
             f"⚠ Data fetch: only {fetch_pct}% of tickers loaded from Yahoo "
             f"({errors} failed). Scores showing blank or 0 are unreliable — re-run the scan."
             f"</p>"
@@ -72,7 +73,9 @@ def render_category_chart(category_counts: dict) -> go.Figure:
 
 def render_lynch_score_histogram(df: pd.DataFrame) -> go.Figure:
     passed_df = df[df["passed"]]
-    fig = go.Figure(go.Histogram(x=passed_df["lynch_score"], nbinsx=20, marker_color="#22c55e"))
+    fig = go.Figure(
+        go.Histogram(x=passed_df["lynch_score"], nbinsx=20, marker_color=COLORS["success_solid"])
+    )
     fig.update_layout(title="Lynch Score Distribution (passed)", height=280, xaxis_title="Score")
     return apply_chart_style(fig)
 
@@ -89,7 +92,7 @@ def render_lynch_history_chart(ticker: str) -> go.Figure | None:
             y=hist_df["lynch_score"],
             mode="lines+markers",
             name="Lynch score",
-            line=dict(color="#22c55e"),
+            line=dict(color=COLORS["success_solid"]),
         )
     )
     fig.update_layout(

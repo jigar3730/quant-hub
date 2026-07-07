@@ -7,6 +7,7 @@ import streamlit as st
 from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.dashboard.viz.data import tickers_to_dataframe
 from quant_hub.dashboard.viz.digest_components import render_digest_preview_tab
+from quant_hub.dashboard.viz.pages.command_center import render_command_center
 from quant_hub.dashboard.viz.labels import format_report_label
 from quant_hub.dashboard.viz.lynch_components import render_lynch_tab
 from quant_hub.dashboard.viz.navigation import SHOW_GLOBAL_HISTORY_KEY, sync_detail_ticker
@@ -116,6 +117,16 @@ detail_ticker = sync_detail_ticker()
 if st.session_state.get(SHOW_GLOBAL_HISTORY_KEY) and detail_ticker:
     render_ticker_history_panel(repo, detail_ticker, key_prefix="global")
     st.divider()
+
+if strategy_id == "command_center":
+    if scan_date is None:
+        st.warning("No scans recorded yet. Run a scan or wait for scheduled cron jobs.")
+        st.stop()
+    render_command_center(repo, scan_date=scan_date, detail_ticker=detail_ticker)
+    with st.expander("System status (admin)"):
+        _render_system_panel(job_repo, repo)
+    render_disclaimer()
+    st.stop()
 
 if strategy_id == "digest":
     digest_kind = st.session_state.get("digest_kind", "daily")

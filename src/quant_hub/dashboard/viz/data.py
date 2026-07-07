@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from quant_hub.config import PRIMARY_INDEX_UNIVERSE, scan_output_paths
+from quant_hub.dashboard.viz.design_tokens import TIER_COLORS
 from quant_hub.filters.eligibility import FILTER_LABELS
 
 SCORE_LABELS = {
@@ -24,12 +25,8 @@ LAUNCHPAD_SCORE_LABELS = {
     "swing_low_vcp": "Swing-Low VCP",
 }
 
-TIER_COLORS = {
-    "Tier 1": "#22c55e",
-    "Tier 2": "#eab308",
-    "Tier 3": "#94a3b8",
-    "filtered": "#ef4444",
-}
+# TIER_COLORS is imported above from design_tokens and re-exported here so existing
+# `from quant_hub.dashboard.viz.data import TIER_COLORS` call sites keep working.
 
 TECHNICAL_KEYS = (
     "rs_market",

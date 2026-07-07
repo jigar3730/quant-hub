@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 STRATEGY_DISPLAY = {
+    "command_center": "Command Center",
     "breakout": "Breakout",
     "launchpad": "Launchpad Reversal",
     "swing": "Swing",

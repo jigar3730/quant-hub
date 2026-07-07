@@ -29,6 +29,7 @@ from quant_hub.dashboard.viz.ux_helpers import (
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 STRATEGY_LABELS = {
+    "command_center": "Command Center (daily 360°)",
     "breakout": "Breakout (daily)",
     "launchpad": "Launchpad Reversal (daily)",
     "swing": "Swing (weekly)",
@@ -80,6 +81,22 @@ def render_sidebar_controls(
         format_func=lambda k: STRATEGY_LABELS[k],
         key="sidebar_strategy",
     )
+
+    if strategy_id == "command_center":
+        scan_dates = repo.list_scan_dates(limit=DASHBOARD_RUN_LOOKUP_LIMIT)
+        scan_date: date | None = None
+        if scan_dates:
+            date_options = [str(d) for d in scan_dates]
+            selected = st.sidebar.selectbox(
+                "Scan date",
+                options=date_options,
+                index=_scan_date_index(date_options, pending_scan_date),
+            )
+            scan_date = date.fromisoformat(selected)
+        else:
+            st.sidebar.caption("No scans recorded yet.")
+        st.sidebar.caption("Cross-scanner 360° rollup for the selected date.")
+        return strategy_id, "__all__", scan_date, BreakoutFilters()
 
     if strategy_id == "digest":
         digest_kind = st.sidebar.selectbox(

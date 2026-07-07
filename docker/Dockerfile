@@ -19,6 +19,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY tests ./tests
+COPY .streamlit ./.streamlit
 COPY data/universes.json data/universes.json
 COPY data/universes/ data/universes/
 

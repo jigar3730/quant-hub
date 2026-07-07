@@ -13,6 +13,7 @@ from quant_hub.dashboard.viz.components import (
     tier_badge_html,
 )
 from quant_hub.dashboard.viz.data import LAUNCHPAD_SCORE_LABELS, scores_to_dataframe
+from quant_hub.dashboard.viz.design_tokens import COLORS
 from quant_hub.dashboard.viz.navigation import set_detail_ticker, ticker_link_html
 from quant_hub.dashboard.viz.signals import (
     component_action,
@@ -84,7 +85,7 @@ def _mini_score_chart(ticker_data: dict, ticker: str) -> go.Figure | None:
             x=top["score"],
             y=top["component"],
             orientation="h",
-            marker_color="#3b82f6",
+            marker_color=COLORS["primary"],
             text=[f"{s:.0f}/{m:.0f}" for s, m in zip(top["score"], top["max"], strict=True)],
             textposition="outside",
             customdata=custom,

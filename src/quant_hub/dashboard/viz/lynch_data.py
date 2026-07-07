@@ -8,16 +8,14 @@ from pathlib import Path
 import pandas as pd
 
 from quant_hub.config import HISTORY_DIR, PRIMARY_INDEX_UNIVERSE, scan_output_paths
+from quant_hub.dashboard.viz.design_tokens import LYNCH_CATEGORY_COLORS
 from quant_hub.dashboard.viz.display import format_display_value
 
 DEFAULT_LYNCH_JSON = scan_output_paths("lynch", PRIMARY_INDEX_UNIVERSE)["json"]
 
-CATEGORY_COLORS = {
-    "fast_grower": "#22c55e",
-    "stalwart": "#3b82f6",
-    "asset_play": "#a855f7",
-    "base": "#94a3b8",
-}
+# CATEGORY_COLORS is imported above from design_tokens and re-exported here so existing
+# `from quant_hub.dashboard.viz.lynch_data import CATEGORY_COLORS` call sites keep working.
+CATEGORY_COLORS = LYNCH_CATEGORY_COLORS
 
 
 def load_lynch_report(path: Path | str = DEFAULT_LYNCH_JSON) -> dict:

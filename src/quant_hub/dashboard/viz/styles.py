@@ -1,4 +1,12 @@
-"""Dashboard styling and chart defaults."""
+"""Dashboard styling and chart defaults.
+
+All colors, spacing, and type sizing here are read from
+`design_tokens.py` — the single source of truth for the visual language.
+Do not reintroduce raw hex or ad hoc rem values in this file; add a token
+instead so the whole dashboard stays consistent (and dark-mode-ready).
+"""
+
+from quant_hub.dashboard.viz.design_tokens import COLORS, CSS_VARS, TIER_BADGE_CSS
 
 PLOTLY_CONFIG = {
     "displayModeBar": False,
@@ -7,89 +15,116 @@ PLOTLY_CONFIG = {
 
 PLOTLY_LAYOUT = {
     "template": "plotly_white",
-    "font": {"family": "system-ui, sans-serif", "size": 12, "color": "#334155"},
+    "font": {"family": "system-ui, sans-serif", "size": 12, "color": COLORS["text_secondary"]},
     "paper_bgcolor": "rgba(0,0,0,0)",
     "plot_bgcolor": "rgba(0,0,0,0)",
     "margin": {"l": 24, "r": 24, "t": 48, "b": 24},
-    "title": {"font": {"size": 14, "color": "#0f172a"}},
+    "title": {"font": {"size": 14, "color": COLORS["text_primary"]}},
 }
 
-TIER_BADGE_CSS = {
-    "Tier 1": "background:#dcfce7;color:#166534;",
-    "Tier 2": "background:#fef9c3;color:#854d0e;",
-    "Tier 3": "background:#f1f5f9;color:#475569;",
-    "filtered": "background:#fee2e2;color:#991b1b;",
-}
+# TIER_BADGE_CSS is imported above and re-exported here for callers that still
+# do `from quant_hub.dashboard.viz.styles import TIER_BADGE_CSS` (e.g. components.py).
 
-CUSTOM_CSS = """
+CUSTOM_CSS = f"""
 <style>
-    .block-container { padding-top: 1.5rem; max-width: 1400px; }
-    .scan-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
-        color: #f8fafc;
-        padding: 1.25rem 1.5rem;
+{CSS_VARS}
+
+    .block-container {{ padding-top: var(--space-lg); max-width: 1400px; }}
+
+    .scan-header {{
+        background: linear-gradient(135deg, var(--color-banner-start) 0%, var(--color-banner-end) 100%);
+        color: var(--color-text-on-dark);
+        padding: var(--space-lg) var(--space-xl);
         border-radius: 12px;
-        margin-bottom: 1rem;
-    }
-    .scan-header h1 { color: #f8fafc !important; margin: 0; font-size: 1.6rem; }
-    .scan-header p { color: #cbd5e1; margin: 0.25rem 0 0 0; font-size: 0.95rem; }
-    .info-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        margin-bottom: var(--space-lg);
+    }}
+    .scan-header h1 {{
+        color: var(--color-text-on-dark) !important;
+        margin: 0;
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-2xl);
+        line-height: var(--line-height-2xl);
+    }}
+    .scan-header p {{
+        color: var(--color-text-on-dark-muted);
+        margin: var(--space-xs) 0 0 0;
+        font-size: var(--font-size-base);
+        line-height: var(--line-height-base);
+    }}
+
+    .info-card {{
+        background: var(--color-bg-canvas);
+        border: 1px solid var(--color-border);
         border-radius: 10px;
-        padding: 1rem 1.1rem;
-        margin-bottom: 0.75rem;
-    }
-    .info-card h4 { margin: 0 0 0.5rem 0; color: #0f172a; font-size: 0.95rem; }
-    .takeaway-card {
+        padding: var(--space-lg);
+        margin-bottom: var(--space-md);
+    }}
+    .info-card h4 {{
+        margin: 0 0 var(--space-sm) 0;
+        color: var(--color-text-primary);
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-lg);
+        line-height: var(--line-height-lg);
+    }}
+
+    .takeaway-card {{
         border-radius: 10px;
-        padding: 0.85rem 1rem;
-        margin-bottom: 0.75rem;
-    }
-    .scan-as-of {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
+        padding: var(--space-md) var(--space-lg);
+        margin-bottom: var(--space-md);
+    }}
+
+    .scan-as-of {{
+        background: var(--color-primary-soft);
+        border: 1px solid var(--color-primary-border);
         border-radius: 8px;
-        padding: 0.5rem 0.75rem;
-        margin-bottom: 0.75rem;
-        font-size: 0.9rem;
-        color: #1e3a5f;
-    }
-    .live-data-label {
-        color: #64748b;
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-    }
-    .tier-badge {
+        padding: var(--space-sm) var(--space-md);
+        margin-bottom: var(--space-md);
+        font-size: var(--font-size-base);
+        line-height: var(--line-height-base);
+        color: var(--color-text-primary);
+    }}
+
+    .live-data-label {{
+        color: var(--color-text-muted);
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-sm);
+        margin-top: var(--space-sm);
+    }}
+
+    .tier-badge {{
         display: inline-block;
-        padding: 0.15rem 0.55rem;
+        padding: var(--space-xs) var(--space-md);
         border-radius: 999px;
-        font-size: 0.8rem;
+        font-size: var(--font-size-sm);
         font-weight: 600;
-    }
-    .pass-badge { color: #166534; font-weight: 600; }
-    .fail-badge { color: #991b1b; font-weight: 600; }
-    .component-card {
-        background: white;
-        border: 1px solid #e2e8f0;
+    }}
+
+    .pass-badge {{ color: var(--color-success-text); font-weight: 600; }}
+    .fail-badge {{ color: var(--color-danger-text); font-weight: 600; }}
+
+    .component-card {{
+        background: var(--color-bg-surface);
+        border: 1px solid var(--color-border);
         border-radius: 8px;
-        padding: 0.75rem 1rem;
-        margin-bottom: 0.5rem;
-    }
-    div[data-testid="stMetric"] {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        padding: var(--space-md) var(--space-lg);
+        margin-bottom: var(--space-sm);
+    }}
+
+    div[data-testid="stMetric"] {{
+        background: var(--color-bg-canvas);
+        border: 1px solid var(--color-border);
         border-radius: 10px;
-        padding: 0.65rem 0.85rem;
-    }
-    a.ticker-link {
-        color: #2563eb;
+        padding: var(--space-md) var(--space-lg);
+    }}
+
+    a.ticker-link {{
+        color: var(--color-primary);
         font-weight: 600;
         text-decoration: none;
-    }
-    a.ticker-link:hover {
+    }}
+    a.ticker-link:hover {{
         text-decoration: underline;
-        color: #1d4ed8;
-    }
+        color: var(--color-primary-hover);
+    }}
 </style>
 """

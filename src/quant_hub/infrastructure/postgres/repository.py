@@ -635,6 +635,89 @@ class ScanRepository:
                 )
                 return [self._row_to_run_dict(row) for row in cur.fetchall()]
 
+    def list_runs_on_date(
+        self,
+        scan_date: date,
+        *,
+        exclude_fixtures: bool = True,
+    ) -> list[dict[str, Any]]:
+        """All scan runs for a single scan_date across every strategy and universe."""
+        clauses = ["scan_date = %s"]
+        params: list[Any] = [scan_date]
+        if exclude_fixtures:
+            fixture_clause, fixture_params = _fixture_sql_clause(True)
+            clauses.append(fixture_clause)
+            params.extend(fixture_params)
+        where = " AND ".join(clauses)
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, scan_date, scan_time, strategy_id, universe_id,
+                           universe_size, tier1_count, tier2_count, tier3_count,
+                           filtered_count, actionable_count,
+                           regime_label, regime_multiplier, metadata
+                    FROM scan_runs
+                    WHERE {where}
+                    ORDER BY strategy_id, universe_id
+                    """,
+                    params,
+                )
+                return [self._row_to_run_dict(row) for row in cur.fetchall()]
+
+    def list_scan_dates(
+        self,
+        *,
+        limit: int = 60,
+        exclude_fixtures: bool = True,
+    ) -> list[date]:
+        """Distinct scan dates (most recent first) across all strategies."""
+        clauses: list[str] = []
+        params: list[Any] = []
+        if exclude_fixtures:
+            fixture_clause, fixture_params = _fixture_sql_clause(True)
+            clauses.append(fixture_clause)
+            params.extend(fixture_params)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(limit)
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT scan_date
+                    FROM scan_runs
+                    {where}
+                    ORDER BY scan_date DESC
+                    LIMIT %s
+                    """,
+                    params,
+                )
+                return [row[0] for row in cur.fetchall()]
+
+    def list_actionable_tickers_for_run(
+        self,
+        run_id: int,
+        strategy_id: str,
+    ) -> list[dict[str, Any]]:
+        """Lightweight actionable ticker rows for one run (no full JSON detail load)."""
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT tr.ticker, tr.tier, tr.eligible, tr.sector_etf, tr.final_score
+                    FROM ticker_results tr
+                    JOIN scan_runs sr ON sr.id = tr.run_id
+                    WHERE tr.run_id = %s AND {actionable_sql_clause()}
+                    ORDER BY tr.final_score DESC NULLS LAST, tr.ticker
+                    """,
+                    (run_id,),
+                )
+                keys = ("ticker", "tier", "eligible", "sector_etf", "final_score")
+                rows = [dict(zip(keys, row, strict=True)) for row in cur.fetchall()]
+        for row in rows:
+            row["strategy_id"] = strategy_id
+        return rows
+
     def list_ticker_details_for_run(self, run_id: int) -> list[dict[str, Any]]:
         with get_connection() as conn:
             with conn.cursor() as cur:
