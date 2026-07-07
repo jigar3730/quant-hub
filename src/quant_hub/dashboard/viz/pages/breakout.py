@@ -41,7 +41,6 @@ from quant_hub.dashboard.viz.table_helpers import (
 )
 from quant_hub.dashboard.viz.universe_panel import (
     apply_universe_controls,
-    render_universe_detail_panel,
     render_universe_summary,
     universe_display_columns,
     universe_table_column_config,
@@ -127,10 +126,7 @@ def render_all_tickers_tab(
     detail_ticker: str | None,
 ) -> str | None:
     st.markdown("### Full Universe")
-    st.caption(
-        "Sort and filter the scan results, click a row for an instant profile preview, "
-        "or open the full ticker detail view."
-    )
+    st.caption("Sort the scan results and download a filtered CSV.")
 
     full_df = apply_breakout_filters(full_universe_dataframe(tickers), filters)
     if full_df.empty:
@@ -139,51 +135,26 @@ def render_all_tickers_tab(
 
     render_universe_summary(full_df)
     table_df = apply_universe_controls(full_df)
-    if table_df.empty:
-        st.warning("No tickers match the selected view.")
-        return detail_ticker
 
     display_cols = universe_display_columns(table_df)
     shown_df = with_yahoo_ticker_links(table_df[display_cols].copy())
 
-    table_col, detail_col = st.columns([1.55, 1], gap="large")
-    with table_col:
-        selection = st.dataframe(
-            shown_df,
-            use_container_width=True,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            key="all_tickers_select",
-            column_config=universe_table_column_config(),
-            column_order=table_column_order(display_cols),
-        )
-        st.download_button(
-            "Download filtered CSV",
-            table_df.to_csv(index=False).encode(),
-            file_name="breakout_scan_full.csv",
-            mime="text/csv",
-        )
+    st.dataframe(
+        shown_df,
+        use_container_width=True,
+        hide_index=True,
+        key="all_tickers_select",
+        column_config=universe_table_column_config(),
+        column_order=table_column_order(display_cols),
+    )
+    st.download_button(
+        "Download filtered CSV",
+        table_df.to_csv(index=False).encode(),
+        file_name="breakout_scan_full.csv",
+        mime="text/csv",
+    )
 
-    active_ticker = detail_ticker
-    if selection.selection.rows:
-        active_ticker = shown_df.iloc[selection.selection.rows[0]]["ticker"]
-        set_detail_ticker(active_ticker)
-    elif not active_ticker and not shown_df.empty:
-        active_ticker = shown_df.iloc[0]["ticker"]
-
-    with detail_col:
-        st.markdown("##### Selected ticker")
-        if active_ticker:
-            ticker_data = get_ticker_by_name(tickers, active_ticker)
-            if ticker_data:
-                render_universe_detail_panel(active_ticker, ticker_data)
-            else:
-                st.info("Select a row to preview ticker details.")
-        else:
-            st.info("Select a row to preview ticker details.")
-
-    return active_ticker
+    return detail_ticker
 
 
 def render_ticker_detail_tab(

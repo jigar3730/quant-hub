@@ -292,10 +292,7 @@ def render_swing_universe_tab(
     detail_ticker: str | None,
 ) -> str | None:
     st.markdown("### Full Universe")
-    st.caption(
-        "Every ticker includes weekly indicators and setup rule results — "
-        "click a row for the full calculation breakdown."
-    )
+    st.caption("Every ticker includes weekly indicators and setup rule results.")
     df = swing_universe_dataframe(tickers)
     if filters.search:
         df = df[df["ticker"].str.contains(filters.search, na=False)]
@@ -303,46 +300,24 @@ def render_swing_universe_tab(
         st.warning("No tickers in this scan.")
         return detail_ticker
 
-    table_col, detail_col = st.columns([1.55, 1], gap="large")
     display_df = with_yahoo_ticker_links(df)
     display_cols = _swing_display_columns(display_df)
-    with table_col:
-        selection = st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            key="swing_universe_select",
-            column_config=_swing_table_columns(),
-            column_order=table_column_order(display_cols),
-        )
-        st.download_button(
-            "Download universe CSV",
-            df.to_csv(index=False).encode(),
-            file_name="swing_universe.csv",
-            mime="text/csv",
-        )
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+        key="swing_universe_select",
+        column_config=_swing_table_columns(),
+        column_order=table_column_order(display_cols),
+    )
+    st.download_button(
+        "Download universe CSV",
+        df.to_csv(index=False).encode(),
+        file_name="swing_universe.csv",
+        mime="text/csv",
+    )
 
-    active = detail_ticker
-    if selection.selection.rows:
-        active = df.iloc[selection.selection.rows[0]]["ticker"]
-        set_detail_ticker(active)
-    elif not active and not df.empty:
-        active = df.iloc[0]["ticker"]
-
-    with detail_col:
-        st.markdown("##### Selected ticker")
-        if active:
-            data = get_swing_ticker_by_name(tickers, active)
-            if data:
-                render_swing_ticker_detail(active, data)
-            else:
-                st.info("Select a row to view setup calculations.")
-        else:
-            st.info("Select a row to view setup calculations.")
-
-    return active
+    return detail_ticker
 
 
 def render_swing_detail_tab(

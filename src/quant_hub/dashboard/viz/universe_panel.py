@@ -46,24 +46,12 @@ def render_universe_summary(full_df: pd.DataFrame) -> None:
 
 def apply_universe_controls(full_df: pd.DataFrame) -> pd.DataFrame:
     st.markdown("##### Explore the universe")
-    c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
+    c1, c2 = st.columns([2, 1])
     sort_label = c1.selectbox("Sort by", list(SORT_OPTIONS.keys()), key="universe_sort")
     sort_col = SORT_OPTIONS[sort_label]
     ascending = c2.toggle("Ascending", value=False, key="universe_sort_asc")
 
-    sectors = sorted(full_df["sector_etf"].dropna().unique().tolist())
-    sector_pick = c3.multiselect("Sector ETF", sectors, key="universe_sector_filter")
-
-    view_mode = c4.selectbox("View", ["All", "Eligible", "Actionable"], key="universe_view")
-
     result = full_df.copy()
-    if sector_pick:
-        result = result[result["sector_etf"].isin(sector_pick)]
-    if view_mode == "Eligible":
-        result = result[result["eligible"]]
-    elif view_mode == "Actionable":
-        result = result[result["tier"].isin(["Tier 1", "Tier 2"])]
-
     if sort_col in result.columns:
         result = result.sort_values(sort_col, ascending=ascending, na_position="last")
     return result
