@@ -18,6 +18,7 @@ def list_universe_ids(
     strategy:
       - None / \"breakout\" / \"swing\" — all configured universes
       - \"lynch\" — universes with lynch_enabled (default true; false skips ETF list)
+      - \"launchpad\" — stock-mode universes only (rubric is single-stock; ETF-mode skipped)
     """
     reg = registry or UniverseRegistry()
     if explicit:
@@ -31,6 +32,8 @@ def list_universe_ids(
 
     if strategy == "lynch":
         ids = [uid for uid in ids if reg.is_lynch_enabled(uid)]
+    elif strategy == "launchpad":
+        ids = [uid for uid in ids if reg.get_eligibility_mode(uid) != "etf"]
     return ids
 
 

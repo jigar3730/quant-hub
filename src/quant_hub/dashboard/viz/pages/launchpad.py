@@ -1,44 +1,48 @@
-"""Breakout dashboard tab renderers."""
+"""Launchpad Reversal dashboard tab renderers."""
 
 from __future__ import annotations
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
-from quant_hub.dashboard.viz.breakout_filters import (
-    BreakoutFilters,
-    apply_breakout_filters,
-    scatter_dataframe,
-)
 from quant_hub.dashboard.viz.components import (
+    apply_chart_style,
     get_ticker_by_name,
     render_compare_radar,
     render_exclusion_chart,
     render_heatmap,
     render_regime_panel,
     render_scan_header,
-    render_scatter,
     render_score_histogram,
     render_ticker_detail,
     render_tier_chart,
     tier_badge_html,
 )
-from quant_hub.dashboard.viz.data import full_universe_dataframe, score_heatmap_dataframe
+from quant_hub.dashboard.viz.data import (
+    LAUNCHPAD_SCORE_LABELS,
+    full_universe_dataframe,
+    score_heatmap_dataframe,
+    TIER_COLORS,
+)
 from quant_hub.dashboard.viz.labels import tier_friendly
+from quant_hub.dashboard.viz.launchpad_filters import (
+    LaunchpadFilters,
+    apply_launchpad_filters,
+    launchpad_scatter_dataframe,
+)
 from quant_hub.dashboard.viz.navigation import (
     dashboard_ticker_link_html,
     set_detail_ticker,
     ticker_link_html,
 )
-from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
-from quant_hub.infrastructure.postgres.repository import ScanRepository
-from quant_hub.dashboard.viz.signals import render_signal_insights_panel, signal_insights
 from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
 from quant_hub.dashboard.viz.table_helpers import (
     merge_column_config,
     table_column_order,
     with_yahoo_ticker_links,
 )
+from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.dashboard.viz.universe_panel import (
     apply_universe_controls,
     render_universe_detail_panel,
@@ -46,8 +50,29 @@ from quant_hub.dashboard.viz.universe_panel import (
     universe_display_columns,
     universe_table_column_config,
 )
-from quant_hub.dashboard.viz.ux_helpers import render_breakout_takeaway, render_near_miss_panel
+from quant_hub.dashboard.viz.ux_helpers import render_near_miss_panel
 from quant_hub.infrastructure.postgres.repository import ScanRepository
+
+
+def _render_launchpad_scatter(scatter_df: pd.DataFrame):
+    fig = px.scatter(
+        scatter_df,
+        x="macd_zero_line",
+        y="ma_tightness",
+        text="ticker",
+        size="final_score",
+        color="tier",
+        color_discrete_map=TIER_COLORS,
+        hover_data=["final_score", "tier"],
+        labels={
+            "macd_zero_line": "MACD Zero-Line Score",
+            "ma_tightness": "MA Tightness Score",
+            "final_score": "Final Score",
+        },
+    )
+    fig.update_traces(textposition="top center", marker=dict(line=dict(width=1, color="white")))
+    fig.update_layout(title="MACD Ignition vs MA Tightness")
+    return apply_chart_style(fig, height=400)
 
 
 def render_overview_tab(
@@ -57,20 +82,8 @@ def render_overview_tab(
     regime: dict,
     df: pd.DataFrame,
     tickers: list[dict],
-    filters: BreakoutFilters,
-    repo: ScanRepository,
-    universe_id: str,
-    scan_date,
+    filters: LaunchpadFilters,
 ) -> None:
-    render_breakout_takeaway(
-        summary=summary,
-        regime=regime,
-        df=df,
-        repo=repo,
-        universe_id=universe_id,
-        scan_date=scan_date,
-        key_prefix="overview",
-    )
     render_regime_panel(regime)
 
     col_left, col_right = st.columns(2)
@@ -87,7 +100,7 @@ def render_overview_tab(
         else:
             st.success("All tickers in universe were evaluated for scoring.")
 
-    filtered_df = apply_breakout_filters(df, filters)
+    filtered_df = apply_launchpad_filters(df, filters)
     eligible_df = filtered_df[filtered_df["eligible"]]
     if eligible_df.empty:
         return
@@ -104,18 +117,17 @@ def render_overview_tab(
         heat_df = score_heatmap_dataframe(
             [t for t in tickers if t["ticker"] in eligible_tickers],
             eligible_only=False,
+            strategy_id="launchpad",
         )
         if len(heat_df) > 1:
             st.plotly_chart(render_heatmap(heat_df), use_container_width=True, config=PLOTLY_CONFIG)
 
-    scatter_df = scatter_dataframe(
+    scatter_df = launchpad_scatter_dataframe(
         [t for t in tickers if t["ticker"] in set(eligible_df["ticker"])]
     )
     if scatter_df.empty:
         return
-
-    st.caption("Chart labels show tickers — use the Yahoo Finance links below for live quotes.")
-    st.plotly_chart(render_scatter(scatter_df), use_container_width=True, config=PLOTLY_CONFIG)
+    st.plotly_chart(_render_launchpad_scatter(scatter_df), use_container_width=True, config=PLOTLY_CONFIG)
     links = " · ".join(ticker_link_html(symbol) for symbol in scatter_df["ticker"].head(20))
     st.markdown(links, unsafe_allow_html=True)
 
@@ -123,16 +135,11 @@ def render_overview_tab(
 def render_all_tickers_tab(
     *,
     tickers: list[dict],
-    filters: BreakoutFilters,
+    filters: LaunchpadFilters,
     detail_ticker: str | None,
 ) -> str | None:
     st.markdown("### Full Universe")
-    st.caption(
-        "Sort and filter the scan results, click a row for an instant profile preview, "
-        "or open the full ticker detail view."
-    )
-
-    full_df = apply_breakout_filters(full_universe_dataframe(tickers), filters)
+    full_df = apply_launchpad_filters(full_universe_dataframe(tickers, strategy_id="launchpad"), filters)
     if full_df.empty:
         st.warning("No tickers match the current filters.")
         return detail_ticker
@@ -143,7 +150,7 @@ def render_all_tickers_tab(
         st.warning("No tickers match the selected view.")
         return detail_ticker
 
-    display_cols = universe_display_columns(table_df)
+    display_cols = universe_display_columns(table_df, strategy_id="launchpad")
     shown_df = with_yahoo_ticker_links(table_df[display_cols].copy())
 
     table_col, detail_col = st.columns([1.55, 1], gap="large")
@@ -154,14 +161,14 @@ def render_all_tickers_tab(
             hide_index=True,
             on_select="rerun",
             selection_mode="single-row",
-            key="all_tickers_select",
-            column_config=universe_table_column_config(),
+            key="launchpad_all_tickers_select",
+            column_config=universe_table_column_config(strategy_id="launchpad"),
             column_order=table_column_order(display_cols),
         )
         st.download_button(
             "Download filtered CSV",
             table_df.to_csv(index=False).encode(),
-            file_name="breakout_scan_full.csv",
+            file_name="launchpad_scan_full.csv",
             mime="text/csv",
         )
 
@@ -173,7 +180,6 @@ def render_all_tickers_tab(
         active_ticker = shown_df.iloc[0]["ticker"]
 
     with detail_col:
-        st.markdown("##### Selected ticker")
         if active_ticker:
             ticker_data = get_ticker_by_name(tickers, active_ticker)
             if ticker_data:
@@ -195,8 +201,6 @@ def render_ticker_detail_tab(
     repo: ScanRepository | None = None,
 ) -> None:
     st.markdown("### Ticker Profile")
-    st.caption("Fundamentals, technical scores, eligibility checks, and news.")
-
     active = detail_ticker
     if all_symbols:
         pick_index = all_symbols.index(detail_ticker) if detail_ticker in all_symbols else 0
@@ -204,66 +208,47 @@ def render_ticker_detail_tab(
             "Select ticker",
             all_symbols,
             index=pick_index,
-            key="detail_tab_pick",
+            key="launchpad_detail_tab_pick",
         )
         if active != detail_ticker:
             set_detail_ticker(active)
     elif detail_ticker:
         active = detail_ticker
-        st.markdown(f"**{detail_ticker}** — not in this scan's universe.")
     else:
         st.info("Select a ticker from the sidebar lookup or universe table.")
         return
 
     ticker_data = get_ticker_by_name(tickers, active) if active else None
     if ticker_data:
-        render_ticker_detail(active, ticker_data, scan_date=scan_date, repo=repo)
+        render_ticker_detail(
+            active,
+            ticker_data,
+            scan_date=scan_date,
+            repo=repo,
+            strategy_id="launchpad",
+        )
     elif active and repo is not None:
-        render_ticker_history_panel(repo, active, key_prefix="breakout_orphan")
+        render_ticker_history_panel(repo, active, key_prefix="launchpad_orphan")
     elif active:
         st.warning(f"No data for {active} in this scan.")
 
 
-def render_watchlist_tab(
-    *,
-    df: pd.DataFrame,
-    tickers: list[dict],
-    filters: BreakoutFilters,
-    repo: ScanRepository | None = None,
-    universe_id: str = "",
-    scan_date=None,
-    summary: dict | None = None,
-    regime: dict | None = None,
-) -> None:
-    st.markdown("### High conviction & watchlist — actionable candidates")
-    actionable = apply_breakout_filters(df, filters)
+def render_watchlist_tab(*, df: pd.DataFrame, tickers: list[dict], filters: LaunchpadFilters) -> None:
+    st.markdown("### Actionable Launchpad candidates")
+    actionable = apply_launchpad_filters(df, filters)
     actionable = actionable[actionable["tier"].isin(["Tier 1", "Tier 2"])].sort_values(
         "final_score",
         ascending=False,
     )
     if actionable.empty:
-        st.warning(
-            "No high-conviction or watchlist names in this scan. "
-            "See near-miss names below or use the Overview tab for cross-strategy links."
-        )
-        if summary and regime and repo:
-            render_breakout_takeaway(
-                summary=summary,
-                regime=regime,
-                df=df,
-                repo=repo,
-                universe_id=universe_id,
-                scan_date=scan_date,
-                key_prefix="watchlist",
-            )
-        else:
-            render_near_miss_panel(df)
+        st.warning("No Tier 1 or Tier 2 names in this scan.")
+        render_near_miss_panel(df)
         return
 
     st.download_button(
         "Download watchlist CSV",
         actionable.to_csv(index=False).encode(),
-        file_name="breakout_watchlist.csv",
+        file_name="launchpad_watchlist.csv",
         mime="text/csv",
     )
 
@@ -281,36 +266,14 @@ def render_watchlist_tab(
                 f"Yahoo Finance: {ticker_link_html(symbol)} {tier_badge_html(row['tier'])}",
                 unsafe_allow_html=True,
             )
-            st.caption(
-                f"{ticker_data.get('tier_reason', '')} "
-                "Open the **Ticker Detail** tab for full scan profile, scores, and news."
-            )
-            cols = st.columns(4)
-            cols[0].metric("Final Score", f"{row['final_score']:.1f}")
-            cols[1].metric("Universe Rank", f"{row['normalized_score']:.1f}")
-            cols[2].metric("Sector ETF", row.get("sector_etf") or "—")
-            scores = ticker_data.get("scores") or {}
-            if scores:
-                insights = signal_insights(ticker_data)
-                cols[3].metric(
-                    "Top signals",
-                    insights["top_short"].split(" · ")[0],
-                    help=insights["top_tooltip"],
-                )
-                with st.expander(f"{symbol} — signal readout", expanded=False):
-                    render_signal_insights_panel(ticker_data)
+            st.caption(ticker_data.get("tier_reason", ""))
 
 
-def render_compare_tab(*, df: pd.DataFrame, tickers: list[dict], filters: BreakoutFilters) -> None:
+def render_compare_tab(*, df: pd.DataFrame, tickers: list[dict], filters: LaunchpadFilters) -> None:
     st.markdown("### Compare Tickers")
-    filtered = apply_breakout_filters(df, filters)
+    filtered = apply_launchpad_filters(df, filters)
     eligible_names = (
         filtered[filtered["eligible"]]
-        .sort_values("final_score", ascending=False)["ticker"]
-        .tolist()
-    )
-    actionable_names = (
-        filtered[filtered["tier"].isin(["Tier 1", "Tier 2"])]
         .sort_values("final_score", ascending=False)["ticker"]
         .tolist()
     )
@@ -318,25 +281,15 @@ def render_compare_tab(*, df: pd.DataFrame, tickers: list[dict], filters: Breako
         st.warning("Need at least 2 eligible tickers to compare.")
         return
 
-    if len(actionable_names) >= 2:
-        default_pick = actionable_names[: min(3, len(actionable_names))]
-        st.caption("Default selection: high-conviction / watchlist names only.")
-    else:
-        default_pick = []
-        st.caption("No actionable pair — select eligible tickers manually.")
-
     picked = st.multiselect(
         "Select 2–3 tickers",
         eligible_names,
-        default=default_pick,
+        default=eligible_names[: min(3, len(eligible_names))],
         max_selections=3,
     )
     if len(picked) < 2:
         st.info("Select at least 2 tickers to compare.")
         return
-
-    compare_links = " · ".join(ticker_link_html(symbol) for symbol in picked)
-    st.markdown(f"Profiles: {compare_links}", unsafe_allow_html=True)
 
     compare_data = [get_ticker_by_name(tickers, name) for name in picked]
     compare_data = [item for item in compare_data if item]
@@ -354,15 +307,7 @@ def render_compare_tab(*, df: pd.DataFrame, tickers: list[dict], filters: Breako
             "sector_etf": ticker_data.get("sector_etf"),
         }
         scores = ticker_data.get("scores") or {}
-        for key, label in [
-            ("rs_market", "RS Mkt"),
-            ("rs_sector", "RS Sec"),
-            ("compression", "Compress"),
-            ("accumulation", "Accum"),
-            ("relative_volume", "RVOL"),
-            ("pattern", "Pattern"),
-            ("resistance", "Resist"),
-        ]:
+        for key, label in LAUNCHPAD_SCORE_LABELS.items():
             row[label] = scores.get(key, {}).get("score", 0)
         compare_rows.append(row)
 
@@ -377,13 +322,9 @@ def render_compare_tab(*, df: pd.DataFrame, tickers: list[dict], filters: Breako
         }),
         column_order=table_column_order(base_cols),
     )
-    st.markdown(
-        " · ".join(ticker_link_html(symbol) for symbol in compare_df["ticker"]),
-        unsafe_allow_html=True,
-    )
 
 
-def render_breakout_header(
+def render_launchpad_header(
     *,
     report_path: str,
     summary: dict,
@@ -391,7 +332,13 @@ def render_breakout_header(
     detail_ticker: str | None,
     scan_date: str | None = None,
 ) -> None:
-    render_scan_header(report_path, summary, regime, scan_date=scan_date)
+    render_scan_header(
+        report_path,
+        summary,
+        regime,
+        scan_date=scan_date,
+        title="Launchpad Reversal",
+    )
     if not detail_ticker:
         return
     link = dashboard_ticker_link_html(detail_ticker)

@@ -7,6 +7,11 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+from quant_hub.config import (
+    BREAKOUT_TIER1_FINAL_MIN,
+    BREAKOUT_TIER1_NORMALIZED_MIN,
+    BREAKOUT_TIER2_NORMALIZED_MIN,
+)
 from quant_hub.dashboard.viz.labels import format_report_label, tier_friendly
 from quant_hub.dashboard.viz.navigation import navigate_to
 from quant_hub.dashboard.viz.table_helpers import (
@@ -64,19 +69,20 @@ def near_miss_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if eligible.empty:
         return eligible
 
-    normalized_floor = 65.0 - NEAR_MISS_NORMALIZED_GAP
+    normalized_floor = BREAKOUT_TIER2_NORMALIZED_MIN - NEAR_MISS_NORMALIZED_GAP
     tier3_near = eligible[
         (eligible["tier"] == "Tier 3") & (eligible["normalized_score"] >= normalized_floor)
     ]
     tier2_almost_t1 = eligible[
-        (eligible["tier"] == "Tier 2") & (eligible["normalized_score"] >= 80)
+        (eligible["tier"] == "Tier 2")
+        & (eligible["normalized_score"] >= BREAKOUT_TIER1_NORMALIZED_MIN)
     ]
-    final_floor = 70.0 - NEAR_MISS_FINAL_GAP
+    final_floor = BREAKOUT_TIER1_FINAL_MIN - NEAR_MISS_FINAL_GAP
     tier2_final_gap = eligible[
         (eligible["tier"] == "Tier 2")
-        & (eligible["normalized_score"] >= 65)
+        & (eligible["normalized_score"] >= BREAKOUT_TIER2_NORMALIZED_MIN)
         & (eligible["final_score"] >= final_floor)
-        & (eligible["final_score"] < 70)
+        & (eligible["final_score"] < BREAKOUT_TIER1_FINAL_MIN)
     ]
 
     combined = pd.concat([tier3_near, tier2_almost_t1, tier2_final_gap], ignore_index=True)
@@ -96,8 +102,8 @@ def render_near_miss_panel(df: pd.DataFrame, *, max_rows: int = 12) -> None:
 
     st.markdown("#### Near watchlist threshold")
     st.caption(
-        "Eligible names within ~5 points of the watchlist cutoff (normalized 65) "
-        "or high normalized score missing Tier 1 criteria."
+        f"Eligible names within ~5 points of the watchlist cutoff (normalized "
+        f"{BREAKOUT_TIER2_NORMALIZED_MIN:.0f}) or high normalized score missing Tier 1 criteria."
     )
     display = near.head(max_rows)[
         ["ticker", "tier", "final_score", "normalized_score", "tier_reason"]

@@ -6,14 +6,21 @@ from dataclasses import dataclass
 
 import streamlit as st
 
+from quant_hub.config import (
+    BREAKOUT_TIER1_FINAL_MIN,
+    BREAKOUT_TIER1_NORMALIZED_MIN,
+    BREAKOUT_TIER2_NORMALIZED_MIN,
+)
 from quant_hub.dashboard.viz.data import SCORE_LABELS
 from quant_hub.dashboard.viz.score_guide import COMPONENT_SUMMARY, _all_metrics
 
 METRIC_BY_KEY = {m.key: m for m in _all_metrics()}
 
 # Minimum normalized score for watchlist (Tier 2) in breakout strategy.
-WATCHLIST_NORM = 65.0
-HIGH_CONVICTION_NORM = 80.0
+WATCHLIST_NORM = BREAKOUT_TIER2_NORMALIZED_MIN
+HIGH_CONVICTION_NORM = BREAKOUT_TIER1_NORMALIZED_MIN
+TIER1_FINAL_MIN = BREAKOUT_TIER1_FINAL_MIN
+TIER1_COMPRESSION_MIN = 8.0
 
 
 @dataclass(frozen=True)
@@ -254,13 +261,15 @@ def holding_back_summary(ticker_data: dict) -> str:
     if norm < WATCHLIST_NORM:
         gap = WATCHLIST_NORM - norm
         lines.append(
-            f"Universe rank {norm:.1f} is {gap:.1f} pts below the watchlist cutoff (65). "
-            "Needs stronger overall score vs this universe."
+            f"Universe rank {norm:.1f} is {gap:.1f} pts below the watchlist cutoff "
+            f"({WATCHLIST_NORM:.0f}). Needs stronger overall score vs this universe."
         )
     elif norm < HIGH_CONVICTION_NORM and tier != "Tier 1":
         lines.append(
             f"Universe rank {norm:.1f} is in watchlist range but missing high-conviction "
-            "criteria (norm ≥80, final ≥70, compression ≥8, volume confirmation)."
+            f"criteria (norm ≥{HIGH_CONVICTION_NORM:.0f}, final ≥{TIER1_FINAL_MIN:.0f}, "
+            f"compression ≥{TIER1_COMPRESSION_MIN:.0f}, volume confirmation: "
+            f"accumulation ≥8 or relative volume ≥5 pts ≈1.5× avg volume)."
         )
 
     for sig in weakest_components(scores, n=2):

@@ -6,6 +6,7 @@ from datetime import date
 
 STRATEGY_DISPLAY = {
     "breakout": "Breakout",
+    "launchpad": "Launchpad Reversal",
     "swing": "Swing",
     "lynch": "Lynch",
     "mean_reversion": "Mean Reversion",

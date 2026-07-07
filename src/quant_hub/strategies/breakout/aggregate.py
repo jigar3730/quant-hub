@@ -15,8 +15,6 @@ BREAKOUT_SCORE_COLUMNS = [
     "compression_score",
     "pattern_score",
     "resistance_score",
-    "revenue_score",
-    "eps_score",
 ]
 
 
@@ -25,8 +23,7 @@ def aggregate_breakout_ticker(ticker: TickerResult, regime: MarketRegime) -> Tic
     penalty = sum(ticker.penalties.values())
     raw = max(0.0, raw + penalty)
     ticker.raw_score = raw
-    raw_max = sum(fr.max_score for fr in ticker.factors.values()) or float(RAW_SCORE_MAX)
-    ticker.normalized_score = (raw / raw_max) * 100 if raw_max else 0.0
+    ticker.normalized_score = (raw / float(RAW_SCORE_MAX)) * 100 if RAW_SCORE_MAX else 0.0
     ticker.regime_multiplier = regime.multiplier
     ticker.final_score = ticker.normalized_score * regime.multiplier
     return ticker

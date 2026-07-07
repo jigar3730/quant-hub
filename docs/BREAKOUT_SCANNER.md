@@ -16,7 +16,7 @@ Related docs: [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Swing S
 4. [Data pull](#4-data-pull)
 5. [Eligibility filters (hard gate)](#5-eligibility-filters-hard-gate)
 6. [Market regime](#6-market-regime)
-7. [Score components (9 factors)](#7-score-components-9-factors)
+7. [Score components (7 factors)](#7-score-components-7-factors)
 8. [Aggregate scoring](#8-aggregate-scoring)
 9. [Tier assignment](#9-tier-assignment)
 10. [How to read the dashboard](#10-how-to-read-the-dashboard)
@@ -29,11 +29,11 @@ Related docs: [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Swing S
 
 ```text
 Universe tickers
-    → download_prices() + download_fundamentals()   [yfinance + parquet cache]
+    → download_prices()   [yfinance + parquet cache]
     → ScanContext (SPY, sector ETFs, regime)
     → StrategyEngine.run()                          [engine/runner.py]
         → BreakoutEligibilityFilter                 per ticker
-        → 9 factor scores (universe + ticker pass)
+        → 7 factor scores (universe + ticker pass)
         → aggregate_breakout_ticker()               raw / normalized / final
         → assign_tier()                             Tier 1 / 2 / 3 / filtered
     → build_scan_report()                           rich per-ticker JSON
@@ -75,7 +75,7 @@ Re-running on the **same calendar day** for the same universe **replaces** that 
 | Layer | Field(s) | Meaning |
 |-------|----------|---------|
 | **1. Eligibility** | `eligible`, `eligibility.fail_reason` | **Hard gate.** Must pass all trend/liquidity/52-week checks before any factor scoring. Fail → `tier = filtered`, scores = 0. |
-| **2. Score** | `summary.raw_score`, `normalized_score`, `final_adjusted_score` | **Continuous 0–100 scale** (after normalization × regime). Sum of 9 factor components. |
+| **2. Score** | `summary.raw_score`, `normalized_score`, `final_adjusted_score` | **Continuous 0–100 scale** (after normalization × regime). Sum of 7 technical factor components. |
 | **3. Tier** | `tier` | **Conviction bucket** for eligible names only: Tier 1 / Tier 2 / Tier 3. |
 
 ### Actionable vs watchlist
@@ -84,8 +84,8 @@ Re-running on the **same calendar day** for the same universe **replaces** that 
 |-------|------------|
 | **Actionable** | Tier 1 + Tier 2 (`scan_summary.actionable_count`) |
 | **Tier 1** | Highest conviction — strict multi-factor bar (see [Tier assignment](#9-tier-assignment)) |
-| **Tier 2** | Watchlist — normalized score ≥ 65 |
-| **Tier 3** | Eligible but below watchlist threshold (normalized < 65) |
+| **Tier 2** | Watchlist — normalized score ≥ 60 |
+| **Tier 3** | Eligible but below watchlist threshold (normalized < 60) |
 | **filtered** | Failed eligibility or no price data |
 
 ### Examples
@@ -122,19 +122,7 @@ Downloads are **chunked** (50 tickers) with 1s pause between chunks.
 
 **Also downloaded:** `SPY` (benchmark/regime) and all **sector ETFs** (`ALL_SECTOR_ETFS`) for relative-strength vs sector.
 
-### Fundamentals
-
-**Module:** `src/quant_hub/data/fundamentals/` (via `download_fundamentals()`)
-
-| Field used in scoring | Meaning |
-|-----------------------|---------|
-| `revenue_yoy` | Blended quarterly revenue YoY (TTM preferred when enough quarters) |
-| `eps_combined` | Blended EPS growth metric for scoring tiers |
-| `revenue_yoy_status`, `eps_combined_status` | `OK`, `MISSING`, `CAPPED`, `NEGATIVE`, etc. |
-
-Growth values above **300%** are capped (`MAX_REASONABLE_GROWTH = 3.0`) with status `CAPPED` before scoring.
-
-Fundamentals cache TTL: **7 days** (`CACHE_TTL_FUNDAMENTALS_HOURS`).
+Breakout scans **do not** fetch quarterly fundamentals. Use the **Lynch** strategy for P/E, PEG, EPS growth, and balance-sheet screens (`download_fundamentals()` remains in the codebase for Lynch and other consumers).
 
 ### Sector mapping
 
@@ -154,10 +142,10 @@ All checks must pass. First failure stops evaluation (`fail_reason` set).
 | 2 | Minimum price | Close ≥ **$10** (`MIN_PRICE`) |
 | 3 | Price stability | Latest close within **3×** of 20-day median close (`PRICE_SPIKE_RATIO`) |
 | 4 | Liquidity | 20-day average volume ≥ **750,000** shares (`MIN_AVG_VOLUME`) |
-| 5 | Trend alignment | **Price > SMA50 > SMA150 > SMA200** |
-| 6 | SMA200 rising | SMA200 today > SMA200 **30 trading days** ago |
+| 5 | Trend alignment | **Price > SMA200** (SMA50/150 shown for context; short-term pullback OK) |
+| 6 | SMA200 rising | Informational only (not a hard gate) |
 | 7 | 52-week low distance | Price ≥ **30%** above 52-week low |
-| 8 | 52-week high distance | Price ≤ **25%** below 52-week high |
+| 8 | 52-week high distance | Price ≤ **40%** below 52-week high (was 25%) |
 
 These filters enforce a **Stage-2-style uptrend** base before breakout scoring runs.
 
@@ -169,10 +157,10 @@ These filters enforce a **Stage-2-style uptrend** base before breakout scoring r
 | `price_below_minimum` | Price below $10 minimum |
 | `price_data_anomaly` | Latest price deviates sharply from recent history |
 | `low_liquidity` | 20-day average volume below 750,000 shares |
-| `trend_misaligned` | Price/MA stack not aligned |
-| `sma200_not_rising` | 200-day MA is not rising vs 30 days ago |
+| `trend_misaligned` | Price not above 200-day moving average |
+| `sma200_not_rising` | (Informational only — not a hard gate) |
 | `too_close_to_52w_low` | Price less than 30% above 52-week low |
-| `too_far_from_52w_high` | Price more than 25% below 52-week high |
+| `too_far_from_52w_high` | Price more than 40% below 52-week high |
 | `no_price_data` | No price data available |
 
 ---
@@ -197,9 +185,9 @@ A stock can have **normalized ≥ 80** but miss **Tier 1** if `final_adjusted_sc
 
 ---
 
-## 7. Score components (9 factors)
+## 7. Score components (7 factors)
 
-**Max theoretical component sum:** 120 (`RAW_SCORE_MAX`). Some components have lower **achievable** caps in practice (pattern 0–5, resistance 0–5).
+**Max theoretical component sum:** 80 (`RAW_SCORE_MAX`). All seven factors are technical; normalization uses this earnable maximum (not inflated metadata).
 
 Factors run in two passes:
 
@@ -215,12 +203,8 @@ Factors run in two passes:
 | **Accumulation** | 12 | Universe percentile | Up-day volume ÷ down-day volume (20d) |
 | **Relative Volume** | 8 | Ticker | Today / 3-day avg volume vs 20d average |
 | **Compression** | 15 | Ticker | Bollinger width squeeze (120d percentile) |
-| **Pattern** | 15* | Ticker | 5-point chart base checklist (0–5 pts earned) |
-| **Resistance** | 10* | Ticker | Proximity to 50/65-day high (0–5 pts earned) |
-| **Revenue** | 15 | Ticker | Revenue YoY growth tiers |
-| **EPS** | 15 | Ticker | Combined EPS growth tiers |
-
-\*Factor `max_score` in metadata is 15 / 10; scoring functions cap lower — see below.
+| **Pattern** | 5 | Ticker | 5-point chart base checklist |
+| **Resistance** | 5 | Ticker | Proximity to 50/65-day high |
 
 ---
 
@@ -284,10 +268,11 @@ rel_vol = max(rel_1d, rel_3d)
 
 **Input:** Bollinger band width `(upper − lower) / mid` over 20 days.
 
-**Logic:** Compare today’s width to the **last 120 days**:
+**Logic:** Compare **prior session** Bollinger width (default 1-day lag) to the **previous 120 sessions** so breakout-day band expansion does not zero the score:
 
 ```text
-pct_rank = fraction of past 120 widths that are tighter than today
+setup_width = BB width as of yesterday (config: BREAKOUT_COMPRESSION_LAG_DAYS)
+pct_rank = fraction of prior 120 widths tighter than setup_width
 if pct_rank >= 0.5: 0 pts   (not squeezed)
 else: 15 × (0.5 − pct_rank) / 0.5
 ```
@@ -327,46 +312,13 @@ Closer to breaking resistance = higher score.
 
 ---
 
-### Revenue (0–15)
-
-From `revenue_yoy` (missing → 0):
-
-| YoY growth | Points |
-|------------|--------|
-| ≥ 40% | 15 |
-| ≥ 25% | 12 |
-| ≥ 15% | 8 |
-| ≥ 5% | 4 |
-| negative | 0 (`NEGATIVE`) |
-| missing | 0 (`MISSING`) |
-
-Capped growth uses top bucket after cap at 30% for scoring.
-
----
-
-### EPS (0–15)
-
-From `eps_combined` (missing → 0):
-
-| Combined EPS growth | Points |
-|---------------------|--------|
-| ≥ 50% | 15 |
-| ≥ 30% | 12 |
-| ≥ 15% | 8 |
-| ≥ 0% | 4 |
-| negative | 0 |
-
-Dashboard shows `eps_growth_pct`, `eps_status`, and source details on Ticker Detail.
-
----
-
 ## 8. Aggregate scoring
 
 **Module:** `src/quant_hub/strategies/breakout/aggregate.py`
 
 ```text
-raw_score          = sum of 9 component scores (+ penalties; breakout has none today)
-normalized_score   = (raw_score / RAW_SCORE_MAX) × 100     # RAW_SCORE_MAX = 120
+raw_score          = sum of 7 component scores (+ penalties; breakout has none today)
+normalized_score   = (raw_score / RAW_SCORE_MAX) × 100     # RAW_SCORE_MAX = 80 (earnable max)
 final_adjusted_score = normalized_score × regime_multiplier
 ```
 
@@ -398,16 +350,16 @@ Only **eligible** tickers are tiered.
 | Normalized score | ≥ **80** |
 | Final adjusted score | ≥ **70** |
 | Compression | ≥ **8** |
-| Volume signal | Accumulation ≥ **8** **OR** Relative volume ≥ **5** |
+| Volume signal | Accumulation ≥ **8** **OR** Relative volume ≥ **5 pts** (≈1.5× avg volume) |
 
 ### Tier 2 (watchlist)
 
-- Eligible and **normalized score ≥ 65**
+- Eligible and **normalized score ≥ 60**
 - Does not meet full Tier 1 bar (or would be Tier 1 if all above passed)
 
 ### Tier 3
 
-- Eligible but **normalized score < 65**
+- Eligible but **normalized score < 60**
 
 ### Tier explanation
 
@@ -415,7 +367,7 @@ Only **eligible** tickers are tiered.
 
 - Tier 1: confirms score, compression, and volume signal  
 - Tier 2 with norm ≥ 80: lists which Tier 1 criterion failed (final, compression, volume)  
-- Tier 2 otherwise: “Watchlist candidate: normalized score 65–79 range”  
+- Tier 2 otherwise: “Watchlist candidate: normalized score 60–79 range”  
 - Tier 3: below watchlist threshold  
 - filtered: eligibility fail label  
 
@@ -432,8 +384,8 @@ Use **Stock Metrics Cheat Sheet** in the sidebar (`score_guide.py`) for analyst-
 | Tab | Contents |
 |-----|----------|
 | **Overview** | Takeaway banner, regime panel, tier/exclusion charts, score histogram, heatmap, RS vs compression scatter |
-| **Full Universe** | All tickers — sort/filter, component scores, tech vs fund subtotals |
-| **Ticker Detail** | Eligibility checks, per-factor scores with raw inputs, fundamentals |
+| **Full Universe** | All tickers — sort/filter, component scores, technical subtotals |
+| **Ticker Detail** | Eligibility checks, per-factor scores with raw inputs |
 | **Actionable Watchlist** | Tier 1 + Tier 2 only |
 | **Compare** | Radar chart for 2–3 tickers |
 
@@ -445,9 +397,9 @@ Use **Stock Metrics Cheat Sheet** in the sidebar (`score_guide.py`) for analyst-
 | **Tier** | `tier` | Tier 1 / 2 / 3 / filtered |
 | **Final** | `summary.final_adjusted_score` | Primary sort — includes regime discount |
 | **Norm** | `summary.normalized_score` | Pre-regime 0–100 scale |
-| **Raw** | `summary.raw_score` | Sum of components (max ~110 practical) |
+| **Raw** | `summary.raw_score` | Sum of components (max 80) |
 | **RS Mkt / RS Sec / …** | `scores.*.score` | Individual component points |
-| **Tech / Fund** | sum of technical vs fundamental keys | Quick subtotals |
+| **Technical** | sum of technical keys | Quick subtotal |
 | **Top signal** | highest components | Short tags for what drove the score |
 | **Sector ETF** | `sector_etf` | Benchmark used for RS sector |
 | **Filter / reason** | eligibility or `tier_reason` | Why excluded or tier assigned |
@@ -460,9 +412,9 @@ Includes eligible tickers within **~5 points** of thresholds:
 
 | Bucket | Criteria |
 |--------|----------|
-| Tier 3 near watchlist | Tier 3 and normalized ≥ **60** (65 − 5) |
+| Tier 3 near watchlist | Tier 3 and normalized ≥ **55** (60 − 5) |
 | Tier 2 almost Tier 1 | Tier 2 and normalized ≥ **80** |
-| Final score gap | Tier 2, norm ≥ 65, final between **65–70** (Tier 1 needs final ≥ 70) |
+| Final score gap | Tier 2, norm ≥ 60, final between **65–70** (Tier 1 needs final ≥ 70) |
 
 ### Reading a Tier 1 example
 
@@ -478,7 +430,7 @@ tier_reason: Breakout ready: score 85.0 (>=80), adjusted 76.5 (>=70), ...
 ```text
 Tier: filtered
 Final: 0
-filter_label: Price/MA stack not aligned (price > SMA50 > SMA150 > SMA200)
+filter_label: Price not above 200-day moving average
 ```
 
 Open **Ticker Detail** → **Eligibility** section for each check’s actual vs threshold.
@@ -505,7 +457,7 @@ Indexed columns: `eligible`, `tier`, `final_score`, `filter_reason`, `sector_etf
   "ticker": "XYZ",
   "eligible": true,
   "tier": "Tier 2",
-  "tier_reason": "Watchlist candidate: normalized score 72.3 (65-79 range)",
+  "tier_reason": "Watchlist candidate: normalized score 72.3 (60-79 range)",
   "sector_etf": "XLK",
   "summary": {
     "raw_score": 86.4,
@@ -521,8 +473,7 @@ Indexed columns: `eligible`, `tier`, `final_score`, `filter_reason`, `sector_etf
     "passed": true,
     "fail_reason": null,
     "checks": [ "... 8 eligibility checks ..." ]
-  },
-  "fundamentals": { "revenue_yoy": 0.22, "eps_combined": 0.31, "..." }
+  }
 }
 ```
 
@@ -553,7 +504,6 @@ Indexed columns: `eligible`, `tier`, `final_score`, `filter_reason`, `sector_etf
 |-------|----------|
 | Eligibility thresholds | `src/quant_hub/config.py`, `filters/eligibility.py` |
 | Daily price download + cache | `src/quant_hub/infrastructure/market/yfinance_prices.py` |
-| Fundamentals pull + growth math | `src/quant_hub/data/fundamentals/` |
 | Factor implementations | `src/quant_hub/factors/` |
 | Scoring math | `src/quant_hub/scoring/` |
 | Strategy spec + aggregation | `src/quant_hub/strategies/breakout/` |
@@ -567,16 +517,16 @@ Indexed columns: `eligible`, `tier`, `final_score`, `filter_reason`, `sector_etf
 
 | Constant | Value |
 |----------|-------|
-| `RAW_SCORE_MAX` | 120 |
+| `RAW_SCORE_MAX` | 80 |
 | `MIN_TRADING_DAYS` | 200 |
 | `MIN_PRICE` | $10 |
 | `MIN_AVG_VOLUME` | 750,000 |
 | `LOOKBACK_DAYS` | 252 |
 | `BENCHMARK_TICKER` | SPY |
 | Tier 1 normalized / final | ≥ 80 / ≥ 70 |
-| Tier 2 normalized | ≥ 65 |
+| Tier 2 normalized | ≥ 60 |
 | Tier 1 compression | ≥ 8 |
-| Tier 1 volume | accumulation ≥ 8 or rel vol ≥ 5 |
+| Tier 1 volume | accumulation ≥ 8 or relative volume ≥ 5 pts (≈1.5× avg volume) |
 
 ### CLI examples
 

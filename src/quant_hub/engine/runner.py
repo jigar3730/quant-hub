@@ -34,6 +34,7 @@ class StrategyEngine:
         self._context = context
 
     def run(self) -> ScanResult:
+        load_fundamentals = self.spec.id not in ("breakout", "launchpad")
         ctx = self._context or ScanContext.from_universe(
             tickers=self.tickers,
             tickers_file=self.tickers_file,
@@ -41,6 +42,7 @@ class StrategyEngine:
             use_cache=self.use_cache,
             dry_run=self.dry_run,
             eligibility_mode=self.eligibility_mode,
+            load_fundamentals=load_fundamentals,
         )
         self._context = ctx
         logger.info(
@@ -104,14 +106,9 @@ class StrategyEngine:
                 tr.factors[name] = fr  # type: ignore[assignment]
 
             compute_failed = False
-            skip_factors = (
-                {"revenue", "eps"} if ctx.extras.get("eligibility_mode") == "etf" else set()
-            )
             for binding in self.spec.factor_bindings:
                 factor = binding.factor
                 if factor.pass_kind != "ticker":
-                    continue
-                if binding.name in skip_factors:
                     continue
                 try:
                     tr.factors[binding.name] = factor.compute(ctx, ticker)

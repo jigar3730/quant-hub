@@ -8,11 +8,9 @@ from quant_hub.engine.types import TickerResult
 from quant_hub.factors import (
     AccumulationFactor,
     CompressionFactor,
-    EpsFactor,
     PatternFactor,
     RelativeVolumeFactor,
     ResistanceFactor,
-    RevenueFactor,
     RsMarketFactor,
     RsSectorFactor,
 )
@@ -47,8 +45,6 @@ BREAKOUT_STRATEGY = BreakoutStrategySpec(
         FactorBinding(CompressionFactor()),
         FactorBinding(PatternFactor()),
         FactorBinding(ResistanceFactor()),
-        FactorBinding(RevenueFactor()),
-        FactorBinding(EpsFactor()),
     ],
     regime_mode="multiplier",
     penalties=[],

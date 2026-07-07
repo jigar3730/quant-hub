@@ -673,6 +673,61 @@ class ScanRepository:
                 logger.info("Deleted %d fixture scan run(s)", deleted)
             return deleted
 
+    def preview_runs_for_scan_date(self, scan_date: date) -> list[dict[str, Any]]:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT strategy_id, universe_id, universe_size, actionable_count
+                    FROM scan_runs
+                    WHERE scan_date = %s
+                    ORDER BY strategy_id, universe_id
+                    """,
+                    (scan_date,),
+                )
+                keys = ("strategy_id", "universe_id", "universe_size", "actionable_count")
+                return [dict(zip(keys, row, strict=True)) for row in cur.fetchall()]
+
+    def delete_runs_for_scan_date(self, scan_date: date) -> dict[str, Any]:
+        """Delete scan runs for a scan_date (cascades ticker_results, signal_outcomes)."""
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM ticker_results tr
+                    JOIN scan_runs sr ON sr.id = tr.run_id
+                    WHERE sr.scan_date = %s
+                    """,
+                    (scan_date,),
+                )
+                ticker_count = int(cur.fetchone()[0])
+                cur.execute(
+                    """
+                    DELETE FROM scan_runs
+                    WHERE scan_date = %s
+                    RETURNING id, strategy_id, universe_id
+                    """,
+                    (scan_date,),
+                )
+                deleted_rows = cur.fetchall()
+            conn.commit()
+        runs_deleted = len(deleted_rows)
+        if runs_deleted:
+            logger.info(
+                "Deleted %d scan run(s) and %d ticker row(s) for scan_date=%s",
+                runs_deleted,
+                ticker_count,
+                scan_date,
+            )
+        return {
+            "scan_date": str(scan_date),
+            "runs_deleted": runs_deleted,
+            "tickers_deleted": ticker_count,
+            "runs": [
+                {"strategy_id": row[1], "universe_id": row[2]} for row in deleted_rows
+            ],
+        }
+
     def table_counts(self) -> dict[str, int]:
         counts: dict[str, int] = {}
         with get_connection() as conn:
@@ -815,3 +870,31 @@ class JobRunRepository:
                     "error_message",
                 ]
                 return [dict(zip(keys, row, strict=True)) for row in cur.fetchall()]
+
+    def delete_jobs_for_market_date(
+        self,
+        market_date: date,
+        *,
+        tz: str = "America/New_York",
+    ) -> int:
+        """Delete job_runs whose started_at falls on market_date in the given timezone."""
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    DELETE FROM job_runs
+                    WHERE (started_at AT TIME ZONE %s)::date = %s
+                    RETURNING id
+                    """,
+                    (tz, market_date),
+                )
+                deleted = len(cur.fetchall())
+            conn.commit()
+            if deleted:
+                logger.info(
+                    "Deleted %d job_run(s) for market_date=%s (%s)",
+                    deleted,
+                    market_date,
+                    tz,
+                )
+            return deleted

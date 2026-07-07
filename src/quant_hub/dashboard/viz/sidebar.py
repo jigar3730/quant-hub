@@ -17,7 +17,8 @@ from quant_hub.dashboard.viz.navigation import (
     set_detail_ticker,
     sync_detail_ticker,
 )
-from quant_hub.dashboard.viz.score_guide import render_score_component_guide
+from quant_hub.dashboard.viz.launchpad_filters import LaunchpadFilters
+from quant_hub.dashboard.viz.launchpad_score_guide import render_launchpad_score_guide
 from quant_hub.dashboard.viz.swing_filters import SwingFilters
 from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
 from quant_hub.dashboard.viz.ux_helpers import (
@@ -29,6 +30,7 @@ from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 STRATEGY_LABELS = {
     "breakout": "Breakout (daily)",
+    "launchpad": "Launchpad Reversal (daily)",
     "swing": "Swing (weekly)",
     "lynch": "Lynch (fundamental)",
     "digest": "Email digests",
@@ -64,7 +66,7 @@ def _scan_date_index(date_options: list[str], pending: date | None) -> int:
 
 def render_sidebar_controls(
     repo: ScanRepository,
-) -> tuple[str, str, date | None, BreakoutFilters | SwingFilters]:
+) -> tuple[str, str, date | None, BreakoutFilters | SwingFilters | LaunchpadFilters]:
     pending_scan_date = apply_pending_navigation()
     st.sidebar.title("Quant Hub")
     _render_global_ticker_lookup()
@@ -168,8 +170,27 @@ def render_sidebar_controls(
             min_score=0.0,
             search=st.sidebar.text_input("Search ticker", "").strip().upper(),
         )
+    elif strategy_id == "launchpad":
+        st.sidebar.header("Launchpad filters")
+        actionable_only = st.sidebar.checkbox("Actionable only (Tier 1+2)", value=False)
+        min_label = (
+            "Min normalized score (tier threshold)"
+            if actionable_only
+            else "Min normalized score"
+        )
+        filters = LaunchpadFilters(
+            tier=st.sidebar.selectbox("Tier", ["All", "Tier 1", "Tier 2", "Tier 3", "filtered"]),
+            eligible_only=st.sidebar.checkbox("Eligible only", value=False),
+            actionable_only=actionable_only,
+            min_score=st.sidebar.slider(min_label, 0.0, 100.0, 0.0, 5.0),
+            search=st.sidebar.text_input("Search ticker", "").strip().upper(),
+        )
+        with st.sidebar.expander("Launchpad rubric cheat sheet", expanded=False):
+            render_launchpad_score_guide(in_sidebar=True)
     else:
         st.sidebar.header("Breakout filters")
+        from quant_hub.dashboard.viz.score_guide import render_score_component_guide
+
         actionable_only = st.sidebar.checkbox("Actionable only (Tier 1+2)", value=False)
         min_label = (
             "Min normalized score (tier threshold)"

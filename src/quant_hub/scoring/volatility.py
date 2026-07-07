@@ -1,17 +1,37 @@
 import pandas as pd
 
+from quant_hub.config import BREAKOUT_COMPRESSION_LAG_DAYS
 from quant_hub.indicators import bollinger_width, find_swing_lows, is_rising, sma
 
 
-def score_bollinger_compression(df: pd.DataFrame) -> float:
+def bollinger_compression_pct_rank(
+    df: pd.DataFrame,
+    *,
+    lag_days: int = BREAKOUT_COMPRESSION_LAG_DAYS,
+) -> tuple[float | None, float | None]:
+    """Percentile rank of setup-day BB width vs prior 120 sessions (excludes latest bar)."""
     close = df["Close"]
     width = bollinger_width(close, 20).dropna()
-    if len(width) < 120:
-        return 0.0
-    history = width.tail(120)
-    today = float(history.iloc[-1])
-    pct_rank = float((history < today).mean())
+    if len(width) < 120 + lag_days:
+        return None, None
 
+    setup = float(width.iloc[-1 - lag_days])
+    history = width.iloc[-(120 + lag_days) : -lag_days]
+    if len(history) < 120:
+        return None, None
+
+    pct_rank = float((history < setup).mean())
+    return pct_rank, setup
+
+
+def score_bollinger_compression(
+    df: pd.DataFrame,
+    *,
+    lag_days: int = BREAKOUT_COMPRESSION_LAG_DAYS,
+) -> float:
+    pct_rank, _ = bollinger_compression_pct_rank(df, lag_days=lag_days)
+    if pct_rank is None:
+        return 0.0
     if pct_rank >= 0.5:
         return 0.0
     return 15.0 * (0.5 - pct_rank) / 0.5

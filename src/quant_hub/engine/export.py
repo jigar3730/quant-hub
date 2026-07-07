@@ -45,6 +45,8 @@ def scan_result_to_dataframe(result: ScanResult) -> pd.DataFrame:
 def _sort_keys_for_strategy(strategy_id: str) -> list[str]:
     if strategy_id == "breakout":
         return ["final_adjusted_score", "rs_market_score", "accumulation_score"]
+    if strategy_id == "launchpad":
+        return ["final_adjusted_score", "macd_zero_line_score", "ma_tightness_score"]
     if strategy_id == "swing":
         return ["final_adjusted_score", "relative_strength_score", "pullback_score"]
     return ["final_adjusted_score"]
@@ -55,6 +57,10 @@ def _score_columns_for_strategy(strategy_id: str) -> list[str]:
         from quant_hub.strategies.breakout.aggregate import BREAKOUT_SCORE_COLUMNS
 
         return BREAKOUT_SCORE_COLUMNS
+    if strategy_id == "launchpad":
+        from quant_hub.strategies.launchpad.aggregate import LAUNCHPAD_SCORE_COLUMNS
+
+        return LAUNCHPAD_SCORE_COLUMNS
     if strategy_id == "swing":
         from quant_hub.strategies.swing.aggregate import SWING_SCORE_COLUMNS
 

@@ -1,13 +1,14 @@
 import pandas as pd
 
+from quant_hub.config import BREAKOUT_COMPRESSION_LAG_DAYS
 from quant_hub.indicators import (
-    bollinger_width,
     find_swing_lows,
     is_rising,
     sma,
 )
 from quant_hub.scoring.relative_strength import _rs_ratio
 from quant_hub.scoring.volume import compute_accumulation_ratio
+from quant_hub.scoring.volatility import bollinger_compression_pct_rank
 
 
 def rs_market_detail(stock_df: pd.DataFrame, spy_df: pd.DataFrame, score: float) -> dict:
@@ -145,14 +146,9 @@ def relative_volume_detail(df: pd.DataFrame, score: float) -> dict:
 
 
 def compression_detail(df: pd.DataFrame, score: float) -> dict:
-    close = df["Close"]
-    width = bollinger_width(close, 20).dropna()
-    if len(width) < 120:
+    pct_rank, setup_width = bollinger_compression_pct_rank(df, lag_days=BREAKOUT_COMPRESSION_LAG_DAYS)
+    if pct_rank is None or setup_width is None:
         return {"score": score, "max": 15, "raw": {}, "meaning": "Insufficient data"}
-
-    history = width.tail(120)
-    today = float(history.iloc[-1])
-    pct_rank = float((history < today).mean())
 
     if pct_rank < 0.2:
         meaning = "Tight volatility squeeze; coiling for potential breakout"
@@ -165,8 +161,9 @@ def compression_detail(df: pd.DataFrame, score: float) -> dict:
         "score": round(score, 2),
         "max": 15,
         "raw": {
-            "bb_width": round(today, 4),
+            "bb_width": round(setup_width, 4),
             "bb_width_percentile": round(pct_rank, 3),
+            "lag_days": BREAKOUT_COMPRESSION_LAG_DAYS,
         },
         "meaning": meaning,
     }
@@ -349,10 +346,9 @@ def score_components_detail(
     spy_df: pd.DataFrame,
     sector_df: pd.DataFrame | None,
     sector_etf: str | None,
-    fund: dict,
     scores: dict,
 ) -> dict:
-    detail = {
+    return {
         "rs_market": rs_market_detail(stock_df, spy_df, scores["rs_market_score"]),
         "rs_sector": rs_sector_detail(stock_df, sector_df, sector_etf, scores["rs_sector_score"]),
         "accumulation": accumulation_detail(stock_df, scores["accumulation_score"]),
@@ -361,20 +357,3 @@ def score_components_detail(
         "pattern": pattern_detail(stock_df, scores["pattern_score"]),
         "resistance": resistance_detail(stock_df, scores["resistance_score"]),
     }
-    if "revenue_score" in scores:
-        detail["revenue"] = revenue_detail(
-            fund.get("revenue_yoy"),
-            scores["revenue_score"],
-            status=fund.get("revenue_yoy_status", "OK"),
-            source=fund.get("revenue_yoy_source", ""),
-        )
-    if "eps_score" in scores:
-        detail["eps"] = eps_detail(
-            fund.get("eps_combined"),
-            scores["eps_score"],
-            status=fund.get("eps_combined_status", "OK"),
-            source=fund.get("eps_source", ""),
-            eps_yoy=fund.get("eps_yoy"),
-            eps_cagr_3y=fund.get("eps_cagr_3y"),
-        )
-    return detail

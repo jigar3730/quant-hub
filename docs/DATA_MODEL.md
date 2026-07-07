@@ -128,8 +128,7 @@ erDiagram
    └─────┬─────┘      └─────┬─────┘       └─────┬─────┘
          │                  │                   │
          │ OHLCV 1d/2y      │ OHLCV 1wk/10y     │ yfinance .info
-         │ + fundamentals   │                   │ + filings
-         │ + SPY + sectors  │                   │
+         │ + SPY + sectors  │                   │ + filings
          ▼                  ▼                   ▼
    ┌─────────────────────────────────────────────────┐
    │              PostgreSQL                          │
@@ -157,9 +156,8 @@ All live data comes from **Yahoo Finance** through the `yfinance` Python library
 
 | Data | API / method | Used for |
 |------|--------------|----------|
-| Daily OHLCV | `yf.download(ticker, start=…)` | Eligibility, 9 factor scores, regime (SPY) |
+| Daily OHLCV | `yf.download(ticker, start=…)` | Eligibility, 7 factor scores, regime (SPY) |
 | Sector ETF OHLCV | Same download batch | RS vs sector |
-| Quarterly income (via fundamentals module) | `Ticker.quarterly_income_stmt` | Revenue YoY, EPS combined |
 | Ticker `.info` | `yf.Ticker(ticker).info` | Sector/industry → sector ETF map |
 
 ### Swing inputs
@@ -218,7 +216,20 @@ One symbol per line; `#` comments allowed. Normalized to uppercase.
 | `ETF_MIN_TRADING_DAYS` | 120 | Breakout ETF eligibility |
 | `ETF_MIN_AVG_VOLUME` | 500,000 | Breakout ETF liquidity |
 | `ETF_MIN_PRICE` | $5 | Breakout ETF minimum price |
-| `RAW_SCORE_MAX` | 120 | Breakout normalization reference |
+| `RAW_SCORE_MAX` | 80 | Breakout normalization reference (earnable max) |
+| `BREAKOUT_MIN_PCT_ABOVE_52W_LOW` | 30% | Breakout stock eligibility (above 52w low) |
+| `BREAKOUT_MAX_PCT_BELOW_52W_HIGH` | 40% | Breakout stock eligibility (below 52w high) |
+| `LAUNCHPAD_RAW_SCORE_MAX` | 100 | Launchpad normalization reference |
+| `LAUNCHPAD_TIER1_NORMALIZED_MIN` | 80 | Launchpad Tier 1 floor |
+| `LAUNCHPAD_TIER2_NORMALIZED_MIN` | 65 | Launchpad Tier 2 floor |
+| `LAUNCHPAD_MACD_ZERO_CROSS_LOOKBACK` | 5 | MACD/signal zero-cross window (bars) |
+| `LAUNCHPAD_SWING_LOW_LOOKBACK` | 40 | Recent swing low window |
+| `LAUNCHPAD_SWING_HISTORY_DAYS` | 120 | Swing high/low search history (VCP) |
+| `LAUNCHPAD_ATR_SHORT_WINDOW` / `_LONG_WINDOW` | 14 / 50 | ATR contraction ratio windows |
+| `LAUNCHPAD_ATR_RATIO_STRONG` / `_OK` | 0.70 / 0.80 | ATR contraction score thresholds |
+| `LAUNCHPAD_VOLUME_DRYUP_SHORT_WINDOW` / `_LONG_WINDOW` | 3 / 50 | Volume dry-up ratio windows |
+| `LAUNCHPAD_VOLUME_DRYUP_STRONG` / `_OK` | 0.50 / 0.60 | Volume dry-up score thresholds |
+| `LAUNCHPAD_VCP_RATIO_STRONG` / `_OK` | 0.50 / 0.75 | VCP pullback-contraction thresholds |
 | `LOOKBACK_DAYS` | 252 | 52-week range, price history |
 | `SWING_MIN_BARS` | 60 | Minimum weekly bars |
 | `BENCHMARK_TICKER` | SPY | Regime + RS market |
@@ -249,12 +260,14 @@ Host path (Docker): `/app/data/cache/` → bind mount `/mnt/fast/quant-data/data
 | Stale bar | > 10 calendar days |
 | Note | Incomplete current week dropped if not Friday |
 
-### Fundamentals cache (breakout)
+### Fundamentals cache (Lynch / legacy)
 
 | Property | Value |
 |----------|-------|
 | Path | `data/cache/fundamentals/{TICKER}.json` |
 | TTL | 7 days |
+
+Breakout scans no longer read this cache. Lynch and the `data/fundamentals/` module still use it.
 
 **JSON fields (`FundamentalsSnapshot`):**
 
@@ -312,7 +325,6 @@ One row per `(scan_date, strategy_id, universe_id)`.
 | `excluded_count` | all | Tickers filtered out |
 | `setup_long_count` | swing | SETUP_LONG count |
 | `setup_short_count` | swing | SETUP_SHORT count |
-| `fundamentals_quality` | breakout | EPS/revenue coverage stats |
 | `preset` | lynch | CLI preset id |
 | `preset_label` | lynch | Human preset name |
 | `passed_count` | lynch | Lynch passed count |

@@ -1,6 +1,9 @@
 import pandas as pd
 
 from quant_hub.config import (
+    BREAKOUT_MAX_PCT_BELOW_52W_HIGH,
+    BREAKOUT_MIN_PCT_ABOVE_52W_LOW,
+    BREAKOUT_REQUIRE_SMA200_RISING,
     ETF_MIN_AVG_VOLUME,
     ETF_MIN_PRICE,
     ETF_MIN_TRADING_DAYS,
@@ -20,10 +23,12 @@ FILTER_LABELS = {
     "low_liquidity": "20-day average volume below 750,000 shares",
     "etf_low_liquidity": "20-day average volume below 500,000 shares (ETF mode)",
     "insufficient_ma_history": "Not enough data to compute moving averages",
-    "trend_misaligned": "Price/MA stack not aligned (price > SMA50 > SMA150 > SMA200)",
+    "trend_misaligned": "Price not above 200-day moving average",
     "sma200_not_rising": "200-day MA is not rising vs 30 trading days ago",
-    "too_close_to_52w_low": "Price less than 30% above 52-week low",
-    "too_far_from_52w_high": "Price more than 25% below 52-week high",
+    "too_close_to_52w_low": f"Price less than {BREAKOUT_MIN_PCT_ABOVE_52W_LOW:.0%} above 52-week low",
+    "too_far_from_52w_high": (
+        f"Price more than {BREAKOUT_MAX_PCT_BELOW_52W_HIGH:.0%} below 52-week high"
+    ),
     "no_price_data": "No price data available",
     "price_data_anomaly": "Latest price deviates sharply from recent history (possible bad feed)",
     "eligible": "Passed all eligibility filters",
@@ -166,7 +171,7 @@ def _stock_eligibility_detail(df: pd.DataFrame) -> dict:
         )
         return _fail(checks, "insufficient_ma_history")
 
-    trend_ok = price > s50 > s150 > s200
+    trend_ok = price > s200
     checks.append(
         {
             "rule": "trend_alignment",
@@ -177,7 +182,7 @@ def _stock_eligibility_detail(df: pd.DataFrame) -> dict:
                 "sma150": round(s150, 2),
                 "sma200": round(s200, 2),
             },
-            "threshold": "price > SMA50 > SMA150 > SMA200",
+            "threshold": "price > SMA200",
             "detail": _trend_detail(price, s50, s150, s200),
         }
     )
@@ -193,17 +198,18 @@ def _stock_eligibility_detail(df: pd.DataFrame) -> dict:
                 "sma200_today": round(float(sma200.iloc[-1]), 2),
                 "sma200_30d_ago": round(float(sma200.iloc[-31]), 2),
             },
-            "threshold": "SMA200 today > SMA200 30 trading days ago",
+            "threshold": "SMA200 today > SMA200 30 trading days ago (informational)",
+            "required": BREAKOUT_REQUIRE_SMA200_RISING,
         }
     )
-    if not sma200_rising:
+    if BREAKOUT_REQUIRE_SMA200_RISING and not sma200_rising:
         return _fail(checks, "sma200_not_rising")
 
     high_52w, low_52w = range_52w(df, LOOKBACK_DAYS)
     above_low = pct_above_low(price, low_52w)
     below_high = (high_52w - price) / high_52w if high_52w else None
-    above_ok = above_low is not None and above_low >= 0.30
-    below_ok = below_high is not None and below_high <= 0.25
+    above_ok = above_low is not None and above_low >= BREAKOUT_MIN_PCT_ABOVE_52W_LOW
+    below_ok = below_high is not None and below_high <= BREAKOUT_MAX_PCT_BELOW_52W_HIGH
 
     checks.append(
         {
@@ -215,7 +221,10 @@ def _stock_eligibility_detail(df: pd.DataFrame) -> dict:
                 "pct_above_low": round(above_low * 100, 1) if above_low else None,
                 "pct_below_high": round(below_high * 100, 1) if below_high else None,
             },
-            "threshold": ">= 30% above 52w low AND <= 25% below 52w high",
+            "threshold": (
+                f">= {BREAKOUT_MIN_PCT_ABOVE_52W_LOW:.0%} above 52w low AND "
+                f"<= {BREAKOUT_MAX_PCT_BELOW_52W_HIGH:.0%} below 52w high"
+            ),
         }
     )
     if not above_ok:
@@ -239,11 +248,15 @@ def _fail(checks: list[dict], reason: str) -> dict:
 
 
 def _trend_detail(price: float, s50: float, s150: float, s200: float) -> str:
-    parts = []
+    if price <= s200:
+        return f"price {price:.2f} <= SMA200 {s200:.2f}"
+    notes: list[str] = []
     if price <= s50:
-        parts.append(f"price {price:.2f} <= SMA50 {s50:.2f}")
-    if s50 <= s150:
-        parts.append(f"SMA50 {s50:.2f} <= SMA150 {s150:.2f}")
-    if s150 <= s200:
-        parts.append(f"SMA150 {s150:.2f} <= SMA200 {s200:.2f}")
-    return "; ".join(parts) if parts else "aligned"
+        notes.append(f"below SMA50 {s50:.2f} (short-term pullback OK)")
+    if s50 <= s200:
+        notes.append(f"SMA50 {s50:.2f} <= SMA200 {s200:.2f} (early turn OK)")
+    elif s50 <= s150:
+        notes.append(f"SMA150 {s150:.2f} not yet stacked (early-base OK)")
+    if notes:
+        return "; ".join(notes)
+    return "above SMA200 with constructive MA structure"

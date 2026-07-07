@@ -36,9 +36,9 @@ All scheduled scans use `--no-email`. Manual scans can still send individual ema
 
 | Tier | Criteria |
 |------|----------|
-| **Tier 1** | normalized ≥ 80, final ≥ 70, compression ≥ 8, accumulation ≥ 8 OR rel volume ≥ 5 |
-| **Tier 2** | normalized ≥ 65 |
-| **Tier 3** | below 65 |
+| **Tier 1** | normalized ≥ 80, final ≥ 70, compression ≥ 8, accumulation ≥ 8 OR relative volume ≥ 5 pts (≈1.5× avg volume) |
+| **Tier 2** | normalized ≥ 60 |
+| **Tier 3** | below 60 |
 
 ---
 

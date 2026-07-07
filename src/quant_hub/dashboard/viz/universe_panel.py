@@ -6,12 +6,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from quant_hub.config import BREAKOUT_TIER1_NORMALIZED_MIN, BREAKOUT_TIER2_NORMALIZED_MIN
 from quant_hub.dashboard.viz.components import (
     apply_chart_style,
     render_ticker_news_panel,
     tier_badge_html,
 )
-from quant_hub.dashboard.viz.data import scores_to_dataframe
+from quant_hub.dashboard.viz.data import LAUNCHPAD_SCORE_LABELS, scores_to_dataframe
 from quant_hub.dashboard.viz.navigation import set_detail_ticker, ticker_link_html
 from quant_hub.dashboard.viz.signals import (
     component_action,
@@ -26,10 +27,7 @@ SORT_OPTIONS = {
     "Final Score": "final_score",
     "RS vs Market": "RS vs Market",
     "Compression": "Compression",
-    "Revenue YoY %": "revenue_yoy_pct",
-    "EPS Growth %": "eps_growth_pct",
     "Technical Score": "tech_score",
-    "Fundamental Score": "fund_score",
 }
 
 
@@ -146,8 +144,18 @@ def render_universe_detail_panel(ticker: str, ticker_data: dict) -> None:
         render_ticker_news_panel(ticker, compact=True)
 
 
-def universe_table_column_config() -> dict:
-    return merge_column_config({
+# Launchpad factor columns (label -> max points) surfaced individually in the table.
+LAUNCHPAD_FACTOR_MAX = {
+    "MA Tightness": 25,
+    "MACD Zero-Line": 25,
+    "ATR Contraction": 20,
+    "Volume Dry-Up": 15,
+    "Swing-Low VCP": 15,
+}
+
+
+def universe_table_column_config(*, strategy_id: str = "breakout") -> dict:
+    config = {
         "eligible": st.column_config.CheckboxColumn(
             "Eligible",
             help="Passed all trend, liquidity, and price-stability filters.",
@@ -162,29 +170,10 @@ def universe_table_column_config() -> dict:
         "normalized_score": st.column_config.NumberColumn(
             "Universe Rank",
             format="%.1f",
-            help="0–100 rank vs this universe. ≥65 watchlist, ≥80 high-conviction candidate.",
-        ),
-        "tech_score": st.column_config.NumberColumn(
-            "Technical",
-            format="%.0f",
-            help="Sum of RS, volume, compression, pattern, and resistance points.",
-        ),
-        "fund_score": st.column_config.NumberColumn(
-            "Fundamental",
-            format="%.0f",
-            help="Revenue + EPS growth scores from recent quarterly data.",
-        ),
-        "revenue_yoy_pct": st.column_config.NumberColumn("Rev YoY %", format="%.1f"),
-        "eps_growth_pct": st.column_config.NumberColumn("EPS Gr %", format="%.1f"),
-        "RS vs Market": st.column_config.NumberColumn(
-            "RS Mkt",
-            format="%.0f",
-            help="Relative strength vs SPY. Higher = outperforming the broad market.",
-        ),
-        "Compression": st.column_config.NumberColumn(
-            "Compress",
-            format="%.0f",
-            help="Volatility squeeze score. Low = wide bands; high = coiled spring setup.",
+            help=(
+                f"0–100 rank vs this universe. ≥{BREAKOUT_TIER2_NORMALIZED_MIN:.0f} watchlist, "
+                f"≥{BREAKOUT_TIER1_NORMALIZED_MIN:.0f} high-conviction candidate."
+            ),
         ),
         "top_signal": st.column_config.TextColumn(
             "Top Signals",
@@ -197,28 +186,72 @@ def universe_table_column_config() -> dict:
             help="Why this tier was assigned — hover row and open profile for full signal readout.",
         ),
         "filter_label": st.column_config.TextColumn("Exclusion", width="medium"),
-    })
+    }
+
+    if strategy_id == "launchpad":
+        config["tech_score"] = st.column_config.NumberColumn(
+            "Raw Total",
+            format="%.0f",
+            help="Sum of the five Launchpad factors (max 100) = the final score.",
+        )
+        for label, max_pts in LAUNCHPAD_FACTOR_MAX.items():
+            config[label] = st.column_config.NumberColumn(
+                label,
+                format="%.0f",
+                help=f"{label} factor score (0–{max_pts}).",
+            )
+    else:
+        config["tech_score"] = st.column_config.NumberColumn(
+            "Technical",
+            format="%.0f",
+            help="Sum of RS, volume, compression, pattern, and resistance points.",
+        )
+        config["RS vs Market"] = st.column_config.NumberColumn(
+            "RS Mkt",
+            format="%.0f",
+            help="Relative strength vs SPY. Higher = outperforming the broad market.",
+        )
+        config["Compression"] = st.column_config.NumberColumn(
+            "Compress",
+            format="%.0f",
+            help="Volatility squeeze score. Low = wide bands; high = coiled spring setup.",
+        )
+
+    return merge_column_config(config)
 
 
-def universe_display_columns(table_df: pd.DataFrame) -> list[str]:
-    preferred = [
-        "ticker",
-        "tier",
-        "eligible",
-        "final_score",
-        "normalized_score",
-        "top_signal",
-        "tech_score",
-        "fund_score",
-        "sector_etf",
-        "RS vs Market",
-        "Compression",
-        "Accumulation",
-        "Revenue",
-        "EPS",
-        "revenue_yoy_pct",
-        "eps_growth_pct",
-        "tier_reason",
-        "filter_label",
-    ]
+def universe_display_columns(
+    table_df: pd.DataFrame,
+    *,
+    strategy_id: str = "breakout",
+) -> list[str]:
+    if strategy_id == "launchpad":
+        preferred = [
+            "ticker",
+            "tier",
+            "eligible",
+            "final_score",
+            *LAUNCHPAD_SCORE_LABELS.values(),
+            "tech_score",
+            "sector_etf",
+            "top_signal",
+            "tier_reason",
+            "filter_label",
+        ]
+    else:
+        preferred = [
+            "ticker",
+            "tier",
+            "eligible",
+            "final_score",
+            "normalized_score",
+            "top_signal",
+            "tech_score",
+            "sector_etf",
+            "RS vs Market",
+            "Compression",
+            "Accumulation",
+            "tier_reason",
+            "filter_label",
+        ]
     return [column for column in preferred if column in table_df.columns]

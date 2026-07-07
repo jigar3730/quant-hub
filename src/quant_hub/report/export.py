@@ -63,6 +63,7 @@ def _render_markdown(report: dict) -> list[str]:
     title = {
         "swing": "Swing Pullback Scan Report",
         "breakout": "Breakout Scan Report",
+        "launchpad": "Launchpad Reversal Scan Report",
     }.get(strategy_id, f"{strategy_id.title()} Scan Report")
     tier_line = " | ".join(
         f"{name}: {count}" for name, count in summary["tier_counts"].items()

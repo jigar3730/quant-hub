@@ -16,8 +16,6 @@ BREAKOUT_SCORE_FACTORS = (
     "compression",
     "pattern",
     "resistance",
-    "revenue",
-    "eps",
 )
 
 LABEL_STATUS_OK = "ok"

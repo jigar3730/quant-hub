@@ -8,11 +8,16 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from quant_hub.dashboard.viz.data import (
-    FUNDAMENTAL_KEYS,
+    LAUNCHPAD_SCORE_LABELS,
+    LAUNCHPAD_TECHNICAL_KEYS,
     SCORE_LABELS,
     TECHNICAL_KEYS,
     TIER_COLORS,
     scores_to_dataframe,
+)
+from quant_hub.dashboard.viz.launchpad_score_guide import (
+    LAUNCHPAD_COMPONENT_HELP,
+    LAUNCHPAD_COMPONENT_SUMMARY,
 )
 from quant_hub.dashboard.viz.labels import tier_friendly
 from quant_hub.dashboard.viz.navigation import ticker_link_html
@@ -45,6 +50,7 @@ def render_scan_header(
     regime: dict,
     *,
     scan_date: str | None = None,
+    title: str = "Breakout Scanner",
 ) -> None:
     tiers = summary["tier_counts"]
     t1 = tiers.get("Tier 1", 0)
@@ -52,7 +58,7 @@ def render_scan_header(
     st.markdown(
         f"""
         <div class="scan-header">
-            <h1>Breakout Scanner</h1>
+            <h1>{title}</h1>
             <p>
               {summary['universe_size']} tickers scanned
               &nbsp;|&nbsp; {summary['eligible_count']} eligible
@@ -293,9 +299,20 @@ def render_eligibility_panel(ticker_data: dict) -> None:
             cols[1].markdown(body)
 
 
-def _render_score_cards(ticker_data: dict, keys: tuple[str, ...], title: str) -> None:
+def _render_score_cards(
+    ticker_data: dict,
+    keys: tuple[str, ...],
+    title: str,
+    *,
+    score_labels: dict[str, str] | None = None,
+    component_help: dict[str, str] | None = None,
+    component_summary: dict[str, str] | None = None,
+) -> None:
     scores = ticker_data.get("scores") or {}
-    subset = [(k, SCORE_LABELS[k]) for k in keys if k in SCORE_LABELS]
+    labels = score_labels or SCORE_LABELS
+    help_map = component_help or COMPONENT_HELP
+    summary_map = component_summary or COMPONENT_SUMMARY
+    subset = [(k, labels[k]) for k in keys if k in labels]
     if not subset:
         return
 
@@ -307,8 +324,8 @@ def _render_score_cards(ticker_data: dict, keys: tuple[str, ...], title: str) ->
         score = float(comp.get("score", 0))
         max_pts = comp.get("max", 0)
         pct = (score / max_pts * 100) if max_pts else 0
-        help_text = COMPONENT_HELP.get(key, "")
-        summary_text = COMPONENT_SUMMARY.get(key, "")
+        help_text = help_map.get(key, "")
+        summary_text = summary_map.get(key, "")
         st.markdown(
             f"""
             <div class="component-card">
@@ -331,10 +348,20 @@ def _render_score_cards(ticker_data: dict, keys: tuple[str, ...], title: str) ->
                 st.json(raw)
 
 
-def render_component_cards(ticker_data: dict) -> None:
+def render_component_cards(ticker_data: dict, *, strategy_id: str = "breakout") -> None:
     scores = ticker_data.get("scores") or {}
     if not scores:
         st.warning("No scoring data — stock did not pass eligibility filters.")
+        return
+    if strategy_id == "launchpad":
+        _render_score_cards(
+            ticker_data,
+            LAUNCHPAD_TECHNICAL_KEYS,
+            "Scoring Components",
+            score_labels=LAUNCHPAD_SCORE_LABELS,
+            component_help=LAUNCHPAD_COMPONENT_HELP,
+            component_summary=LAUNCHPAD_COMPONENT_SUMMARY,
+        )
         return
     _render_score_cards(ticker_data, tuple(SCORE_LABELS.keys()), "Scoring Components")
 
@@ -450,39 +477,32 @@ def render_score_history(history: list[dict], ticker: str) -> go.Figure | None:
     return apply_chart_style(fig)
 
 
-def render_fundamentals_panel(ticker_data: dict) -> None:
+def render_technical_panel(ticker_data: dict, ticker: str, *, strategy_id: str = "breakout") -> None:
     scores = ticker_data.get("scores") or {}
-    has_fund = any(scores.get(k) for k in FUNDAMENTAL_KEYS)
-    if not has_fund:
-        fund = ticker_data.get("fundamentals") or {}
-        if not fund.get("revenue_yoy_status") and not fund.get("eps_combined_status"):
-            st.info("Fundamental data unavailable for this ticker.")
-            return
-    _render_score_cards(ticker_data, FUNDAMENTAL_KEYS, "Fundamentals")
-    fund = ticker_data.get("fundamentals") or {}
-    if fund.get("quarters_available"):
-        st.caption(
-            f"Quarters available: {fund.get('quarters_available')} · "
-            f"Revenue: {fund.get('revenue_yoy_status', '—')} · "
-            f"EPS: {fund.get('eps_combined_status', '—')}"
-        )
-
-
-def render_technical_panel(ticker_data: dict, ticker: str) -> None:
-    scores = ticker_data.get("scores") or {}
-    if not any(scores.get(k) for k in TECHNICAL_KEYS):
+    technical_keys = LAUNCHPAD_TECHNICAL_KEYS if strategy_id == "launchpad" else TECHNICAL_KEYS
+    if not any(scores.get(k) for k in technical_keys):
         st.info("Technical scores unavailable — ticker did not pass eligibility filters.")
         return
 
-    technical_df = scores_to_dataframe(ticker_data)
-    technical_df = technical_df[technical_df["key"].isin(TECHNICAL_KEYS)]
+    technical_df = scores_to_dataframe(ticker_data, strategy_id=strategy_id)
+    technical_df = technical_df[technical_df["key"].isin(technical_keys)]
     if not technical_df.empty:
         st.plotly_chart(
             render_score_bars(technical_df, ticker, scores=ticker_data.get("scores") or {}),
             use_container_width=True,
         )
         st.plotly_chart(render_radar(technical_df, ticker), use_container_width=True)
-    _render_score_cards(ticker_data, TECHNICAL_KEYS, "Technical Scores")
+    if strategy_id == "launchpad":
+        _render_score_cards(
+            ticker_data,
+            LAUNCHPAD_TECHNICAL_KEYS,
+            "Technical Scores",
+            score_labels=LAUNCHPAD_SCORE_LABELS,
+            component_help=LAUNCHPAD_COMPONENT_HELP,
+            component_summary=LAUNCHPAD_COMPONENT_SUMMARY,
+        )
+    else:
+        _render_score_cards(ticker_data, TECHNICAL_KEYS, "Technical Scores")
 
 
 def render_ticker_detail(
@@ -493,8 +513,9 @@ def render_ticker_detail(
     show_history: bool = True,
     scan_date: str | None = None,
     repo: ScanRepository | None = None,
+    strategy_id: str = "breakout",
 ) -> None:
-    """Unified detail: news, fundamentals, technical scores, eligibility, history."""
+    """Unified detail: news, technical scores, eligibility, history."""
     tier = ticker_data.get("tier", "filtered")
     st.markdown(
         f"## {ticker_link_html(ticker)} {tier_badge_html(tier)}",
@@ -519,11 +540,9 @@ def render_ticker_detail(
 
     render_ticker_news_panel(ticker, compact=compact_news, scan_date=scan_date)
 
-    tab_fund, tab_tech, tab_elig = st.tabs(["Fundamentals", "Technical", "Eligibility"])
-    with tab_fund:
-        render_fundamentals_panel(ticker_data)
+    tab_tech, tab_elig = st.tabs(["Technical", "Eligibility"])
     with tab_tech:
-        render_technical_panel(ticker_data, ticker)
+        render_technical_panel(ticker_data, ticker, strategy_id=strategy_id)
     with tab_elig:
         render_eligibility_panel(ticker_data)
 
@@ -558,7 +577,6 @@ __all__ = [
     "render_component_cards",
     "render_eligibility_panel",
     "render_exclusion_chart",
-    "render_fundamentals_panel",
     "render_heatmap",
     "render_radar",
     "render_regime_panel",

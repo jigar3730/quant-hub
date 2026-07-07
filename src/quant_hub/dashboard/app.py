@@ -11,6 +11,14 @@ from quant_hub.dashboard.viz.labels import format_report_label
 from quant_hub.dashboard.viz.lynch_components import render_lynch_tab
 from quant_hub.dashboard.viz.navigation import SHOW_GLOBAL_HISTORY_KEY, sync_detail_ticker
 from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
+from quant_hub.dashboard.viz.pages.launchpad import (
+    render_all_tickers_tab as render_launchpad_all_tickers_tab,
+    render_compare_tab as render_launchpad_compare_tab,
+    render_launchpad_header,
+    render_overview_tab as render_launchpad_overview_tab,
+    render_ticker_detail_tab as render_launchpad_ticker_detail_tab,
+    render_watchlist_tab as render_launchpad_watchlist_tab,
+)
 from quant_hub.dashboard.viz.pages.breakout import (
     render_all_tickers_tab,
     render_breakout_header,
@@ -62,6 +70,14 @@ def _render_system_panel(job_repo: JobRunRepository, repo: ScanRepository) -> No
             )
     else:
         st.caption("No jobs recorded yet.")
+
+    st.markdown("**Recent scans (launchpad)**")
+    for run in repo.list_runs(strategy_id="launchpad", limit=5, exclude_fixtures=True):
+        st.text(
+            f"{run['scan_date']} {run['universe_id']} "
+            f"T1={run.get('tier1_count', 0)} T2={run.get('tier2_count', 0)} "
+            f"actionable={run.get('actionable_count', 0)}"
+        )
 
     st.markdown("**Recent scans (breakout)**")
     for run in repo.list_runs(strategy_id="breakout", limit=8, exclude_fixtures=True):
@@ -126,6 +142,7 @@ if report is None:
         render_ticker_history_panel(repo, detail_ticker, key_prefix="orphan")
     st.info(
         f"Run `quant-scan --universe {PRIMARY_INDEX_UNIVERSE} --cache`, "
+        f"`quant-launchpad --universe {PRIMARY_INDEX_UNIVERSE} --cache`, "
         f"`quant-swing --universe {PRIMARY_INDEX_UNIVERSE}`, "
         f"`quant-lynch --universe {PRIMARY_INDEX_UNIVERSE}`, or wait for scheduled cron jobs."
     )
@@ -192,6 +209,55 @@ if strategy_id == "lynch":
         scan_date=scan_date_str,
         provenance=provenance,
     )
+    with st.expander("System status (admin)"):
+        _render_system_panel(job_repo, repo)
+    render_disclaimer()
+    st.stop()
+
+if strategy_id == "launchpad":
+    render_launchpad_header(
+        report_path=report_label,
+        summary=summary,
+        regime=regime,
+        detail_ticker=detail_ticker,
+        scan_date=scan_date_str,
+    )
+    render_scan_provenance_footer(
+        strategy_id=strategy_id,
+        universe_id=universe_id,
+        scan_date=scan_date_str,
+        provenance=provenance,
+    )
+    tab_names = ["Overview", "Full Universe", "Ticker Detail", "Actionable Watchlist", "Compare"]
+    tabs = st.tabs(tab_names)
+    tab_map = dict(zip(tab_names, tabs, strict=True))
+    with tab_map["Overview"]:
+        render_launchpad_overview_tab(
+            report_path=report_label,
+            summary=summary,
+            regime=regime,
+            df=df,
+            tickers=tickers,
+            filters=filters,
+        )
+    with tab_map["Full Universe"]:
+        detail_ticker = render_launchpad_all_tickers_tab(
+            tickers=tickers,
+            filters=filters,
+            detail_ticker=detail_ticker,
+        )
+    with tab_map["Ticker Detail"]:
+        render_launchpad_ticker_detail_tab(
+            tickers=tickers,
+            all_symbols=all_symbols,
+            detail_ticker=detail_ticker,
+            scan_date=scan_date_str,
+            repo=repo,
+        )
+    with tab_map["Actionable Watchlist"]:
+        render_launchpad_watchlist_tab(df=df, tickers=tickers, filters=filters)
+    with tab_map["Compare"]:
+        render_launchpad_compare_tab(df=df, tickers=tickers, filters=filters)
     with st.expander("System status (admin)"):
         _render_system_panel(job_repo, repo)
     render_disclaimer()

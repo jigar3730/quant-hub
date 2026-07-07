@@ -88,6 +88,11 @@ class ScanService:
             scores_by_ticker = ticker_results_to_legacy_scores(scan_result.tickers)
             cache_mode = "parquet" if use_cache else "live"
             as_of = max_bar_date(ctx.spy_df)
+            fund_quality = (
+                ctx.extras.get("fundamentals_quality")
+                if scan_result.strategy_id != "breakout"
+                else None
+            )
             scan_report = build_scan_report(
                 results_df=results,
                 universe=scan_result.universe,
@@ -99,14 +104,16 @@ class ScanService:
                 regime_detail=scan_result.regime_detail,
                 scores_by_ticker=scores_by_ticker,
                 strategy_id=scan_result.strategy_id,
-                fundamentals_quality=ctx.extras.get("fundamentals_quality"),
+                fundamentals_quality=fund_quality,
                 eligibility_mode=eligibility_mode,
                 data_provenance=build_data_provenance(
                     strategy_id=scan_result.strategy_id,
                     universe_id=resolved_id,
                     scan_date=scan_date,
                     price_cache=cache_mode,
-                    fundamentals_cache=cache_mode,
+                    fundamentals_cache=(
+                        cache_mode if scan_result.strategy_id != "breakout" else None
+                    ),
                     as_of_price=str(as_of) if as_of else None,
                     extra={"dry_run": True} if dry_run else None,
                 ),

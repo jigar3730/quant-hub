@@ -14,7 +14,7 @@ from quant_hub.history.ticker_projection import history_display_columns
 from quant_hub.infrastructure.postgres.connection import apply_schema, ping
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 
-STRATEGY_CHOICES = ("breakout", "swing", "lynch", "mean_reversion")
+STRATEGY_CHOICES = ("breakout", "launchpad", "swing", "lynch", "mean_reversion")
 
 
 def _cmd_status() -> int:
@@ -66,6 +66,49 @@ def _cmd_cleanup_fixtures() -> int:
     repo = ScanRepository()
     deleted = repo.delete_fixture_runs()
     print(f"Removed {deleted} fixture scan run(s).")
+    return 0
+
+
+def _cmd_cleanup_day(args: argparse.Namespace) -> int:
+    if not ping():
+        print("Database: UNREACHABLE", file=sys.stderr)
+        return 1
+
+    scan_date = args.date
+    scan_repo = ScanRepository()
+    job_repo = JobRunRepository()
+
+    runs = scan_repo.preview_runs_for_scan_date(scan_date)
+    if not runs and not args.include_jobs:
+        print(f"No scan runs found for scan_date={scan_date}.")
+        return 0
+
+    print(f"scan_date={scan_date}")
+    if runs:
+        print(f"  scan_runs to delete: {len(runs)}")
+        for row in runs:
+            print(
+                f"    {row['strategy_id']}/{row['universe_id']} "
+                f"(size={row['universe_size']}, actionable={row['actionable_count']})"
+            )
+    if args.include_jobs:
+        print(f"  job_runs: all with started_at on {scan_date} (America/New_York)")
+
+    if args.dry_run:
+        print("Dry run — no rows deleted.")
+        return 0
+
+    result = scan_repo.delete_runs_for_scan_date(scan_date)
+    jobs_deleted = 0
+    if args.include_jobs:
+        jobs_deleted = job_repo.delete_jobs_for_market_date(scan_date)
+
+    print(
+        f"Removed {result['runs_deleted']} scan run(s), "
+        f"{result['tickers_deleted']} ticker row(s)"
+        + (f", {jobs_deleted} job run(s)" if args.include_jobs else "")
+        + "."
+    )
     return 0
 
 
@@ -216,6 +259,22 @@ def main(argv: list[str] | None = None) -> int:
         "cleanup-fixtures",
         help="Delete test fixture scan runs (test-upsert, custom, future dates)",
     )
+    cleanup_day = sub.add_parser(
+        "cleanup-day",
+        help="Delete scan runs (and cascaded ticker results) for a scan_date",
+    )
+    cleanup_day.add_argument(
+        "--date",
+        type=date.fromisoformat,
+        required=True,
+        help="Scan date to purge (YYYY-MM-DD, matches scan_runs.scan_date)",
+    )
+    cleanup_day.add_argument(
+        "--include-jobs",
+        action="store_true",
+        help="Also delete job_runs started on this calendar date (America/New_York)",
+    )
+    cleanup_day.add_argument("--dry-run", action="store_true", help="Preview only")
 
     report = sub.add_parser("report", help="Show latest scan summary")
     report.add_argument("--universe", default=PRIMARY_INDEX_UNIVERSE)
@@ -249,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_init_db(args)
     if args.command == "cleanup-fixtures":
         return _cmd_cleanup_fixtures()
+    if args.command == "cleanup-day":
+        return _cmd_cleanup_day(args)
     if args.command == "report":
         return _cmd_report(args.universe, args.strategy)
     if args.command == "ticker":

@@ -6,6 +6,7 @@ from typing import Any
 
 ACTIONABLE_TIERS: dict[str, frozenset[str]] = {
     "breakout": frozenset({"Tier 1", "Tier 2"}),
+    "launchpad": frozenset({"Tier 1", "Tier 2"}),
     "swing": frozenset({"SETUP_LONG", "SETUP_SHORT"}),
     "lynch": frozenset({"fast_grower", "stalwart", "asset_play", "passed"}),
     "mean_reversion": frozenset({"HIGH_CONVICTION"}),
@@ -42,6 +43,7 @@ def actionable_sql_clause(*, param_style: str = "%s") -> str:
     _ = param_style
     return """(
         (sr.strategy_id = 'breakout' AND tr.tier IN ('Tier 1', 'Tier 2'))
+        OR (sr.strategy_id = 'launchpad' AND tr.tier IN ('Tier 1', 'Tier 2'))
         OR (sr.strategy_id = 'swing' AND tr.tier IN ('SETUP_LONG', 'SETUP_SHORT'))
         OR (sr.strategy_id = 'mean_reversion' AND tr.tier = 'HIGH_CONVICTION')
         OR (

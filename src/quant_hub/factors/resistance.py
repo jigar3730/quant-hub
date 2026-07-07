@@ -15,4 +15,4 @@ class ResistanceFactor:
     def compute(self, ctx: ScanContext, ticker: str):
         df = ctx.stock_dfs[ticker]
         score = score_resistance(df)
-        return make_factor_result(self.name, score, 10.0)
+        return make_factor_result(self.name, score, 5.0)

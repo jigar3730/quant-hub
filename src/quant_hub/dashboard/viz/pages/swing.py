@@ -21,6 +21,7 @@ from quant_hub.dashboard.viz.table_helpers import (
     with_yahoo_ticker_links,
 )
 from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
+from quant_hub.dashboard.viz.ux_helpers import render_swing_takeaway
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 from quant_hub.strategies.swing.scanner import SWING_FILTER_LABELS
 

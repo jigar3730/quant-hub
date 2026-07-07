@@ -227,7 +227,7 @@ Quant Hub ships three active strategies. Both persist to Postgres and can export
 
 | Strategy | CLI | Data | Scoring / output | Email default |
 |----------|-----|------|------------------|---------------|
-| **Breakout** (daily) | `quant-daily`, `quant-scan`, `quant-scan-all` | ~2y daily OHLCV + fundamentals | Tier 1 / 2 / 3 + filtered; SPY market regime | **ON** for `quant-daily`; **OFF** for `quant-scan` / `quant-scan-all` unless `--email` |
+| **Breakout** (daily) | `quant-daily`, `quant-scan`, `quant-scan-all` | ~2y daily OHLCV (technical only) | Tier 1 / 2 / 3 + filtered; SPY market regime | **ON** for `quant-daily`; **OFF** for `quant-scan` / `quant-scan-all` unless `--email` |
 | **Swing** (weekly) | `quant-swing`, `quant-swing-all` | 10y weekly OHLCV | `SETUP_LONG` / `SETUP_SHORT` pullbacks | **ON** (use `--no-email` to skip) |
 | **Lynch** (fundamental) | `quant-lynch`, `quant-lynch-all` | Yahoo fundamentals (P/E, PEG, balance sheet) | Fast grower / Stalwart / Asset play categories | **ON** (use `--no-email` to skip) |
 
@@ -244,6 +244,7 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 
 | Job | Cron | When | Command | Email |
 |-----|------|------|---------|-------|
+| **Launchpad daily** | `10 17 * * 1-5` | Mon–Fri **5:10 PM ET** | `quant-launchpad-daily --universe sp500_index --no-email` | No |
 | **Breakout daily** | `0 17 * * 1-5` | Mon–Fri **5:00 PM ET** | `quant-daily --universe sp500_index --no-email` | No |
 | **Daily digest** | `35 17 * * 1-5` | Mon–Fri **5:35 PM ET** | `quant-digest daily` | **Yes** |
 | **ETF breakout** | `30 16 * * 5` | Fri **4:30 PM ET** | `quant-daily --universe sector_commodity_etfs --no-email` | No |
@@ -306,7 +307,7 @@ Digests still highlight **`sp500_index`** only; full coverage populates Postgres
 #### Breakout — `quant-daily --universe sp500_index`
 
 1. Resolve `sp500_index` universe (~193 tickers)
-2. Download daily prices (parquet cache ON, 24h TTL) and fundamentals (7-day cache)
+2. Download daily prices (parquet cache ON, 24h TTL) — technical factors only; no fundamentals fetch
 3. Compute breakout scores; classify Tier 1 / 2 / 3
 4. Derive SPY market regime (label + multiplier)
 5. Upsert Postgres `scan_runs` + `ticker_results` for `(today, breakout, sp500)`
@@ -314,7 +315,7 @@ Digests still highlight **`sp500_index`** only; full coverage populates Postgres
 7. Record `job_runs` row (`breakout-sp500-index-daily`)
 8. **Send breakout email** to all `EMAIL_TO` addresses (always sent when SMTP is configured, even if zero actionable tickers)
 
-**Reference:** [Breakout Scanner — data pipeline](BREAKOUT_SCANNER.md) (eligibility, 9 factors, regime multiplier, tiers, Postgres `detail` JSON, near-miss logic).
+**Reference:** [Breakout Scanner — data pipeline](BREAKOUT_SCANNER.md) (eligibility, 7 factors, regime multiplier, tiers, Postgres `detail` JSON, near-miss logic).
 
 #### Swing — `quant-swing --universe sp500_index`
 

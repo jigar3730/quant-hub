@@ -20,7 +20,7 @@
 9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
 
-**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
+**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
 
 ---
 
@@ -32,6 +32,7 @@ Quant Hub is a **stock scanner** for a homelab environment. It runs two strategi
 | Strategy     | Cadence           | What it finds                                                                          |
 | ------------ | ----------------- | -------------------------------------------------------------------------------------- |
 | **Breakout** | Daily (weekdays)  | Tier 1 / 2 / 3 names with relative strength, compression, volume, and pattern scores   |
+| **Launchpad Reversal** | Daily (weekdays) | Coiled-spring setups: MA squeeze, MACD zero-line, ATR contraction, volume dry-up, swing-low VCP |
 | **Swing**    | Weekly (Friday)   | Long/short pullback setups vs 20-week EMA; **quality score 0–100** ranks setups        |
 | **Lynch**    | Weekly (Saturday) | Peter Lynch categories: fast growers, stalwarts, asset plays (P/E, PEG, balance sheet) |
 
@@ -104,7 +105,7 @@ Docker deployment: `http://<host>:5002`
 | Control                   | Purpose                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------- |
 | **Lookup ticker history** | Cross-scan search: when/where a symbol appeared as **actionable** (all strategies, all universes)       |
-| **Strategy**              | Breakout (daily), Swing (weekly), or Lynch (fundamental)                                                |
+| **Strategy**              | Breakout, Launchpad Reversal (daily), Swing (weekly), or Lynch (fundamental)                           |
 | **Universe**              | Select which ticker list to view (`sp500_index`, `most_actives`, etc.); universes with scans are listed first |
 | **Scan date**             | Pick a historical run (up to **500** Fridays — includes ML backfill from ~2020)                         |
 | **Filters**               | Strategy-specific (breakout tiers/scores; swing setup type + min RSI; Lynch passed-only)                |
@@ -143,7 +144,7 @@ All scan tables show a **Ticker** column linking to **Yahoo Finance** quotes (op
 | **System**               | Scan counts and job status (collapsed admin)                         |
 
 
-Three layers on every breakout result: **eligibility** (hard gate) → **score** (9 factors + regime) → **tier** (Tier 1/2/3). See [Breakout Scanner reference](BREAKOUT_SCANNER.md).
+Three layers on every breakout result: **eligibility** (hard gate) → **score** (7 technical factors + regime) → **tier** (Tier 1/2/3). See [Breakout Scanner reference](BREAKOUT_SCANNER.md).
 
 ### Swing tabs
 
@@ -336,7 +337,7 @@ Running the scan again on the **same calendar day** for the same universe **repl
 | Tier         | Typical meaning                                                                                                |
 | ------------ | -------------------------------------------------------------------------------------------------------------- |
 | **Tier 1**   | Highest conviction breakout profile: strong normalized score, compression, and accumulation or relative volume |
-| **Tier 2**   | Actionable watchlist: normalized score ≥ 65                                                                    |
+| **Tier 2**   | Actionable watchlist: normalized score ≥ 60                                                                    |
 | **Tier 3**   | Eligible but lower conviction                                                                                  |
 | **filtered** | Failed eligibility (volume, price, data quality, etc.)                                                         |
 
@@ -357,8 +358,6 @@ Each eligible ticker is scored on components such as:
 | **Compression**     | Volatility squeeze / range contraction |
 | **Pattern**         | Chart pattern quality                  |
 | **Resistance**      | Proximity to breakout levels           |
-| **Revenue**         | Revenue growth (fundamentals)          |
-| **EPS**             | Earnings growth (fundamentals)         |
 
 
 Scores are combined into:

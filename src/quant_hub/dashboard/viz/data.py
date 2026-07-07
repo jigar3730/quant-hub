@@ -14,8 +14,14 @@ SCORE_LABELS = {
     "compression": "Compression",
     "pattern": "Pattern",
     "resistance": "Resistance",
-    "revenue": "Revenue",
-    "eps": "EPS",
+}
+
+LAUNCHPAD_SCORE_LABELS = {
+    "ma_tightness": "MA Tightness",
+    "macd_zero_line": "MACD Zero-Line",
+    "atr_contraction": "ATR Contraction",
+    "volume_dry_up": "Volume Dry-Up",
+    "swing_low_vcp": "Swing-Low VCP",
 }
 
 TIER_COLORS = {
@@ -35,7 +41,13 @@ TECHNICAL_KEYS = (
     "resistance",
 )
 
-FUNDAMENTAL_KEYS = ("revenue", "eps")
+LAUNCHPAD_TECHNICAL_KEYS = (
+    "ma_tightness",
+    "macd_zero_line",
+    "atr_contraction",
+    "volume_dry_up",
+    "swing_low_vcp",
+)
 
 
 def load_report(
@@ -66,10 +78,11 @@ def tickers_to_dataframe(tickers: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def scores_to_dataframe(ticker: dict) -> pd.DataFrame:
+def scores_to_dataframe(ticker: dict, *, strategy_id: str = "breakout") -> pd.DataFrame:
     scores = ticker.get("scores") or {}
+    labels = LAUNCHPAD_SCORE_LABELS if strategy_id == "launchpad" else SCORE_LABELS
     rows = []
-    for key, label in SCORE_LABELS.items():
+    for key, label in labels.items():
         comp = scores.get(key)
         if not comp:
             continue
@@ -95,9 +108,20 @@ def _component_total(scores: dict, keys: tuple[str, ...]) -> float | None:
     return round(sum(values), 1) if values else None
 
 
-def full_universe_dataframe(tickers: list[dict]) -> pd.DataFrame:
+def full_universe_dataframe(
+    tickers: list[dict],
+    *,
+    strategy_id: str = "breakout",
+) -> pd.DataFrame:
     """Full scan table with summary, component scores, and fundamental metrics."""
     from quant_hub.dashboard.viz.signals import top_signals_short, top_signals_tooltip
+    from quant_hub.scoring.launchpad import FILTER_LABELS as LAUNCHPAD_FILTER_LABELS
+
+    score_labels = LAUNCHPAD_SCORE_LABELS if strategy_id == "launchpad" else SCORE_LABELS
+    technical_keys = (
+        LAUNCHPAD_TECHNICAL_KEYS if strategy_id == "launchpad" else TECHNICAL_KEYS
+    )
+    filter_labels = LAUNCHPAD_FILTER_LABELS if strategy_id == "launchpad" else FILTER_LABELS
 
     rows = []
     for t in tickers:
@@ -116,31 +140,30 @@ def full_universe_dataframe(tickers: list[dict]) -> pd.DataFrame:
             "tier_reason": t.get("tier_reason", ""),
             "top_signal": top_signals_short(scores),
             "signal_tooltip": top_signals_tooltip(scores),
-            "tech_score": _component_total(scores, TECHNICAL_KEYS),
-            "fund_score": _component_total(scores, FUNDAMENTAL_KEYS),
+            "tech_score": _component_total(scores, technical_keys),
             "filter_reason": fail_reason,
-            "filter_label": FILTER_LABELS.get(fail_reason, fail_reason) if fail_reason else "",
+            "filter_label": filter_labels.get(fail_reason, fail_reason) if fail_reason else "",
         }
-        for key, label in SCORE_LABELS.items():
+        for key, label in score_labels.items():
             comp = scores.get(key)
             row[label] = round(comp.get("score", 0), 1) if comp else None
-        rev_raw = scores.get("revenue", {}).get("raw", {})
-        eps_raw = scores.get("eps", {}).get("raw", {})
-        row["revenue_yoy_pct"] = rev_raw.get("revenue_yoy_pct")
-        row["revenue_status"] = scores.get("revenue", {}).get("status")
-        row["eps_growth_pct"] = eps_raw.get("eps_combined_pct")
-        row["eps_status"] = scores.get("eps", {}).get("status")
         rows.append(row)
     return pd.DataFrame(rows).sort_values("final_score", ascending=False)
 
 
-def score_heatmap_dataframe(tickers: list[dict], eligible_only: bool = True) -> pd.DataFrame:
+def score_heatmap_dataframe(
+    tickers: list[dict],
+    eligible_only: bool = True,
+    *,
+    strategy_id: str = "breakout",
+) -> pd.DataFrame:
+    score_labels = LAUNCHPAD_SCORE_LABELS if strategy_id == "launchpad" else SCORE_LABELS
     subset = [t for t in tickers if t.get("eligible")] if eligible_only else tickers
     rows = []
     for t in subset:
         scores = t.get("scores") or {}
         row = {"ticker": t["ticker"]}
-        for key, label in SCORE_LABELS.items():
+        for key, label in score_labels.items():
             comp = scores.get(key, {})
             row[label] = comp.get("score", 0)
         rows.append(row)

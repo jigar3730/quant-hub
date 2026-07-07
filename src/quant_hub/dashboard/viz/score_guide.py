@@ -128,34 +128,6 @@ SCORE_GUIDE_SECTIONS: tuple[ScoreGuideSection, ...] = (
             ),
         ),
     ),
-    ScoreGuideSection(
-        title="4. Company Health (The Fundamentals)",
-        metrics=(
-            ScoreMetricGuide(
-                key="revenue",
-                name="Revenue Growth",
-                description=(
-                    "How much the company's sales grew this quarter compared to the same "
-                    "quarter last year."
-                ),
-                look_for=(
-                    "Consistent, high percentage growth. You want companies selling more "
-                    "products, plain and simple."
-                ),
-            ),
-            ScoreMetricGuide(
-                key="eps",
-                name="EPS (Earnings Per Share) Growth",
-                description=(
-                    "A mix of recent profit growth and its 3-year track record."
-                ),
-                look_for=(
-                    "Accelerating growth. Profits drive stock prices over the long haul. "
-                    "High EPS growth is the ultimate fuel for a stock."
-                ),
-            ),
-        ),
-    ),
 )
 
 

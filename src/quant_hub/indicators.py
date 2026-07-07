@@ -96,13 +96,22 @@ def bollinger_width(close: pd.Series, window: int = 20) -> pd.Series:
     return (upper - lower) / mid
 
 
+def macd_line(close: pd.Series, fast: int = 12, slow: int = 26) -> pd.Series:
+    """MACD line (fast EMA minus slow EMA)."""
+    return ema(close, fast) - ema(close, slow)
+
+
+def macd_signal(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.Series:
+    """MACD signal line (EMA of MACD line)."""
+    line = macd_line(close, fast=fast, slow=slow)
+    return line.ewm(span=signal, adjust=False, min_periods=signal).mean()
+
+
 def macd_histogram(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.Series:
     """MACD histogram (MACD line minus signal line)."""
-    fast_ema = ema(close, fast)
-    slow_ema = ema(close, slow)
-    macd_line = fast_ema - slow_ema
-    signal_line = macd_line.ewm(span=signal, adjust=False, min_periods=signal).mean()
-    return macd_line - signal_line
+    line = macd_line(close, fast=fast, slow=slow)
+    signal_line = macd_signal(close, fast=fast, slow=slow, signal=signal)
+    return line - signal_line
 
 
 def find_swing_lows(lows: pd.Series, order: int = 2) -> list[tuple[int, float]]:

@@ -96,6 +96,7 @@ class ScanContext:
         use_cache: bool = False,
         dry_run: bool = False,
         eligibility_mode: str = "stock",
+        load_fundamentals: bool = True,
     ) -> ScanContext:
         if not tickers:
             raise ValueError("ScanContext requires an explicit ticker list")
@@ -104,12 +105,20 @@ class ScanContext:
 
         if dry_run:
             prices = synthetic_prices(download_tickers)
-            fundamentals = synthetic_fundamentals(universe)
-            fund_quality = fundamentals_quality_summary(fundamentals)
+            if load_fundamentals:
+                fundamentals = synthetic_fundamentals(universe)
+                fund_quality = fundamentals_quality_summary(fundamentals)
+            else:
+                fundamentals = pd.DataFrame()
+                fund_quality = None
         else:
             prices = download_prices(download_tickers, use_cache=use_cache)
-            fundamentals = download_fundamentals(universe, use_cache=use_cache)
-            fund_quality = fundamentals_quality_summary(fundamentals)
+            if load_fundamentals:
+                fundamentals = download_fundamentals(universe, use_cache=use_cache)
+                fund_quality = fundamentals_quality_summary(fundamentals)
+            else:
+                fundamentals = pd.DataFrame()
+                fund_quality = None
 
         spy_df = ticker_df(prices, BENCHMARK_TICKER)
         if spy_df is None or spy_df.empty:
@@ -117,7 +126,11 @@ class ScanContext:
 
         regime = compute_market_regime(spy_df)
         regime_info = regime_detail(spy_df)
-        fund_map = fundamentals.set_index("ticker").to_dict(orient="index")
+        fund_map = (
+            fundamentals.set_index("ticker").to_dict(orient="index")
+            if not fundamentals.empty
+            else {}
+        )
         sector_dfs = {etf: ticker_df(prices, etf) for etf in ALL_SECTOR_ETFS}
 
         stock_dfs: dict[str, pd.DataFrame] = {}
@@ -136,7 +149,11 @@ class ScanContext:
             regime=regime,
             regime_detail=regime_info,
             dry_run=dry_run,
-            extras={"fundamentals_quality": fund_quality, "eligibility_mode": eligibility_mode},
+            extras={
+                "fundamentals_quality": fund_quality,
+                "eligibility_mode": eligibility_mode,
+                "load_fundamentals": load_fundamentals,
+            },
         )
 
     def stock_df(self, ticker: str) -> pd.DataFrame | None:

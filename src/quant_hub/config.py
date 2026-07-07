@@ -33,7 +33,7 @@ FUNDAMENTALS_CACHE_SUBDIR = CACHE_DIR / "fundamentals"
 ML_DIR = DATA_DIR / "ml"
 ML_FEATURES_DIR = ML_DIR / "features"
 ML_MODELS_DIR = ML_DIR / "models"
-FEATURE_SCHEMA_VERSION = "v2"
+FEATURE_SCHEMA_VERSION = "v3"
 DEFAULT_LABEL_HORIZONS = (5, 10, 20, 63)
 LABEL_RETURN_THRESHOLD_PCT = 2.0
 BENCHMARK_TICKER_FOR_LABELS = "SPY"
@@ -71,6 +71,7 @@ def scan_output_paths(
     base = root / strategy_id / universe_id
     names = {
         "breakout": ("scan_results.csv", "report.json", "summary.md"),
+        "launchpad": ("scan_results.csv", "report.json", "summary.md"),
         "swing": ("setups.csv", "report.json", "summary.md"),
         "lynch": ("scan_results.csv", "report.json", "summary.md"),
         "mean_reversion": ("high_conviction.csv", "report.json", "summary.md"),
@@ -158,7 +159,50 @@ FALLBACK_UNIVERSE = [
     "NFLX",
 ]
 
-RAW_SCORE_MAX = 120
+# Breakout: sum of earnable factor points (7 technical factors; pattern/resistance cap at 5).
+RAW_SCORE_MAX = 80
+BREAKOUT_TIER2_NORMALIZED_MIN = 60.0
+BREAKOUT_TIER1_NORMALIZED_MIN = 80.0
+BREAKOUT_TIER1_FINAL_MIN = 70.0
+BREAKOUT_TIER1_COMPRESSION_MIN = 8.0
+BREAKOUT_TIER1_ACCUMULATION_MIN = 8.0
+# Relative-volume factor points (5 pts ≈ ≥1.5× 20-day average volume).
+BREAKOUT_TIER1_REL_VOLUME_MIN = 5.0
+# Evaluate Bollinger squeeze as of prior bar(s) so breakout-day band expansion does not zero the score.
+BREAKOUT_COMPRESSION_LAG_DAYS = 1
+# Eligibility: long-term trend + 52-week position (relaxed for base breakouts / pullbacks).
+BREAKOUT_MIN_PCT_ABOVE_52W_LOW = 0.30
+BREAKOUT_MAX_PCT_BELOW_52W_HIGH = 0.40  # was 25% — allow deeper consolidations off highs
+BREAKOUT_REQUIRE_SMA200_RISING = False
+
+# Launchpad Reversal: 5-factor "coiled spring" engine (raw max 100).
+# ma_tightness 25 + macd_zero_line 25 + atr_contraction 20 + volume_dry_up 15 + swing_low_vcp 15.
+LAUNCHPAD_RAW_SCORE_MAX = 100
+LAUNCHPAD_TIER1_NORMALIZED_MIN = 80.0
+LAUNCHPAD_TIER2_NORMALIZED_MIN = 65.0
+LAUNCHPAD_MIN_HISTORY_DAYS = 200
+LAUNCHPAD_MIN_AVG_VOLUME = 750_000
+LAUNCHPAD_MACD_ZERO_CROSS_LOOKBACK = 5
+LAUNCHPAD_SWING_LOW_LOOKBACK = 40
+LAUNCHPAD_SWING_HISTORY_DAYS = 120
+# Min bars between distinct structural swing lows (collapse adjacent detections).
+LAUNCHPAD_SWING_DEDUPE_MIN_GAP = 5
+
+# ATR contraction (True Range shrinkage): Volatility_Ratio = ATR(short) / ATR(long).
+LAUNCHPAD_ATR_SHORT_WINDOW = 14
+LAUNCHPAD_ATR_LONG_WINDOW = 50
+LAUNCHPAD_ATR_RATIO_STRONG = 0.70  # < 0.70 -> full points (ranges 30%+ tighter)
+LAUNCHPAD_ATR_RATIO_OK = 0.80  # < 0.80 -> partial points (ranges 20%+ tighter)
+
+# Volume dry-up (absolute supply exhaustion): mean(vol short) / SMA(vol long).
+LAUNCHPAD_VOLUME_DRYUP_SHORT_WINDOW = 3
+LAUNCHPAD_VOLUME_DRYUP_LONG_WINDOW = 50
+LAUNCHPAD_VOLUME_DRYUP_STRONG = 0.50  # <= 0.50 -> full points (50%+ below baseline)
+LAUNCHPAD_VOLUME_DRYUP_OK = 0.60  # <= 0.60 -> partial points (40%+ below baseline)
+
+# VCP: latest structural pullback depth vs prior pullback depth (ratio).
+LAUNCHPAD_VCP_RATIO_STRONG = 0.50  # <= 0.50 -> full points (textbook contraction)
+LAUNCHPAD_VCP_RATIO_OK = 0.75  # <= 0.75 -> partial points
 
 
 def database_url() -> str:
