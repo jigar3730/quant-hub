@@ -11,3 +11,5 @@ data/cache/
 data/output/
 logs/
 *.parquet
+quant_hub_backup.dump
+quant_hub_backup.dump
