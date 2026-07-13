@@ -145,12 +145,6 @@ def get_lynch_ticker_by_name(tickers: list[dict], symbol: str) -> dict | None:
             return t
     return None
 
-    symbol = symbol.upper()
-    for t in tickers:
-        if t.get("ticker", "").upper() == symbol:
-            return t
-    return None
-
 
 def render_lynch_ticker_detail(
     ticker: str,
@@ -215,7 +209,12 @@ def render_lynch_ticker_detail(
 
     if repo is not None:
         st.divider()
-        render_ticker_history_panel(repo, ticker, key_prefix="lynch_detail", show_header=True)
+        render_ticker_history_panel(
+            repo,
+            ticker,
+            key_prefix=f"lynch_detail_{ticker.upper()}",
+            show_header=True,
+        )
 
     checks_df = lynch_checks_dataframe(data)
     if not checks_df.empty:

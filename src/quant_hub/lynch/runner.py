@@ -134,8 +134,13 @@ class LynchScannerRunner:
                 all_checks.extend(base_checks)
             else:
                 base_ok, base_checks, base_fail = apply_base_screen(metrics)
-                all_checks.extend(base_checks)
-                categories = assign_categories(metrics)
+                categories, category_checks = assign_categories(metrics)
+                if base_ok:
+                    all_checks.extend(base_checks)
+                if categories:
+                    all_checks.extend(category_checks)
+                elif not base_ok:
+                    all_checks.extend(base_checks)
                 passed = base_ok or bool(categories)
                 fail_reason = None if passed else (base_fail or "no_category_match")
 

@@ -1,8 +1,11 @@
 import pandas as pd
+from pathlib import Path
 
 from quant_hub.lynch.categories import (
     assign_categories,
+    classify_asset_play,
     classify_fast_grower,
+    classify_stalwart,
 )
 from quant_hub.lynch.filters import apply_anti_filters, apply_base_screen, lynch_score
 from quant_hub.lynch.metrics import compute_peg, normalize_debt_to_equity
@@ -65,6 +68,29 @@ def test_fast_grower_classification():
     assert ok is True
 
 
+def test_stalwart_classification():
+    metrics = _ideal_metrics(
+        market_cap=50_000_000_000,
+        pe_ratio=18.0,
+        eps_growth_5y=0.12,
+        eps_growth_for_peg=0.12,
+        dividend_yield=0.02,
+    )
+    ok, checks = classify_stalwart(metrics)
+    assert ok is True
+    assert len(checks) == 4
+
+
+def test_asset_play_classification():
+    metrics = _ideal_metrics(
+        price_to_book=0.7,
+        net_cash_price_ratio=0.35,
+    )
+    ok, checks = classify_asset_play(metrics)
+    assert ok is True
+    assert len(checks) == 2
+
+
 def test_assign_categories_multiple():
     metrics = _ideal_metrics(
         market_cap=2_000_000_000,
@@ -72,9 +98,34 @@ def test_assign_categories_multiple():
         price_to_book=0.7,
         net_cash_price_ratio=0.4,
     )
-    cats = assign_categories(metrics)
+    cats, checks = assign_categories(metrics)
     assert "fast_grower" in cats
     assert "asset_play" in cats
+    assert len(checks) == 6
+
+
+def test_summary_category_only_pass_scores_category_checks():
+    """Category passers should not inherit failed base-screen checks in lynch_score."""
+    metrics = _ideal_metrics(
+        ticker="CAT",
+        institutional_ownership=0.80,
+        analyst_count=15,
+        insider_purchases_6m=0,
+        shares_outstanding_change_yoy=0.01,
+    )
+    base_ok, _, _ = apply_base_screen(metrics)
+    assert base_ok is False
+
+    runner = LynchScannerRunner(
+        universe=["CAT"],
+        preset="summary",
+        output=Path("unused.csv"),
+        report=None,
+    )
+    detail = runner._evaluate(metrics)
+    assert detail["passed"] is True
+    assert "fast_grower" in detail["categories"]
+    assert detail["lynch_score"] == 100.0
 
 
 def test_lynch_score_empty_checks_returns_none():

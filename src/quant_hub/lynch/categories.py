@@ -123,12 +123,24 @@ QUALITATIVE_OVERLAY = [
 ]
 
 
-def assign_categories(metrics: dict) -> list[str]:
-    categories = []
-    if classify_fast_grower(metrics)[0]:
+def assign_categories(metrics: dict) -> tuple[list[str], list[dict]]:
+    """Return matched category ids and their passing checks (single classifier pass)."""
+    categories: list[str] = []
+    checks: list[dict] = []
+
+    fg_ok, fg_checks = classify_fast_grower(metrics)
+    if fg_ok:
         categories.append("fast_grower")
-    if classify_stalwart(metrics)[0]:
+        checks.extend(fg_checks)
+
+    st_ok, st_checks = classify_stalwart(metrics)
+    if st_ok:
         categories.append("stalwart")
-    if classify_asset_play(metrics)[0]:
+        checks.extend(st_checks)
+
+    ap_ok, ap_checks = classify_asset_play(metrics)
+    if ap_ok:
         categories.append("asset_play")
-    return categories
+        checks.extend(ap_checks)
+
+    return categories, checks
