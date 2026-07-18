@@ -18,11 +18,10 @@ SCORE_LABELS = {
 }
 
 LAUNCHPAD_SCORE_LABELS = {
-    "ma_tightness": "MA Tightness",
-    "macd_zero_line": "MACD Zero-Line",
-    "atr_contraction": "ATR Contraction",
-    "volume_dry_up": "Volume Dry-Up",
-    "swing_low_vcp": "Swing-Low VCP",
+    "squeeze_intensity": "Squeeze Intensity",
+    "tightness_percentile": "Candle Tightness",
+    "volume_vacuum_depth": "Volume Vacuum",
+    "trend_proximity_match": "Trend & Proximity",
 }
 
 # TIER_COLORS is imported above from design_tokens and re-exported here so existing
@@ -39,11 +38,10 @@ TECHNICAL_KEYS = (
 )
 
 LAUNCHPAD_TECHNICAL_KEYS = (
-    "ma_tightness",
-    "macd_zero_line",
-    "atr_contraction",
-    "volume_dry_up",
-    "swing_low_vcp",
+    "squeeze_intensity",
+    "tightness_percentile",
+    "volume_vacuum_depth",
+    "trend_proximity_match",
 )
 
 

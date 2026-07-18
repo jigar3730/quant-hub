@@ -5,11 +5,10 @@ from quant_hub.engine.types import TickerResult
 from quant_hub.regime.market import MarketRegime
 
 LAUNCHPAD_SCORE_COLUMNS = [
-    "ma_tightness_score",
-    "macd_zero_line_score",
-    "atr_contraction_score",
-    "volume_dry_up_score",
-    "swing_low_vcp_score",
+    "squeeze_intensity_score",
+    "tightness_percentile_score",
+    "volume_vacuum_depth_score",
+    "trend_proximity_match_score",
 ]
 
 

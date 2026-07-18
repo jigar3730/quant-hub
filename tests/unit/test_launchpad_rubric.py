@@ -11,12 +11,12 @@ from quant_hub.regime.market import MarketRegime
 from quant_hub.scoring.launchpad import (
     _crossed_above_zero,
     launchpad_eligibility_detail,
-    score_atr_contraction,
-    score_ma_tightness,
     score_macd_zero_line,
     score_macd_zero_line_from_series,
-    score_swing_low_vcp,
-    score_volume_dry_up,
+    score_squeeze_intensity,
+    score_tightness_percentile,
+    score_volume_vacuum_depth,
+    score_trend_proximity_match,
 )
 from quant_hub.strategies.launchpad.aggregate import aggregate_launchpad_ticker
 from quant_hub.strategies.launchpad.tiers import assign_tier_from_row
@@ -66,34 +66,11 @@ def test_eligibility_passes_constructive_base():
     assert detail["passed"] is True
 
 
-def test_eligibility_fails_when_too_extended():
-    close = np.concatenate([np.linspace(40, 70, 259), np.array([78.0])])
-    detail = launchpad_eligibility_detail(_df_from_close(close))
+def test_eligibility_fails_when_price_not_near_structure():
+    close = np.concatenate([np.linspace(40, 70, 255), np.linspace(70, 72, 5)])
+    detail = launchpad_eligibility_detail(_df_from_close(close, volume=1_000_000))
     assert detail["passed"] is False
-    assert detail["fail_reason"] == "too_extended"
-
-
-def test_eligibility_fails_base_not_cleared():
-    # Uptrend then a deep drop below both moving averages on the last bar.
-    close = np.concatenate([np.linspace(40, 90, 259), np.array([30.0])])
-    detail = launchpad_eligibility_detail(_df_from_close(close))
-    assert detail["passed"] is False
-    assert detail["fail_reason"] == "base_not_cleared"
-
-
-def test_eligibility_fails_trend_not_fresh():
-    # Price above both MAs but SMA50 flat/declining over last 10 bars (rolled over).
-    close = np.concatenate(
-        [
-            np.linspace(40, 100, 235),
-            np.linspace(100, 88, 25),
-        ]
-    )
-    detail = launchpad_eligibility_detail(_df_from_close(close))
-    # Either base clearance or fresh-trend fails first depending on the roll-over depth;
-    # this fixture is tuned so SMA50 is falling while price is still > SMA200.
-    assert detail["passed"] is False
-    assert detail["fail_reason"] in ("trend_not_fresh", "base_not_cleared")
+    assert detail["fail_reason"] == "structural_proximity"
 
 
 def test_eligibility_fails_low_liquidity():
@@ -103,107 +80,50 @@ def test_eligibility_fails_low_liquidity():
     assert detail["fail_reason"] == "low_liquidity"
 
 
-def test_eligibility_extension_boundary_at_8pct():
-    # Flat 20-day median at 100; last close exactly 8.0% above passes, 8.01% fails.
-    base = np.full(259, 100.0)
-    pass_df = _df_from_close(np.concatenate([base, np.array([108.0])]))
-    fail_df = _df_from_close(np.concatenate([base, np.array([108.01])]))
-    pass_detail = launchpad_eligibility_detail(pass_df)
-    fail_detail = launchpad_eligibility_detail(fail_df)
-    assert pass_detail["passed"] is True
-    assert fail_detail["passed"] is False
-    assert fail_detail["fail_reason"] == "too_extended"
+def test_squeeze_intensity_rewards_compression():
+    close = np.linspace(100, 110, 60)
+    high = close + 1.5
+    low = close - 1.5
+    df = _df_from_ohlcv(close=close, high=high, low=low, volume=np.full(60, 1_000_000))
+    score, raw = score_squeeze_intensity(df)
+    assert score == 40.0
+    assert raw["squeeze_ratio"] < 0.90
 
 
-def test_ma_tightness_thresholds():
-    close = np.full(260, 100.0)
-    df = _df_from_close(close)
-    score_tight, _ = score_ma_tightness(df)
-    assert score_tight == 25.0
-
-    # Step from 100 -> 110: SMA50=110, SMA200=105.5 -> spread ~4.27% (3%-6% band).
-    close = np.concatenate([np.full(150, 100.0), np.full(110, 110.0)])
-    score_mid, raw = score_ma_tightness(_df_from_close(close))
-    assert score_mid == 15.0
-    assert 3.0 < raw["ma_spread_pct"] <= 6.0
-
-    close = np.concatenate([np.full(150, 50.0), np.linspace(50, 150, 110)])
-    score_wide, raw_wide = score_ma_tightness(_df_from_close(close))
-    assert raw_wide["ma_spread_pct"] > 6.0
-    assert score_wide == 0.0
-
-
-def test_atr_contraction_rewards_range_shrinkage():
-    # Flat close so True Range == High-Low; wide ranges early, tight ranges recent.
-    n = 60
-    close = np.full(n, 100.0)
-    ranges = np.concatenate([np.full(46, 10.0), np.full(14, 2.0)])
-    high = close + ranges / 2
-    low = close - ranges / 2
-    volume = np.full(n, 1_000_000)
-    df = _df_from_ohlcv(close=close, high=high, low=low, volume=volume)
-    score, raw = score_atr_contraction(df)
-    assert score == 20.0
-    assert raw["volatility_ratio"] < 0.70
-
-
-def test_atr_contraction_zero_when_ranges_stable():
-    n = 60
-    close = np.full(n, 100.0)
-    high = close + 5.0
-    low = close - 5.0
-    volume = np.full(n, 1_000_000)
-    df = _df_from_ohlcv(close=close, high=high, low=low, volume=volume)
-    score, raw = score_atr_contraction(df)
-    assert score == 0.0
-    assert raw["volatility_ratio"] >= 0.80
-
-
-def test_volume_dry_up_rewards_supply_exhaustion():
-    n = 60
-    close = np.linspace(50, 80, n)
-    high = close * 1.01
-    low = close * 0.99
+def test_volume_vacuum_depth_rewards_dry_up():
+    close = np.linspace(100, 110, 60)
+    high = close + 1.5
+    low = close - 1.5
     volume = np.concatenate([np.full(57, 1_000_000), np.full(3, 300_000)])
     df = _df_from_ohlcv(close=close, high=high, low=low, volume=volume)
-    score, raw = score_volume_dry_up(df)
+    score, raw = score_volume_vacuum_depth(df)
+    assert score == 30.0
+    assert raw["rvol"] <= 0.45
+
+
+def test_tightness_percentile_rewards_contracting_bars():
+    close = np.full(60, 100.0)
+    high = close + np.array([1.5] * 60)
+    low = close - np.array([1.0] * 60)
+    df = _df_from_ohlcv(close=close, high=high, low=low, volume=np.full(60, 1_000_000))
+    score, raw = score_tightness_percentile(df)
     assert score == 15.0
-    assert raw["volume_dry_up_ratio"] <= 0.50
+    assert raw["tightness_rank_pct"] <= 0.10
 
 
-def test_volume_dry_up_zero_when_active():
-    n = 60
-    close = np.linspace(50, 80, n)
-    high = close * 1.01
-    low = close * 0.99
-    volume = np.full(n, 1_000_000)
-    df = _df_from_ohlcv(close=close, high=high, low=low, volume=volume)
-    score, raw = score_volume_dry_up(df)
-    assert score == 0.0
-    assert raw["volume_dry_up_ratio"] > 0.60
-
-
-def test_swing_low_vcp_rewards_contracting_pullbacks():
-    # Deep pullback (~20%) followed by a shallow one (~5%): textbook VCP.
-    seg1 = np.linspace(100, 120, 11)
-    seg2 = np.linspace(120, 96, 11)[1:]
-    seg3 = np.linspace(96, 118, 11)[1:]
-    seg4 = np.linspace(118, 112, 11)[1:]
-    seg5 = np.linspace(112, 116, 11)[1:]
-    price = np.concatenate([seg1, seg2, seg3, seg4, seg5])
-    df = _df_from_close(price)
-    score, raw = score_swing_low_vcp(df)
+def test_trend_proximity_match_rewards_structure():
+    close = np.linspace(100, 120, 260)
+    high = close + 0.5
+    low = close - 0.5
+    spy_close = np.linspace(95, 112, 260)
+    spy_high = spy_close + 0.4
+    spy_low = spy_close - 0.4
+    price_df = _df_from_ohlcv(close=close, high=high, low=low, volume=np.full(260, 1_000_000))
+    spy_df = _df_from_ohlcv(close=spy_close, high=spy_high, low=spy_low, volume=np.full(260, 1_000_000))
+    score, raw = score_trend_proximity_match(price_df, spy_df)
     assert score == 15.0
-    assert raw["contraction_ratio"] <= 0.50
-    assert raw["latest_pullback_pct"] < raw["prior_pullback_pct"]
-
-
-def test_swing_low_vcp_zero_without_two_legs():
-    price = np.linspace(100, 130, 40)
-    df = _df_from_close(price)
-    score, raw = score_swing_low_vcp(df)
-    assert score == 0.0
-    assert raw["pullback_leg_count"] < 2
+    assert raw["relative_strength_positive"] is True
+    assert raw["near_support"] is True
 
 
 def test_tier1_requires_macd_25_and_norm_80():

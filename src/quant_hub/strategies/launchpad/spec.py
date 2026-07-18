@@ -6,11 +6,10 @@ from quant_hub.config import LAUNCHPAD_RAW_SCORE_MAX
 from quant_hub.engine.protocols import FactorBinding, StrategySpec
 from quant_hub.engine.types import TickerResult
 from quant_hub.factors.launchpad import (
-    AtrContractionFactor,
-    MaTightnessFactor,
-    MacdZeroLineFactor,
-    SwingLowVcpFactor,
-    VolumeDryUpFactor,
+    SqueezeIntensityFactor,
+    TightnessPercentileFactor,
+    VolumeVacuumDepthFactor,
+    TrendProximityMatchFactor,
 )
 from quant_hub.regime.market import MarketRegime
 from quant_hub.strategies.launchpad.aggregate import (
@@ -36,14 +35,13 @@ LAUNCHPAD_STRATEGY = LaunchpadStrategySpec(
     max_raw_score=float(LAUNCHPAD_RAW_SCORE_MAX),
     filters=[LaunchpadEligibilityFilter()],
     factor_bindings=[
-        FactorBinding(MaTightnessFactor()),
-        FactorBinding(MacdZeroLineFactor()),
-        FactorBinding(AtrContractionFactor()),
-        FactorBinding(VolumeDryUpFactor()),
-        FactorBinding(SwingLowVcpFactor()),
+        FactorBinding(SqueezeIntensityFactor()),
+        FactorBinding(TightnessPercentileFactor()),
+        FactorBinding(VolumeVacuumDepthFactor()),
+        FactorBinding(TrendProximityMatchFactor()),
     ],
     regime_mode="none",
     penalties=[],
-    sort_keys=["final_score", "ma_tightness_score", "macd_zero_line_score"],
+    sort_keys=["final_score", "squeeze_intensity_score", "volume_vacuum_depth_score"],
     score_columns=LAUNCHPAD_SCORE_COLUMNS,
 )
