@@ -23,13 +23,11 @@ MAX_REASONABLE_GROWTH = 3.0
 PRICE_SPIKE_RATIO = 3.0
 LOOKBACK_DAYS = 252
 CACHE_TTL_HOURS = 24
-CACHE_TTL_WEEKLY_HOURS = 168  # 7 days — swing runs weekly
 CACHE_TTL_FUNDAMENTALS_HOURS = 168  # 7 days — quarterly fundamentals
 PRICE_CACHE_SUBDIR = CACHE_DIR / "prices" / "1d" / "2y"
-WEEKLY_CACHE_SUBDIR = CACHE_DIR / "prices" / "1wk" / "10y"
 FUNDAMENTALS_CACHE_SUBDIR = CACHE_DIR / "fundamentals"
 
-# ML foundation (Phase 1)
+# ML foundation
 ML_DIR = DATA_DIR / "ml"
 ML_FEATURES_DIR = ML_DIR / "features"
 ML_MODELS_DIR = ML_DIR / "models"
@@ -41,17 +39,6 @@ BENCHMARK_TICKER_FOR_LABELS = "SPY"
 ML_LABEL_LOOKBACK_DAYS = 1260  # ~5 calendar years
 ML_LABEL_CACHE_SUBDIR = CACHE_DIR / "prices" / "1d" / "5y"
 ML_LABEL_CACHE_TTL_HOURS = 8760  # 1 year — refresh via quant-ml warm-cache
-
-SWING_PERIOD = "10y"
-SWING_INTERVAL = "1wk"
-SWING_MIN_BARS = 60
-DEFAULT_SWING_OUTPUT_CSV = OUTPUT_DIR / "swing_setups.csv"
-
-MEAN_REVERSION_LOOKBACK_DAYS = 600
-MEAN_REVERSION_MIN_BARS = 520
-MEAN_REVERSION_HIGH_CONVICTION = 71
-MEAN_REVERSION_WATCHLIST = 62
-DEFAULT_MEAN_REVERSION_UNIVERSE = "mean_reversion_core"
 
 LYNCH_FETCH_WORKERS = 3
 LYNCH_FETCH_BATCH_SIZE = 20
@@ -69,25 +56,11 @@ def scan_output_paths(
     """Per-strategy/universe export paths under data/output/ (or dry_run/)."""
     root = DRY_RUN_OUTPUT_DIR if dry_run else OUTPUT_DIR
     base = root / strategy_id / universe_id
-    names = {
-        "breakout": ("scan_results.csv", "report.json", "summary.md"),
-        "launchpad": ("scan_results.csv", "report.json", "summary.md"),
-        "swing": ("setups.csv", "report.json", "summary.md"),
-        "lynch": ("scan_results.csv", "report.json", "summary.md"),
-        "mean_reversion": ("high_conviction.csv", "report.json", "summary.md"),
+    return {
+        "csv": base / "scan_results.csv",
+        "json": base / "report.json",
+        "md": base / "summary.md",
     }
-    csv_name, json_name, md_name = names.get(
-        strategy_id, ("scan_results.csv", "report.json", "summary.md")
-    )
-    paths = {
-        "csv": base / csv_name,
-        "json": base / json_name,
-        "md": base / md_name,
-    }
-    if strategy_id == "mean_reversion":
-        paths["watchlist_csv"] = base / "watchlist.csv"
-        paths["full_scan_csv"] = base / "full_scan.csv"
-    return paths
 
 BENCHMARK_TICKER = "SPY"
 FALLBACK_SECTOR_ETF = "SPY"
@@ -125,27 +98,6 @@ SECTOR_TO_ETF: dict[str, str] = {
 
 ALL_SECTOR_ETFS = sorted(set(SECTOR_TO_ETF.values()) | set(INDUSTRY_TO_ETF.values()))
 
-# Sector & commodity ETF universe (Option A scan list)
-SECTOR_COMMODITY_ETFS = (
-    "XLK",
-    "XLC",
-    "XLY",
-    "XLP",
-    "XLE",
-    "XLF",
-    "XLV",
-    "XLI",
-    "XLB",
-    "XLU",
-    "XLRE",
-    "GLD",
-    "SLV",
-    "GDX",
-    "PDBC",
-    "CPER",
-    "DBA",
-)
-
 FALLBACK_UNIVERSE = [
     "AAPL",
     "MSFT",
@@ -159,24 +111,7 @@ FALLBACK_UNIVERSE = [
     "NFLX",
 ]
 
-# Breakout: sum of earnable factor points (7 technical factors; pattern/resistance cap at 5).
-RAW_SCORE_MAX = 80
-BREAKOUT_TIER2_NORMALIZED_MIN = 60.0
-BREAKOUT_TIER1_NORMALIZED_MIN = 80.0
-BREAKOUT_TIER1_FINAL_MIN = 70.0
-BREAKOUT_TIER1_COMPRESSION_MIN = 8.0
-BREAKOUT_TIER1_ACCUMULATION_MIN = 8.0
-# Relative-volume factor points (5 pts ≈ ≥1.5× 20-day average volume).
-BREAKOUT_TIER1_REL_VOLUME_MIN = 5.0
-# Evaluate Bollinger squeeze as of prior bar(s) so breakout-day band expansion does not zero the score.
-BREAKOUT_COMPRESSION_LAG_DAYS = 1
-# Eligibility: long-term trend + 52-week position (relaxed for base breakouts / pullbacks).
-BREAKOUT_MIN_PCT_ABOVE_52W_LOW = 0.30
-BREAKOUT_MAX_PCT_BELOW_52W_HIGH = 0.40  # was 25% — allow deeper consolidations off highs
-BREAKOUT_REQUIRE_SMA200_RISING = False
-
-# Launchpad Reversal: 5-factor "coiled spring" engine (raw max 100).
-# ma_tightness 25 + macd_zero_line 25 + atr_contraction 20 + volume_dry_up 15 + swing_low_vcp 15.
+# Launchpad: coiled-spring engine (raw max 100).
 LAUNCHPAD_RAW_SCORE_MAX = 100
 LAUNCHPAD_TIER1_NORMALIZED_MIN = 80.0
 LAUNCHPAD_TIER2_NORMALIZED_MIN = 65.0

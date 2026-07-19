@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build Quant Hub analytics payloads for digests")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    weekly = sub.add_parser("weekly", help="Build weekly cross-strategy analytics JSON")
+    weekly = sub.add_parser("weekly", help="Build weekly Lynch analytics JSON with Launchpad overlap")
     weekly.add_argument("--date", type=date.fromisoformat, help="Lynch date (default: today)")
 
     args = parser.parse_args(argv)
@@ -26,9 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "weekly":
         payload = service.run_analytics_weekly(lynch_date=args.date)
         logger.info(
-            "Weekly analytics: %d triple, %d swing highlights, %d lynch top",
-            len(payload.get("triple_alignment") or []),
-            len(payload.get("swing_highlights") or []),
+            "Weekly analytics: %d Launchpad overlaps, %d Lynch top",
+            len(payload.get("launchpad_overlap") or []),
             len(payload.get("lynch_top") or []),
         )
     return 0

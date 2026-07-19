@@ -13,8 +13,8 @@ def test_ticker_history_json_output():
     repo.ticker_history.return_value = [
         {
             "scan_date": "2024-06-01",
-            "strategy_id": "breakout",
-            "strategy_label": "Breakout",
+            "strategy_id": "launchpad",
+            "strategy_label": "Launchpad",
             "universe_id": "sp500_index",
             "ticker": "NVDA",
             "tier_label": "High conv.",

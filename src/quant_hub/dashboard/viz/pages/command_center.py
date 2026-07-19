@@ -1,4 +1,4 @@
-"""Daily Command Center — one cross-scanner, cross-universe briefing page."""
+"""Daily Command Center — Launchpad + Lynch briefing page."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from quant_hub.dashboard.viz.components import apply_chart_style, tier_badge_html
+from quant_hub.dashboard.viz.components import apply_chart_style
 from quant_hub.dashboard.viz.design_tokens import COLORS
 from quant_hub.dashboard.viz.labels import STRATEGY_DISPLAY, tier_friendly
 from quant_hub.dashboard.viz.navigation import set_detail_ticker
@@ -41,7 +41,7 @@ def _render_header(payload: dict, scan_date: date) -> None:
             <p>
               {scan_date} &nbsp;|&nbsp; {payload['run_count']} scan runs
               &nbsp;|&nbsp; {total_actionable} actionable signals
-              &nbsp;|&nbsp; {payload['convergence_count']} multi-scanner names
+              &nbsp;|&nbsp; {payload['overlap_count']} Launchpad+Lynch overlaps
               &nbsp;|&nbsp; Regime: <strong>{regime}</strong>
             </p>
         </div>
@@ -65,9 +65,9 @@ def _render_summary_metrics(payload: dict) -> None:
             ),
         )
     cols[-1].metric(
-        "Convergence",
-        payload["convergence_count"],
-        help="Tickers actionable in 2+ scanners today.",
+        "Overlap",
+        payload["overlap_count"],
+        help="Tickers actionable in both Launchpad and Lynch today.",
     )
 
 
@@ -121,29 +121,45 @@ def _render_coverage_heatmap(payload: dict) -> None:
     st.plotly_chart(apply_chart_style(fig), use_container_width=True, config=PLOTLY_CONFIG)
 
 
-def _render_convergence(payload: dict, *, scan_date: date) -> None:
-    convergence = payload.get("convergence") or []
-    st.markdown("### Multi-scanner convergence")
-    if not convergence:
-        st.caption("No tickers were actionable in 2 or more scanners today.")
+def _render_overlap(payload: dict, *, scan_date: date) -> None:
+    overlap = payload.get("launchpad_lynch_overlap") or []
+    st.markdown("### Launchpad + Lynch overlap")
+    if not overlap:
+        st.caption("No tickers were actionable in both Launchpad and Lynch today.")
         return
 
     rows = []
-    for item in convergence:
-        by_strategy = item["by_strategy"]
+    for item in overlap:
+        launchpad = item.get("launchpad") or {}
+        lynch = item.get("lynch") or {}
         rows.append(
             {
                 "ticker": item["ticker"],
-                "Scanners": item["strategy_count"],
-                "Fired in": ", ".join(
-                    STRATEGY_DISPLAY.get(s, s.title()) for s in item["strategies"]
+                "Launchpad tier": tier_friendly(launchpad.get("tier") or "", short=True),
+                "Launchpad score": (
+                    round(launchpad["final_score"], 1)
+                    if launchpad.get("final_score") is not None
+                    else None
                 ),
-                "Best score": round(item["best_score"], 1) if item["best_score"] else None,
-                "Sector ETF": item.get("sector_etf") or "—",
-                "Detail": "; ".join(
-                    f"{STRATEGY_DISPLAY.get(s, s.title())}: {tier_friendly(v.get('tier') or '', short=True)}"
-                    for s, v in sorted(by_strategy.items())
+                "Lynch tier": tier_friendly(lynch.get("tier") or "", short=True),
+                "Lynch score": (
+                    round(lynch["final_score"], 1)
+                    if lynch.get("final_score") is not None
+                    else None
                 ),
+                "Universes": ", ".join(
+                    sorted(
+                        {
+                            u
+                            for u in (
+                                launchpad.get("universe_id"),
+                                lynch.get("universe_id"),
+                            )
+                            if u
+                        }
+                    )
+                )
+                or "—",
             }
         )
     df = with_yahoo_ticker_links(pd.DataFrame(rows))
@@ -154,16 +170,17 @@ def _render_convergence(payload: dict, *, scan_date: date) -> None:
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
-        key="command_center_convergence_select",
+        key="command_center_overlap_select",
         column_config=merge_column_config({
-            "Best score": st.column_config.NumberColumn("Best score", format="%.1f"),
+            "Launchpad score": st.column_config.NumberColumn("Launchpad score", format="%.1f"),
+            "Lynch score": st.column_config.NumberColumn("Lynch score", format="%.1f"),
         }),
         column_order=table_column_order(base_cols),
     )
     st.download_button(
-        "Download convergence CSV",
+        "Download overlap CSV",
         pd.DataFrame(rows).to_csv(index=False).encode(),
-        file_name=f"command_center_convergence_{scan_date}.csv",
+        file_name=f"command_center_overlap_{scan_date}.csv",
         mime="text/csv",
     )
     if selection.selection.rows:
@@ -238,16 +255,16 @@ def _render_delta_table(df: pd.DataFrame, empty_msg: str) -> None:
 
 def _render_ticker_360(repo: ScanRepository, payload: dict, detail_ticker: str | None) -> None:
     st.markdown("### Ticker 360")
-    convergence_symbols = [c["ticker"] for c in payload.get("convergence") or []]
+    overlap_symbols = [c["ticker"] for c in payload.get("launchpad_lynch_overlap") or []]
     default_index = 0
-    options = convergence_symbols or []
+    options = overlap_symbols or []
     if detail_ticker and detail_ticker in options:
         default_index = options.index(detail_ticker)
     elif detail_ticker:
         options = [detail_ticker, *options]
 
     if not options:
-        st.caption("Select a convergence ticker above, or use the sidebar lookup, to see its full history.")
+        st.caption("Select an overlap ticker above, or use the sidebar lookup, to see its full history.")
         return
 
     active = st.selectbox(
@@ -274,7 +291,7 @@ def render_command_center(
     st.divider()
     _render_coverage_heatmap(payload)
     st.divider()
-    _render_convergence(payload, scan_date=scan_date)
+    _render_overlap(payload, scan_date=scan_date)
     st.divider()
     _render_deltas(payload)
     st.divider()

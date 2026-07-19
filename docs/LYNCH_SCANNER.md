@@ -4,7 +4,7 @@
 **Audience:** Analysts and operators who want to understand how Lynch fundamentals are pulled, calculated, and stored  
 **Last updated:** 2026-06-28
 
-Related docs: [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Breakout Scanner](BREAKOUT_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md)
+Related docs: [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Digest Policy](DIGEST_POLICY.md)
 
 ---
 

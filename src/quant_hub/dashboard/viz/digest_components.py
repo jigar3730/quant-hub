@@ -8,8 +8,8 @@ from typing import Any
 import streamlit as st
 import streamlit.components.v1 as components
 
-from quant_hub.digest.analytics import build_daily_payload, build_weekly_payload
 from quant_hub.digest import policy as P
+from quant_hub.digest.analytics import build_daily_payload, build_weekly_payload
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 from quant_hub.notify.digest_email import build_daily_digest_email, build_weekly_digest_email
 
@@ -46,9 +46,9 @@ def build_digest_preview(
 def _summary_metrics(digest_kind: str, payload: dict) -> list[tuple[str, str]]:
     if digest_kind == "weekly":
         return [
-            ("Triple alignment", str(len(payload.get("triple_alignment") or []))),
-            ("Swing highlights", str(len(payload.get("swing_highlights") or []))),
+            ("Launchpad overlaps", str(len(payload.get("launchpad_overlap") or []))),
             ("Lynch picks", str(len(payload.get("lynch_top") or []))),
+            ("Launchpad scan", payload.get("launchpad_scan_date") or "Not available"),
         ]
     tier1 = len(payload.get("tier1") or [])
     tier2 = len(payload.get("tier2") or [])
@@ -79,8 +79,8 @@ def render_digest_preview_tab(
     if scan_date is None:
         st.warning("No scan date available for this digest type yet.")
         st.info(
-            "Run `quant-daily --universe sp500_index` for daily digests, or "
-            "`quant-lynch-all` / `quant-swing-all` for weekly content."
+            "Run `quant-launchpad-daily --universe sp500_index` for daily digests, or "
+            "`quant-lynch-all` for the weekly digest."
         )
         return
 
@@ -102,8 +102,8 @@ def render_digest_preview_tab(
 
     st.markdown(f"**Subject:** `{preview['subject']}`")
     st.caption(
-        f"Policy: {P.DAILY_BREAKOUT_UNIVERSE} breakout"
-        + (" · cross-strategy weekly rollup" if digest_kind == "weekly" else "")
+        f"Policy: {P.DAILY_LAUNCHPAD_UNIVERSE} Launchpad"
+        + (" · Lynch top 15 with optional recent Launchpad overlap" if digest_kind == "weekly" else "")
     )
 
     tab_preview, tab_payload, tab_cli = st.tabs(["Email preview", "Payload JSON", "CLI"])

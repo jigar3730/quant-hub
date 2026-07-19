@@ -11,8 +11,8 @@ quant-hub init-db --quiet >> /app/logs/cron.log 2>&1 || true
 
 case "${1:-scheduler}" in
   scan)
-    echo "Running one-time daily scan..."
-    exec quant-daily --universe "${UNIVERSE:-sp500_index}"
+    echo "Running one-time Launchpad daily scan..."
+    exec quant-launchpad-daily --universe "${UNIVERSE:-sp500_index}" --no-email
     ;;
 
   scheduler)

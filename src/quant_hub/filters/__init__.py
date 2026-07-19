@@ -1,3 +1,3 @@
-from quant_hub.filters.eligibility import check_eligibility
+from quant_hub.filters.eligibility import FILTER_LABELS
 
-__all__ = ["check_eligibility"]
+__all__ = ["FILTER_LABELS"]

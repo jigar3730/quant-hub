@@ -36,15 +36,15 @@ class DigestService:
     def _already_sent(self, job_name: str) -> bool:
         return self.job_repo.job_succeeded(job_name)
 
-    def _check_breakout_ready(self, scan_date: date) -> None:
+    def _check_launchpad_ready(self, scan_date: date) -> None:
         run = self.scan_repo.get_latest_run(
-            strategy_id="breakout",
-            universe_id=P.DAILY_BREAKOUT_UNIVERSE,
+            strategy_id=P.LAUNCHPAD_STRATEGY,
+            universe_id=P.DAILY_LAUNCHPAD_UNIVERSE,
             scan_date=scan_date,
         )
         if not run:
             raise RuntimeError(
-                f"Breakout scan not ready for {P.DAILY_BREAKOUT_UNIVERSE} on {scan_date}"
+                f"Launchpad scan not ready for {P.DAILY_LAUNCHPAD_UNIVERSE} on {scan_date}"
             )
         scan_time = run.get("scan_time")
         if scan_time:
@@ -53,37 +53,19 @@ class DigestService:
             age = datetime.now(tz=UTC) - scan_time
             if age > timedelta(hours=P.DAILY_SCAN_MAX_AGE_HOURS):
                 raise RuntimeError(
-                    f"Breakout scan on {scan_date} is stale ({age.total_seconds() / 3600:.1f}h old)"
+                    f"Launchpad scan on {scan_date} is stale ({age.total_seconds() / 3600:.1f}h old)"
                 )
 
     def _check_weekly_ready(self, lynch_date: date) -> None:
-        swing = self.scan_repo.get_latest_run(
-            strategy_id="swing", universe_id=P.WEEKLY_SWING_UNIVERSE
-        )
-        if not swing:
-            raise RuntimeError(f"No swing scan for {P.WEEKLY_SWING_UNIVERSE}")
-        swing_age = lynch_date - swing["scan_date"]
-        if swing_age > timedelta(days=P.WEEKLY_SWING_MAX_AGE_DAYS):
-            raise RuntimeError(
-                f"Swing scan too old ({swing['scan_date']}); expected within {P.WEEKLY_SWING_MAX_AGE_DAYS} days"
-            )
-
         lynch = self.scan_repo.get_latest_run(
-            strategy_id="lynch",
+            strategy_id=P.LYNCH_STRATEGY,
             universe_id=P.WEEKLY_LYNCH_UNIVERSE,
             scan_date=lynch_date,
         )
         if not lynch:
-            lynch_latest = self.scan_repo.get_latest_run(
-                strategy_id="lynch", universe_id=P.WEEKLY_LYNCH_UNIVERSE
+            raise RuntimeError(
+                f"Lynch scan not ready for {P.WEEKLY_LYNCH_UNIVERSE} on {lynch_date}"
             )
-            if not lynch_latest:
-                raise RuntimeError(f"No Lynch scan for {P.WEEKLY_LYNCH_UNIVERSE}")
-            lynch_age = lynch_date - lynch_latest["scan_date"]
-            if lynch_age > timedelta(days=P.WEEKLY_LYNCH_MAX_AGE_DAYS):
-                raise RuntimeError(
-                    f"Lynch scan not ready for {lynch_date} (latest {lynch_latest['scan_date']})"
-                )
 
     def run_analytics_weekly(self, *, lynch_date: date | None = None) -> dict:
         if not ping():
@@ -118,7 +100,7 @@ class DigestService:
 
         job_id = self.job_repo.start_job(job_name, tickers_requested=0)
         try:
-            self._check_breakout_ready(scan_date)
+            self._check_launchpad_ready(scan_date)
             payload = build_daily_payload(self.scan_repo, scan_date=scan_date)
 
             if not payload.get("tier1") and not payload.get("tier2") and not P.DAILY_SEND_WHEN_EMPTY:

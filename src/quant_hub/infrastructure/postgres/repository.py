@@ -51,13 +51,6 @@ def _build_scan_metadata(report: dict) -> dict[str, Any]:
                 "metrics_quality": summary.get("metrics_quality"),
             }
         )
-    if report.get("strategy_id") == "mean_reversion":
-        metadata.update(
-            {
-                "high_conviction_count": summary.get("high_conviction_count"),
-                "watchlist_count": summary.get("watchlist_count"),
-            }
-        )
     if report.get("data_provenance"):
         metadata["data_provenance"] = report["data_provenance"]
     return metadata
@@ -78,26 +71,15 @@ def _restore_market_regime(run: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Actionable tier definitions per strategy
 def _tier_counts_from_run(run: dict[str, Any], metadata: dict[str, Any]) -> dict[str, int]:
-    strategy_id = run.get("strategy_id", "breakout")
-    if strategy_id == "swing":
-        return {
-            "SETUP_LONG": run.get("tier1_count", 0),
-            "SETUP_SHORT": run.get("tier2_count", 0),
-            "filtered": run.get("filtered_count", 0),
-        }
+    strategy_id = run.get("strategy_id", "launchpad")
     if strategy_id == "lynch":
         cats = metadata.get("category_counts") or {}
         return {
             "fast_grower": cats.get("fast_grower", run.get("tier1_count", 0)),
             "stalwart": cats.get("stalwart", run.get("tier2_count", 0)),
             "asset_play": cats.get("asset_play", run.get("tier3_count", 0)),
-            "filtered": run.get("filtered_count", 0),
-        }
-    if strategy_id == "mean_reversion":
-        return {
-            "HIGH_CONVICTION": run.get("tier1_count", 0),
-            "WATCHLIST": run.get("tier2_count", 0),
             "filtered": run.get("filtered_count", 0),
         }
     return {
@@ -109,25 +91,11 @@ def _tier_counts_from_run(run: dict[str, Any], metadata: dict[str, Any]) -> dict
 
 
 def _tier_counts_from_report(strategy_id: str, tiers: dict[str, int]) -> tuple[int, int, int, int]:
-    if strategy_id == "swing":
-        return (
-            tiers.get("SETUP_LONG", tiers.get("Tier 1", 0)),
-            tiers.get("SETUP_SHORT", tiers.get("Tier 2", 0)),
-            0,
-            tiers.get("filtered", 0),
-        )
     if strategy_id == "lynch":
         return (
             tiers.get("fast_grower", 0),
             tiers.get("stalwart", 0),
             tiers.get("asset_play", 0),
-            tiers.get("filtered", 0),
-        )
-    if strategy_id == "mean_reversion":
-        return (
-            tiers.get("HIGH_CONVICTION", 0),
-            tiers.get("WATCHLIST", 0),
-            0,
             tiers.get("filtered", 0),
         )
     return (
@@ -243,7 +211,7 @@ class ScanRepository:
     def get_latest_run(
         self,
         *,
-        strategy_id: str = "breakout",
+        strategy_id: str = "launchpad",
         universe_id: str | None = None,
         scan_date: date | None = None,
         exclude_fixtures: bool = True,
@@ -285,7 +253,7 @@ class ScanRepository:
     def load_report(
         self,
         *,
-        strategy_id: str = "breakout",
+        strategy_id: str = "launchpad",
         universe_id: str | None = None,
         scan_date: date | None = None,
         exclude_fixtures: bool = True,
@@ -377,8 +345,10 @@ class ScanRepository:
         exclude_fixtures: bool,
         actionable_only: bool,
     ) -> tuple[str, list[Any]]:
-        clauses = ["tr.ticker = %s", "sr.scan_date <= CURRENT_DATE"]
+        clauses = ["tr.ticker = %s"]
         params: list[Any] = [ticker.upper()]
+        if exclude_fixtures:
+            clauses.append("sr.scan_date <= CURRENT_DATE")
         if strategy_id:
             clauses.append("sr.strategy_id = %s")
             params.append(strategy_id)
@@ -536,7 +506,7 @@ class ScanRepository:
     def list_runs(
         self,
         *,
-        strategy_id: str = "breakout",
+        strategy_id: str = "launchpad",
         limit: int = 30,
         exclude_fixtures: bool = True,
     ) -> list[dict[str, Any]]:

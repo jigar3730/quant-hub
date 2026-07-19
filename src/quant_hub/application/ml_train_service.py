@@ -1,4 +1,4 @@
-"""Train LightGBM models on labeled swing (or future strategy) features."""
+"""Train LightGBM models on labeled Launchpad features."""
 
 from __future__ import annotations
 

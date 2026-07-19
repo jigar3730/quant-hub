@@ -38,7 +38,7 @@ def _sample_report(n: int = 5) -> dict:
             }
         )
     return {
-        "strategy_id": "breakout",
+        "strategy_id": "launchpad",
         "scan_summary": {
             "universe_size": n,
             "eligible_count": 3,
@@ -65,7 +65,7 @@ def _sample_report(n: int = 5) -> dict:
 def test_upsert_same_day_replaces_ticker_rows():
     repo = ScanRepository()
     scan_date = date(2099, 1, 1)
-    strategy = "breakout"
+    strategy = "launchpad"
     universe = "test-upsert"
 
     for i in range(3):
@@ -93,12 +93,12 @@ def test_market_regime_roundtrip():
     report = _sample_report()
     repo.upsert_scan(
         scan_date=date(2099, 1, 2),
-        strategy_id="breakout",
+        strategy_id="launchpad",
         universe_id="test-regime-roundtrip",
         report=report,
     )
     loaded = repo.load_report(
-        strategy_id="breakout",
+        strategy_id="launchpad",
         universe_id="test-regime-roundtrip",
         scan_date=date(2099, 1, 2),
         exclude_fixtures=False,
@@ -151,7 +151,7 @@ def test_ticker_history_actionable_filter():
 
     repo.upsert_scan(
         scan_date=date(2099, 2, 1),
-        strategy_id="breakout",
+        strategy_id="launchpad",
         universe_id=universe,
         report=_sample_report(),
     )
@@ -159,7 +159,7 @@ def test_ticker_history_actionable_filter():
     report["tickers"][0]["ticker"] = ticker
     repo.upsert_scan(
         scan_date=date(2099, 2, 2),
-        strategy_id="breakout",
+        strategy_id="launchpad",
         universe_id=universe,
         report=report,
     )
@@ -179,7 +179,7 @@ def test_ticker_history_actionable_filter():
 
     rows = repo.ticker_history(ticker, actionable_only=True, exclude_fixtures=False)
     assert len(rows) == 2
-    assert {r["strategy_id"] for r in rows} == {"breakout", "lynch"}
+    assert {r["strategy_id"] for r in rows} == {"launchpad", "lynch"}
     lynch_row = next(r for r in rows if r["strategy_id"] == "lynch")
     assert lynch_row["institutional_pct"] == 35.0
 

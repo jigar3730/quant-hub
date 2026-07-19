@@ -1,4 +1,4 @@
-"""Launchpad Reversal dashboard score guide."""
+"""Launchpad dashboard score guide."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ LAUNCHPAD_COMPONENT_SUMMARY = {
 
 def render_launchpad_score_guide(*, in_sidebar: bool = False) -> None:
     target = st.sidebar if in_sidebar else st
-    target.markdown("#### Launchpad Reversal Rubric")
+    target.markdown("#### Launchpad Rubric")
     target.markdown(
         """
 | Eligibility | Condition |

@@ -5,12 +5,8 @@ from __future__ import annotations
 from datetime import date
 
 STRATEGY_DISPLAY = {
-    "command_center": "Command Center",
-    "breakout": "Breakout",
-    "launchpad": "Launchpad Reversal",
-    "swing": "Swing",
+    "launchpad": "Launchpad",
     "lynch": "Lynch",
-    "mean_reversion": "Mean Reversion",
 }
 
 TIER_FRIENDLY = {
@@ -18,10 +14,6 @@ TIER_FRIENDLY = {
     "Tier 2": "Watchlist",
     "Tier 3": "Monitor",
     "filtered": "Excluded",
-    "SETUP_LONG": "Long setup",
-    "SETUP_SHORT": "Short setup",
-    "HIGH_CONVICTION": "High conviction",
-    "WATCHLIST": "Watchlist",
     "fast_grower": "Fast grower",
     "stalwart": "Stalwart",
     "asset_play": "Asset play",

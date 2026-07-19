@@ -14,7 +14,7 @@ from quant_hub.history.ticker_projection import history_display_columns
 from quant_hub.infrastructure.postgres.connection import apply_schema, ping
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
 
-STRATEGY_CHOICES = ("breakout", "launchpad", "swing", "lynch", "mean_reversion")
+STRATEGY_CHOICES = ("launchpad", "lynch")
 
 
 def _cmd_status() -> int:
@@ -278,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = sub.add_parser("report", help="Show latest scan summary")
     report.add_argument("--universe", default=PRIMARY_INDEX_UNIVERSE)
-    report.add_argument("--strategy", default="breakout", choices=STRATEGY_CHOICES)
+    report.add_argument("--strategy", default="launchpad", choices=STRATEGY_CHOICES)
 
     ticker = sub.add_parser("ticker", help="Ticker lookup across scan history")
     ticker_sub = ticker.add_subparsers(dest="ticker_command", required=True)

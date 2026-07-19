@@ -63,8 +63,7 @@ def render_ticker_history_panel(
     if show_header:
         st.markdown(f"### {ticker_link_html(symbol)} — actionable scan history", unsafe_allow_html=True)
     st.caption(
-        "Actionable appearances only (Breakout T1/T2, Swing setups, Lynch passed, "
-        "Mean Reversion high conviction). Breakout scans daily; Swing weekly."
+        "Actionable appearances only (Launchpad Tier 1/Tier 2 and Lynch passed)."
     )
 
     if total == 0:
@@ -88,23 +87,12 @@ def render_ticker_history_panel(
             "final_score": st.column_config.NumberColumn("Score", format="%.1f"),
             "regime_label": st.column_config.TextColumn("Regime"),
             "normalized_score": st.column_config.NumberColumn("Norm", format="%.1f"),
-            "compression": st.column_config.NumberColumn("Compress", format="%.0f"),
-            "accumulation": st.column_config.NumberColumn("Accum", format="%.0f"),
-            "rs_market": st.column_config.NumberColumn("RS Mkt", format="%.0f"),
-            "swing_score": st.column_config.NumberColumn("Swing", format="%.0f"),
-            "quality_label": st.column_config.TextColumn("Quality"),
-            "rsi": st.column_config.NumberColumn("RSI", format="%.1f"),
             "lynch_score": st.column_config.NumberColumn("Lynch", format="%.0f"),
             "institutional_pct": st.column_config.NumberColumn("Inst %", format="%.1f"),
             "analyst_count": st.column_config.NumberColumn("Analysts", format="%d"),
             "peg_ratio": st.column_config.NumberColumn("PEG", format="%.2f"),
             "pe_ratio": st.column_config.NumberColumn("P/E", format="%.1f"),
             "categories": st.column_config.TextColumn("Categories"),
-            "mean_reversion_score": st.column_config.NumberColumn("MR Score", format="%.0f"),
-            "signal": st.column_config.TextColumn("Signal"),
-            "entry_trigger": st.column_config.TextColumn("Entry"),
-            "stop_loss": st.column_config.NumberColumn("Stop", format="%.2f"),
-            "rr_t1": st.column_config.NumberColumn("R:R T1", format="%.2f"),
         }),
         column_order=table_column_order(present_cols),
     )

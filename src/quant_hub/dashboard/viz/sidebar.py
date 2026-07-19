@@ -7,9 +7,9 @@ from datetime import date
 import streamlit as st
 
 from quant_hub.application.universe_service import UniverseService
-from quant_hub.dashboard.viz.breakout_filters import BreakoutFilters
-from quant_hub.digest import policy as P
 from quant_hub.dashboard.viz.labels import format_universe_option
+from quant_hub.dashboard.viz.launchpad_filters import LaunchpadFilters
+from quant_hub.dashboard.viz.launchpad_score_guide import render_launchpad_score_guide
 from quant_hub.dashboard.viz.navigation import (
     HISTORY_PAGE_OFFSET_KEY,
     SHOW_GLOBAL_HISTORY_KEY,
@@ -17,22 +17,17 @@ from quant_hub.dashboard.viz.navigation import (
     set_detail_ticker,
     sync_detail_ticker,
 )
-from quant_hub.dashboard.viz.launchpad_filters import LaunchpadFilters
-from quant_hub.dashboard.viz.launchpad_score_guide import render_launchpad_score_guide
-from quant_hub.dashboard.viz.swing_filters import SwingFilters
-from quant_hub.dashboard.viz.swing_score_guide import render_swing_score_guide
 from quant_hub.dashboard.viz.ux_helpers import (
     DASHBOARD_RUN_LOOKUP_LIMIT,
     scanned_universe_ids,
     sorted_universe_ids,
 )
+from quant_hub.digest import policy as P
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 STRATEGY_LABELS = {
     "command_center": "Command Center (daily 360°)",
-    "breakout": "Breakout (daily)",
-    "launchpad": "Launchpad Reversal (daily)",
-    "swing": "Swing (weekly)",
+    "launchpad": "Launchpad (daily)",
     "lynch": "Lynch (fundamental)",
     "digest": "Email digests",
 }
@@ -67,13 +62,13 @@ def _scan_date_index(date_options: list[str], pending: date | None) -> int:
 
 def render_sidebar_controls(
     repo: ScanRepository,
-) -> tuple[str, str, date | None, BreakoutFilters | SwingFilters | LaunchpadFilters]:
+) -> tuple[str, str, date | None, LaunchpadFilters]:
     pending_scan_date = apply_pending_navigation()
     st.sidebar.title("Quant Hub")
     _render_global_ticker_lookup()
 
     if "sidebar_strategy" not in st.session_state:
-        st.session_state["sidebar_strategy"] = "breakout"
+        st.session_state["sidebar_strategy"] = "launchpad"
 
     strategy_id = st.sidebar.selectbox(
         "Strategy",
@@ -96,18 +91,18 @@ def render_sidebar_controls(
         else:
             st.sidebar.caption("No scans recorded yet.")
         st.sidebar.caption("Cross-scanner 360° rollup for the selected date.")
-        return strategy_id, "__all__", scan_date, BreakoutFilters()
+        return strategy_id, "__all__", scan_date, LaunchpadFilters()
 
     if strategy_id == "digest":
         digest_kind = st.sidebar.selectbox(
             "Digest type",
             options=["daily", "weekly"],
-            format_func=lambda k: "Daily breakout brief" if k == "daily" else "Weekly cross-strategy",
+            format_func=lambda k: "Daily Launchpad brief" if k == "daily" else "Weekly Lynch digest",
             key="digest_kind",
         )
-        lookup_strategy = "breakout" if digest_kind == "daily" else "lynch"
+        lookup_strategy = "launchpad" if digest_kind == "daily" else "lynch"
         lookup_universe = (
-            P.DAILY_BREAKOUT_UNIVERSE if digest_kind == "daily" else P.WEEKLY_LYNCH_UNIVERSE
+            P.DAILY_LAUNCHPAD_UNIVERSE if digest_kind == "daily" else P.WEEKLY_LYNCH_UNIVERSE
         )
         runs = repo.list_runs(
             strategy_id=lookup_strategy,
@@ -127,7 +122,7 @@ def render_sidebar_controls(
         else:
             st.sidebar.caption("No scans available for this digest yet.")
         st.sidebar.caption("Preview matches scheduled `quant-digest` emails.")
-        return strategy_id, lookup_universe, scan_date, BreakoutFilters()
+        return strategy_id, lookup_universe, scan_date, LaunchpadFilters()
 
     universes = UniverseService().list_universes()
     scanned = scanned_universe_ids(repo, strategy_id)
@@ -167,20 +162,9 @@ def render_sidebar_controls(
 
     st.sidebar.divider()
 
-    if strategy_id == "swing":
-        st.sidebar.header("Swing filters")
-        filters: BreakoutFilters | SwingFilters = SwingFilters(
-            setup_type=st.sidebar.selectbox(
-                "Setup type", ["All", "SETUP_LONG", "SETUP_SHORT"]
-            ),
-            min_rsi=st.sidebar.slider("Min RSI", 0.0, 100.0, 0.0, 1.0),
-            search=st.sidebar.text_input("Search ticker", "").strip().upper(),
-        )
-        with st.sidebar.expander("Swing setup score rubric", expanded=False):
-            render_swing_score_guide(in_sidebar=True)
-    elif strategy_id == "lynch":
+    if strategy_id == "lynch":
         st.sidebar.header("Lynch filters")
-        filters = BreakoutFilters(
+        filters = LaunchpadFilters(
             tier="All",
             eligible_only=False,
             actionable_only=st.sidebar.checkbox("Passed only", value=False),
@@ -204,25 +188,6 @@ def render_sidebar_controls(
         )
         with st.sidebar.expander("Launchpad rubric cheat sheet", expanded=False):
             render_launchpad_score_guide(in_sidebar=True)
-    else:
-        st.sidebar.header("Breakout filters")
-        from quant_hub.dashboard.viz.score_guide import render_score_component_guide
-
-        actionable_only = st.sidebar.checkbox("Actionable only (Tier 1+2)", value=False)
-        min_label = (
-            "Min normalized score (tier threshold)"
-            if actionable_only
-            else "Min final adjusted score"
-        )
-        filters = BreakoutFilters(
-            tier=st.sidebar.selectbox("Tier", ["All", "Tier 1", "Tier 2", "Tier 3", "filtered"]),
-            eligible_only=st.sidebar.checkbox("Eligible only", value=False),
-            actionable_only=actionable_only,
-            min_score=st.sidebar.slider(min_label, 0.0, 100.0, 0.0, 5.0),
-            search=st.sidebar.text_input("Search ticker", "").strip().upper(),
-        )
-        with st.sidebar.expander("Stock metrics cheat sheet (?)", expanded=False):
-            render_score_component_guide(in_sidebar=True)
 
     return strategy_id, universe_id, scan_date, filters
 

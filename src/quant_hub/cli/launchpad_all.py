@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run Launchpad Reversal scan on all configured universes"
+        description="Run Launchpad scan on all configured universes"
     )
     parser.add_argument("--cache", action="store_true", help="Use parquet price cache")
     parser.add_argument("--force-refresh", action="store_true", help="Bypass cache")

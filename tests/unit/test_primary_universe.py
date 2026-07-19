@@ -10,9 +10,9 @@ def test_primary_index_universe_constant():
 
 
 def test_digest_policy_uses_primary_index():
-    assert P.DAILY_BREAKOUT_UNIVERSE == PRIMARY_INDEX_UNIVERSE
-    assert P.WEEKLY_SWING_UNIVERSE == PRIMARY_INDEX_UNIVERSE
+    assert P.DAILY_LAUNCHPAD_UNIVERSE == PRIMARY_INDEX_UNIVERSE
     assert P.WEEKLY_LYNCH_UNIVERSE == PRIMARY_INDEX_UNIVERSE
+    assert P.WEEKLY_LAUNCHPAD_UNIVERSE == PRIMARY_INDEX_UNIVERSE
 
 
 def test_sp500_not_in_universe_registry():

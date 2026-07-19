@@ -1,4 +1,4 @@
-"""Model evaluation metrics and walk-forward comparison vs swing_score baseline."""
+"""Model evaluation metrics and walk-forward score-baseline comparison."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class EvalMetrics:
     precision_at_k: float | None = None
     recall_at_k: float | None = None
     mean_forward_return_top_k: float | None = None
-    baseline_swing_score_top_k_return: float | None = None
+    baseline_score_top_k_return: float | None = None
     top_k: int = 5
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -29,7 +29,7 @@ class EvalMetrics:
             "precision_at_k": self.precision_at_k,
             "recall_at_k": self.recall_at_k,
             f"mean_forward_return_top_{self.top_k}": self.mean_forward_return_top_k,
-            f"baseline_swing_score_top_{self.top_k}_return": self.baseline_swing_score_top_k_return,
+            f"baseline_score_top_{self.top_k}_return": self.baseline_score_top_k_return,
             **self.extra,
         }
 
@@ -39,8 +39,8 @@ class EvalMetrics:
             parts.append(f"auc={self.auc:.4f}")
         if self.mean_forward_return_top_k is not None:
             parts.append(f"ml_top{self.top_k}_ret={self.mean_forward_return_top_k:.2f}%")
-        if self.baseline_swing_score_top_k_return is not None:
-            parts.append(f"score_top{self.top_k}_ret={self.baseline_swing_score_top_k_return:.2f}%")
+        if self.baseline_score_top_k_return is not None:
+            parts.append(f"score_top{self.top_k}_ret={self.baseline_score_top_k_return:.2f}%")
         return " ".join(parts)
 
 
@@ -86,7 +86,7 @@ def evaluate_predictions(
     *,
     top_k: int = 5,
 ) -> EvalMetrics:
-    """Compute AUC and top-K weekly forward-return metrics vs swing_score baseline."""
+    """Compute AUC and top-K weekly forward-return metrics vs raw score baseline."""
     metrics = EvalMetrics(n_samples=len(y_true), top_k=top_k)
     if "scan_date" in meta.columns:
         metrics.n_weeks = int(meta["scan_date"].nunique())
@@ -94,11 +94,17 @@ def evaluate_predictions(
     metrics.auc = _safe_auc(y_true, y_score)
     metrics.mean_forward_return_top_k = _top_k_per_week_returns(meta, y_score, top_k=top_k)
 
-    if "swing_score" in meta.columns:
-        baseline_scores = pd.to_numeric(meta["swing_score"], errors="coerce")
-        metrics.baseline_swing_score_top_k_return = _top_k_per_week_returns(
-            meta, baseline_scores, top_k=top_k
-        )
+    baseline_column = next(
+        (
+            column
+            for column in ("final_score", "normalized_score")
+            if column in meta.columns
+        ),
+        None,
+    )
+    if baseline_column is not None:
+        baseline_scores = pd.to_numeric(meta[baseline_column], errors="coerce")
+        metrics.baseline_score_top_k_return = _top_k_per_week_returns(meta, baseline_scores, top_k=top_k)
 
     try:
         from sklearn.metrics import precision_score, recall_score
@@ -111,10 +117,10 @@ def evaluate_predictions(
 
     if (
         metrics.mean_forward_return_top_k is not None
-        and metrics.baseline_swing_score_top_k_return is not None
+        and metrics.baseline_score_top_k_return is not None
     ):
         metrics.extra["return_lift_vs_baseline"] = (
-            metrics.mean_forward_return_top_k - metrics.baseline_swing_score_top_k_return
+            metrics.mean_forward_return_top_k - metrics.baseline_score_top_k_return
         )
 
     return metrics
@@ -124,7 +130,7 @@ def aggregate_fold_metrics(fold_metrics: list[EvalMetrics]) -> dict[str, Any]:
     """Average numeric metrics across walk-forward folds."""
     if not fold_metrics:
         return {}
-    keys = ("auc", "mean_forward_return_top_k", "baseline_swing_score_top_k_return")
+    keys = ("auc", "mean_forward_return_top_k", "baseline_score_top_k_return")
     out: dict[str, Any] = {"n_folds": len(fold_metrics)}
     for key in keys:
         vals = [getattr(m, key) for m in fold_metrics if getattr(m, key) is not None]

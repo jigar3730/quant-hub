@@ -34,15 +34,15 @@ def test_table_column_order():
 
 def test_format_report_label():
     assert format_report_label(
-        strategy_id="breakout",
+        strategy_id="launchpad",
         universe_id="sp500_index",
         scan_date="2026-06-27",
-    ) == "SP500 INDEX · Breakout · 2026-06-27"
+    ) == "SP500 INDEX · Launchpad · 2026-06-27"
 
 
 def test_tier_friendly():
     assert tier_friendly("Tier 1") == "High conviction"
-    assert tier_friendly("SETUP_LONG") == "Long setup"
+    assert tier_friendly("fast_grower") == "Fast grower"
 
 
 def test_near_miss_dataframe_tier3_close_to_threshold():

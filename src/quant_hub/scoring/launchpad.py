@@ -1,4 +1,4 @@
-"""Launchpad Reversal scoring and eligibility helpers."""
+"""Launchpad scoring and eligibility helpers."""
 
 from __future__ import annotations
 

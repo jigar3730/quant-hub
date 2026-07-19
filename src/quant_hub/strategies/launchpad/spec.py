@@ -32,7 +32,7 @@ class LaunchpadStrategySpec(StrategySpec):
 
 LAUNCHPAD_STRATEGY = LaunchpadStrategySpec(
     id="launchpad",
-    name="Launchpad Reversal",
+    name="Launchpad",
     max_raw_score=float(LAUNCHPAD_RAW_SCORE_MAX),
     filters=[LaunchpadEligibilityFilter()],
     factor_bindings=[

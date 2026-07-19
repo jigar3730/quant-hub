@@ -1,37 +1,24 @@
 # Quant Hub cron — America/New_York (container TZ)
-# Scans use --no-email; consolidated digests send email via quant-digest.
+# Product focus: Launchpad (quality scanner) + Lynch (fundamentals).
+# Scans use --no-email; digests send email via quant-digest.
 # SMTP_* and EMAIL_* must be in .env (exported to /etc/environment on start).
 
-# ===== Mon–Fri: daily breakout + digest email =====
-# 5:00 PM ET — sp500_index breakout scan (feeds daily digest)
-#0 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
+# ===== Mon–Fri: Launchpad daily + digest =====
 # 5:10 PM ET — sp500_index launchpad scan
 10 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
-# 5:35 PM ET — daily digest email (Tier 1/2 breakout, sp500_index)
+# 5:35 PM ET — daily Launchpad digest email
 35 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
 
-# ===== Friday: ETF + swing (feeds weekly digest) =====
-# 4:30 PM ET — sector/commodity ETF breakout
-#30 16 * * 5 root . /etc/environment; quant-daily --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
-# 4:35 PM ET — sector/commodity ETF swing
-#35 16 * * 5 root . /etc/environment; quant-swing --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
-# 5:45 PM ET — sp500_index swing scan
-#45 17 * * 5 root . /etc/environment; quant-swing --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
-
-# ===== Saturday: full universe coverage + weekly digest email =====
+# ===== Saturday: coverage + Lynch + ML + weekly digest =====
 # 12:30 AM ET — refresh sp500_index holdings (first Sat of Jan/Apr/Jul/Oct)
 30 0 1-7 1,4,7,10 6 root . /etc/environment; quant-universe refresh sp500_index >> /app/logs/cron.log 2>&1
-# 1:00 AM ET — breakout all universes
-#0 1 * * 6 root . /etc/environment; quant-scan-all --cache --report both >> /app/logs/cron.log 2>&1
-# 1:30 AM ET — launchpad all universes
+# 1:30 AM ET — launchpad all stock universes
 30 1 * * 6 root . /etc/environment; quant-launchpad-all --cache --report both >> /app/logs/cron.log 2>&1
-# 4:00 AM ET — swing all universes
-#0 4 * * 6 root . /etc/environment; quant-swing-all --no-email >> /app/logs/cron.log 2>&1
 # 5:00 AM ET — Lynch all stock universes
-#0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
-# 6:00 AM ET — ML forward-return labels (swing sp500_index, last 90d)
-0 6 * * 6 root . /etc/environment; quant-ml label --strategy swing --universe sp500_index --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
+0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
+# 6:00 AM ET — ML forward-return labels (launchpad sp500, last 90d)
+0 6 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
 # 7:50 AM ET — build weekly analytics payload
 50 7 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1
-# 8:00 AM ET — weekly digest email (triple alignment, swing, Lynch)
+# 8:00 AM ET — weekly Lynch (+ Launchpad overlap) digest email
 0 8 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1

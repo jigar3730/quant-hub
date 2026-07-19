@@ -263,23 +263,21 @@ docker exec quant-hub quant-ml train --strategy launchpad --universe sp500_index
 
 ---
 
-## 8. Current schedule (Launchpad-focused)
+## 8. Current schedule (Launchpad + Lynch)
 
 Authoritative file: `docker/crontab` (container TZ = America/New_York).
 
-| When (ET) | Job | Notes |
-|-----------|-----|-------|
-| Mon–Fri **5:10 PM** | `quant-launchpad-daily --universe sp500_index --no-email` | Change universe to `mega_runners` while tuning if desired |
-| Sat **1:30 AM** | `quant-launchpad-all --cache --report both` | All stock universes |
-| Sat **12:30 AM** (quarterly) | `quant-universe refresh sp500_index` | Membership refresh |
-| Digests / breakout / swing / Lynch | Mostly **commented out** | Daily digest still enabled at 5:35 PM — needs breakout data to be useful |
+| When (ET) | Job |
+|-----------|-----|
+| Mon–Fri **5:10 PM** | `quant-launchpad-daily --universe sp500_index --no-email` |
+| Mon–Fri **5:35 PM** | `quant-digest daily` (Launchpad tiers) |
+| Sat **12:30 AM** (quarterly) | `quant-universe refresh sp500_index` |
+| Sat **1:30 AM** | `quant-launchpad-all --cache --report both` |
+| Sat **5:00 AM** | `quant-lynch-all --no-email` |
+| Sat **6:00 AM** | `quant-ml label --strategy launchpad --universe sp500_index --since <90d>` |
+| Sat **7:50 / 8:00 AM** | analytics + weekly Lynch digest |
 
-After editing crontab: `docker compose up -d --build quant-hub`, then:
-
-```bash
-docker exec quant-hub cat /etc/cron.d/quant-hub
-tail -f /mnt/fast/quant-data/logs/cron.log
-```
+For tuning, run Launchpad manually on `mega_runners` (see §3–§7). After editing crontab: `docker compose up -d --build quant-hub`.
 
 ---
 

@@ -1,4 +1,4 @@
-"""Launchpad Reversal dashboard tab renderers."""
+"""Launchpad dashboard tab renderers."""
 
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ from quant_hub.dashboard.viz.components import (
 )
 from quant_hub.dashboard.viz.data import (
     LAUNCHPAD_SCORE_LABELS,
+    TIER_COLORS,
     full_universe_dataframe,
     score_heatmap_dataframe,
-    TIER_COLORS,
 )
 from quant_hub.dashboard.viz.labels import tier_friendly
 from quant_hub.dashboard.viz.launchpad_filters import (
@@ -115,7 +115,6 @@ def render_overview_tab(
         heat_df = score_heatmap_dataframe(
             [t for t in tickers if t["ticker"] in eligible_tickers],
             eligible_only=False,
-            strategy_id="launchpad",
         )
         if len(heat_df) > 1:
             st.plotly_chart(render_heatmap(heat_df), use_container_width=True, config=PLOTLY_CONFIG)
@@ -137,7 +136,7 @@ def render_all_tickers_tab(
     detail_ticker: str | None,
 ) -> str | None:
     st.markdown("### Full Universe")
-    full_df = apply_launchpad_filters(full_universe_dataframe(tickers, strategy_id="launchpad"), filters)
+    full_df = apply_launchpad_filters(full_universe_dataframe(tickers), filters)
     if full_df.empty:
         st.warning("No tickers match the current filters.")
         return detail_ticker
@@ -145,7 +144,7 @@ def render_all_tickers_tab(
     render_universe_summary(full_df)
     table_df = apply_universe_controls(full_df)
 
-    display_cols = universe_display_columns(table_df, strategy_id="launchpad")
+    display_cols = universe_display_columns(table_df)
     shown_df = with_yahoo_ticker_links(table_df[display_cols].copy())
 
     st.dataframe(
@@ -153,7 +152,7 @@ def render_all_tickers_tab(
         use_container_width=True,
         hide_index=True,
         key="launchpad_all_tickers_select",
-        column_config=universe_table_column_config(strategy_id="launchpad"),
+        column_config=universe_table_column_config(),
         column_order=table_column_order(display_cols),
     )
     st.download_button(
@@ -199,7 +198,6 @@ def render_ticker_detail_tab(
             ticker_data,
             scan_date=scan_date,
             repo=repo,
-            strategy_id="launchpad",
         )
     elif active and repo is not None:
         render_ticker_history_panel(repo, active, key_prefix="launchpad_orphan")
@@ -310,5 +308,5 @@ def render_launchpad_header(
         summary,
         regime,
         scan_date=scan_date,
-        title="Launchpad Reversal",
+        title="Launchpad",
     )

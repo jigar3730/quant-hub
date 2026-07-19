@@ -1,1 +1,1 @@
-"""Launchpad Reversal strategy."""
+"""Launchpad strategy."""

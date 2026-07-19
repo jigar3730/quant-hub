@@ -1,4 +1,4 @@
-"""Launchpad Reversal rubric unit tests."""
+"""Launchpad rubric unit tests."""
 
 from __future__ import annotations
 

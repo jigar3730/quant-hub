@@ -5,21 +5,21 @@ from datetime import date
 from quant_hub.history.ticker_projection import history_display_columns, project_row
 
 
-def test_project_breakout_row():
+def test_project_launchpad_row():
     detail = {
-        "tier_reason": "Strong compression",
+        "tier_reason": "Strong squeeze",
         "summary": {"normalized_score": 72.0, "final_adjusted_score": 68.5},
         "scores": {
-            "compression": {"score": 12},
-            "accumulation": {"score": 9},
-            "rs_market": {"score": 8},
+            "macd_zero_line": {"score": 12},
+            "squeeze_intensity": {"score": 9},
+            "tightness_percentile": {"score": 8},
         },
     }
     row = project_row(
         run_id=1,
         scan_date=date(2024, 6, 1),
         scan_time=None,
-        strategy_id="breakout",
+        strategy_id="launchpad",
         universe_id="sp500_index",
         regime_label="strong",
         regime_multiplier=1.0,
@@ -32,8 +32,8 @@ def test_project_breakout_row():
         detail=detail,
     )
     assert row["normalized_score"] == 72.0
-    assert row["compression"] == 12.0
-    assert row["strategy_label"] == "Breakout"
+    assert row["squeeze_intensity"] == 9.0
+    assert row["strategy_label"] == "Launchpad"
 
 
 def test_project_lynch_row_includes_institutional():
@@ -70,7 +70,7 @@ def test_project_lynch_row_includes_institutional():
 
 def test_history_display_columns_includes_lynch_fields():
     rows = [
-        {"strategy_id": "breakout"},
+        {"strategy_id": "launchpad"},
         {"strategy_id": "lynch"},
     ]
     cols = history_display_columns(rows)

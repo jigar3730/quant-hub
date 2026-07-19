@@ -1,19 +1,20 @@
-"""Digest quality thresholds — aligned with scanner tier logic."""
+"""Launchpad and Lynch digest policy."""
 
 from __future__ import annotations
 
 from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 
-# Universes
-DAILY_BREAKOUT_UNIVERSE = PRIMARY_INDEX_UNIVERSE
-WEEKLY_SWING_UNIVERSE = PRIMARY_INDEX_UNIVERSE
+# Universes and strategies
+DAILY_LAUNCHPAD_UNIVERSE = PRIMARY_INDEX_UNIVERSE
 WEEKLY_LYNCH_UNIVERSE = PRIMARY_INDEX_UNIVERSE
-WEEKLY_ETF_UNIVERSE = "sector_commodity_etfs"
+WEEKLY_LAUNCHPAD_UNIVERSE = PRIMARY_INDEX_UNIVERSE
+LAUNCHPAD_STRATEGY = "launchpad"
+LYNCH_STRATEGY = "lynch"
 
-# Breakout (matches strategies/breakout/tiers.py)
-BREAKOUT_TIER1 = "Tier 1"
-BREAKOUT_TIER2 = "Tier 2"
-BREAKOUT_ACTIONABLE = (BREAKOUT_TIER1, BREAKOUT_TIER2)
+# Launchpad actionable tiers (matches strategies/launchpad/tiers.py).
+LAUNCHPAD_TIER1 = "Tier 1"
+LAUNCHPAD_TIER2 = "Tier 2"
+LAUNCHPAD_ACTIONABLE = (LAUNCHPAD_TIER1, LAUNCHPAD_TIER2)
 
 # Daily caps
 DAILY_TIER1_MAX = 15
@@ -21,27 +22,20 @@ DAILY_TIER2_MAX = 10
 DAILY_SEND_WHEN_EMPTY = True
 
 # Weekly caps
-WEEKLY_SWING_MIN_SCORE = 70.0  # A/B band (scoring.py)
 WEEKLY_LYNCH_TOP_N = 15
-WEEKLY_TABLE_MAX = 15
 
-# Convergence
-WEEKLY_TRIPLE_BREAKOUT_TIERS = (BREAKOUT_TIER1,)
-WEEKLY_DOUBLE_BREAKOUT_TIERS = BREAKOUT_ACTIONABLE
-
-# Persistence (weekday breakout runs)
+# Persistence (weekday Launchpad runs)
 PERSISTENCE_MIN_DAYS = 3
 PERSISTENCE_LOOKBACK_DAYS = 5
 
 # Readiness
 DAILY_SCAN_MAX_AGE_HOURS = 3
-WEEKLY_SWING_MAX_AGE_DAYS = 4
-WEEKLY_LYNCH_MAX_AGE_DAYS = 2
+WEEKLY_LAUNCHPAD_MAX_AGE_DAYS = 7
 
 # Regime
 WEAK_REGIME_LABEL = "weak"
 
 DIGEST_POLICY_FOOTER = (
-    "Tier 1: norm≥80, final≥70, compression≥8, volume signal met. "
-    "Tier 2: norm≥65. Swing highlights: quality score≥70 (A/B)."
+    "Launchpad Tier 1 requires a high normalized score and MACD zero-line ignition; "
+    "Tier 2 is the qualified watchlist. Lynch candidates are ranked by Lynch score."
 )

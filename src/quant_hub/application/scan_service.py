@@ -12,20 +12,23 @@ from quant_hub.data.quality import max_bar_date
 from quant_hub.engine.export import ticker_results_to_legacy_scores
 from quant_hub.engine.runner import StrategyEngine
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
-from quant_hub.notify.email import send_scan_email
 from quant_hub.report.builder import build_scan_report
 from quant_hub.report.export import export_json_report, export_markdown_report
-from quant_hub.scoring.aggregate import export_results
 from quant_hub.strategies.registry import get_strategy
 
 logger = logging.getLogger(__name__)
+
+
+def _export_results_csv(results, output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    results.to_csv(output, index=False)
 
 
 class ScanService:
     def __init__(
         self,
         *,
-        strategy_id: str = "breakout",
+        strategy_id: str = "launchpad",
         universe_service: UniverseService | None = None,
         scan_repo: ScanRepository | None = None,
         job_repo: JobRunRepository | None = None,
@@ -80,7 +83,7 @@ class ScanService:
             )
             scan_result = engine.run()
             results = scan_result.to_dataframe()
-            export_results(results, output)
+            _export_results_csv(results, output)
             logger.info("Wrote %d rows to %s", len(results), output)
 
             ctx = engine._context
@@ -88,11 +91,6 @@ class ScanService:
             scores_by_ticker = ticker_results_to_legacy_scores(scan_result.tickers)
             cache_mode = "parquet" if use_cache else "live"
             as_of = max_bar_date(ctx.spy_df)
-            fund_quality = (
-                ctx.extras.get("fundamentals_quality")
-                if scan_result.strategy_id != "breakout"
-                else None
-            )
             scan_report = build_scan_report(
                 results_df=results,
                 universe=scan_result.universe,
@@ -104,16 +102,13 @@ class ScanService:
                 regime_detail=scan_result.regime_detail,
                 scores_by_ticker=scores_by_ticker,
                 strategy_id=scan_result.strategy_id,
-                fundamentals_quality=fund_quality,
                 eligibility_mode=eligibility_mode,
                 data_provenance=build_data_provenance(
                     strategy_id=scan_result.strategy_id,
                     universe_id=resolved_id,
                     scan_date=scan_date,
                     price_cache=cache_mode,
-                    fundamentals_cache=(
-                        cache_mode if scan_result.strategy_id != "breakout" else None
-                    ),
+                    fundamentals_cache=None,
                     as_of_price=str(as_of) if as_of else None,
                     extra={"dry_run": True} if dry_run else None,
                 ),
@@ -135,18 +130,19 @@ class ScanService:
                 )
                 logger.info("Persisted scan to Postgres run_id=%s", run_id)
 
-            email_sent = False
             if send_email:
-                email_sent = send_scan_email(scan_report, scan_date=scan_date)
-                if email_sent:
-                    logger.info("Actionable tickers email sent")
-                else:
-                    logger.warning(
-                        "Email not sent — configure SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_TO"
-                    )
+                logger.info(
+                    "Per-scan email skipped for Launchpad — use quant-digest daily instead"
+                )
 
             if job_id is not None:
-                fetched = len([t for t in scan_result.tickers if t.eligible or t.filter_reason != "no_price_data"])
+                fetched = len(
+                    [
+                        t
+                        for t in scan_result.tickers
+                        if t.eligible or t.filter_reason != "no_price_data"
+                    ]
+                )
                 failed = len(universe) - len(scan_result.universe)
                 self.job_repo.finish_job(
                     job_id,
@@ -158,7 +154,7 @@ class ScanService:
             return ServiceRunResult(
                 dataframe=results,
                 email_requested=send_email,
-                email_sent=email_sent if send_email else False,
+                email_sent=False,
             )
 
         except Exception as exc:

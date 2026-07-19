@@ -16,7 +16,7 @@ def list_universe_ids(
     Return sorted universe ids for batch jobs.
 
     strategy:
-      - None / \"breakout\" / \"swing\" — all configured universes
+      - None — all configured universes
       - \"lynch\" — universes with lynch_enabled (default true; false skips ETF list)
       - \"launchpad\" — stock-mode universes only (rubric is single-stock; ETF-mode skipped)
     """

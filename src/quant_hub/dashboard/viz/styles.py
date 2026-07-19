@@ -22,8 +22,7 @@ PLOTLY_LAYOUT = {
     "title": {"font": {"size": 14, "color": COLORS["text_primary"]}},
 }
 
-# TIER_BADGE_CSS is imported above and re-exported here for callers that still
-# do `from quant_hub.dashboard.viz.styles import TIER_BADGE_CSS` (e.g. components.py).
+__all__ = ["COLORS", "CSS_VARS", "CUSTOM_CSS", "PLOTLY_CONFIG", "PLOTLY_LAYOUT", "TIER_BADGE_CSS"]
 
 CUSTOM_CSS = f"""
 <style>

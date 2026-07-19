@@ -1,4 +1,4 @@
-"""Launchpad Reversal score component diagnostics for reports."""
+"""Launchpad score component diagnostics for reports."""
 
 from __future__ import annotations
 

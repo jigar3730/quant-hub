@@ -34,7 +34,7 @@ class StrategyEngine:
         self._context = context
 
     def run(self) -> ScanResult:
-        load_fundamentals = self.spec.id not in ("breakout", "launchpad")
+        load_fundamentals = self.spec.id not in ("launchpad",)
         ctx = self._context or ScanContext.from_universe(
             tickers=self.tickers,
             tickers_file=self.tickers_file,

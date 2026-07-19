@@ -1,4 +1,4 @@
-"""quant-digest — consolidated daily and weekly email digests."""
+"""quant-digest — daily Launchpad and weekly Lynch email digests."""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Send consolidated Quant Hub digest emails")
+    parser = argparse.ArgumentParser(description="Send Launchpad and Lynch Quant Hub digest emails")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    daily = sub.add_parser("daily", help="Daily breakout quality digest (Mon–Fri)")
+    daily = sub.add_parser("daily", help="Daily Launchpad digest (Mon–Fri)")
     daily.add_argument("--date", type=date.fromisoformat, help="Scan date (default: today)")
     daily.add_argument("--no-email", action="store_true", help="Build only, do not send")
     daily.add_argument("--force", action="store_true", help="Send even if already sent today")
 
-    weekly = sub.add_parser("weekly", help="Weekly cross-strategy digest (Sat)")
+    weekly = sub.add_parser("weekly", help="Weekly Lynch digest with Launchpad overlap (Sat)")
     weekly.add_argument("--date", type=date.fromisoformat, help="Lynch scan date (default: today)")
     weekly.add_argument("--no-email", action="store_true", help="Build only, do not send")
     weekly.add_argument("--force", action="store_true", help="Send even if already sent this week")

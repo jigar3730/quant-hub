@@ -73,7 +73,7 @@ class MLEvaluateService:
 
             meta_path = Path(artifact_path) / "features.json"
             meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
-            strategy_id = meta.get("strategy_id", "swing")
+            strategy_id = meta.get("strategy_id", "launchpad")
             universe_id = meta.get("universe_id", PRIMARY_INDEX_UNIVERSE)
             horizon_days = int(meta.get("horizon_days", 10))
             record = None

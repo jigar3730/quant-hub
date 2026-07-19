@@ -8,7 +8,7 @@ from quant_hub.ml.constants import FEATURE_SCHEMA_VERSION
 from quant_hub.ml.features import extract_features, merge_outcome_columns
 
 
-def _run(strategy_id: str = "breakout") -> dict:
+def _run(strategy_id: str = "launchpad") -> dict:
     return {
         "id": 42,
         "scan_date": date(2026, 6, 1),
@@ -26,46 +26,6 @@ def _run(strategy_id: str = "breakout") -> dict:
             }
         },
     }
-
-
-def test_extract_breakout_features():
-    detail = {
-        "ticker": "AAPL",
-        "tier": "Tier 1",
-        "eligible": True,
-        "sector_etf": "XLK",
-        "summary": {"final_adjusted_score": 88, "normalized_score": 75, "raw_score": 90},
-        "scores": {
-            "rs_market": {"score": 8},
-            "compression": {"score": 7},
-        },
-    }
-    row = extract_features(strategy_id="breakout", detail=detail, run=_run())
-    assert row["feature_schema_version"] == FEATURE_SCHEMA_VERSION
-    assert row["ticker"] == "AAPL"
-    assert row["final_score"] == 88
-    assert row["score_rs_market"] == 8
-    assert row["as_of_price"] == "2026-05-30"
-
-
-def test_extract_swing_features():
-    detail = {
-        "ticker": "MSFT",
-        "tier": "SETUP_LONG",
-        "eligible": True,
-        "setup_detail": {
-            "swing_score": 92,
-            "quality_label": "high",
-            "checks_passed": 5,
-            "checks_total": 5,
-            "rsi": 48.5,
-        },
-        "summary": {},
-    }
-    row = extract_features(strategy_id="swing", detail=detail, run=_run("swing"))
-    assert row["swing_score"] == 92
-    assert row["quality_label"] == "high"
-    assert row["rsi"] == 48.5
 
 
 def test_extract_lynch_features():
@@ -114,6 +74,8 @@ def test_extract_launchpad_features():
         },
     }
     row = extract_features(strategy_id="launchpad", detail=detail, run=_run("launchpad"))
+    assert row["feature_schema_version"] == FEATURE_SCHEMA_VERSION
+    assert row["as_of_price"] == "2026-05-30"
     assert row["final_score"] == 82
     assert row["volatility_compression_ratio"] == 0.8459
     assert row["relative_strength_rank"] == 0.0667

@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from quant_hub.config import BREAKOUT_TIER1_NORMALIZED_MIN, BREAKOUT_TIER2_NORMALIZED_MIN
+from quant_hub.config import LAUNCHPAD_TIER1_NORMALIZED_MIN, LAUNCHPAD_TIER2_NORMALIZED_MIN
 from quant_hub.dashboard.viz.components import (
     apply_chart_style,
     render_ticker_news_panel,
@@ -15,11 +15,6 @@ from quant_hub.dashboard.viz.components import (
 from quant_hub.dashboard.viz.data import LAUNCHPAD_SCORE_LABELS, scores_to_dataframe
 from quant_hub.dashboard.viz.design_tokens import COLORS
 from quant_hub.dashboard.viz.navigation import set_detail_ticker, ticker_link_html
-from quant_hub.dashboard.viz.signals import (
-    component_action,
-    render_signal_insights_panel,
-    signal_insights,
-)
 from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
 from quant_hub.dashboard.viz.table_helpers import merge_column_config
 from quant_hub.filters.eligibility import FILTER_LABELS
@@ -64,7 +59,7 @@ def _mini_score_chart(ticker_data: dict, ticker: str) -> go.Figure | None:
     top = score_df.nlargest(6, "score")
     scores = ticker_data.get("scores") or {}
     custom = [
-        f"<b>{row['component']}</b><br>{component_action(row['key'], scores.get(row['key'], {}))}"
+        f"<b>{row['component']}</b><br>{scores.get(row['key'], {}).get('meaning', '')}"
         for _, row in top.iterrows()
     ]
 
@@ -81,7 +76,7 @@ def _mini_score_chart(ticker_data: dict, ticker: str) -> go.Figure | None:
         )
     )
     fig.update_layout(
-        title=f"{ticker} — top signals (hover for action items)",
+        title=f"{ticker} — top factors",
         height=300,
         margin=dict(l=8, r=8, t=44, b=8),
         xaxis_title="Points",
@@ -116,14 +111,9 @@ def render_universe_detail_panel(ticker: str, ticker_data: dict) -> None:
     elif fail_reason:
         st.warning(FILTER_LABELS.get(fail_reason, fail_reason))
 
-    insights = signal_insights(ticker_data)
-    st.caption(f"**Top signals:** {insights['top_short']}")
-
     fig = _mini_score_chart(ticker_data, ticker)
     if fig:
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
-
-    render_signal_insights_panel(ticker_data)
 
     if st.button("Open full profile", key=f"open_profile_{ticker}", use_container_width=True):
         set_detail_ticker(ticker)
@@ -143,7 +133,7 @@ LAUNCHPAD_FACTOR_MAX = {
 }
 
 
-def universe_table_column_config(*, strategy_id: str = "breakout") -> dict:
+def universe_table_column_config() -> dict:
     config = {
         "eligible": st.column_config.CheckboxColumn(
             "Eligible",
@@ -160,14 +150,14 @@ def universe_table_column_config(*, strategy_id: str = "breakout") -> dict:
             "Universe Rank",
             format="%.1f",
             help=(
-                f"0–100 rank vs this universe. ≥{BREAKOUT_TIER2_NORMALIZED_MIN:.0f} watchlist, "
-                f"≥{BREAKOUT_TIER1_NORMALIZED_MIN:.0f} high-conviction candidate."
+                f"0–100 rank vs this universe. ≥{LAUNCHPAD_TIER2_NORMALIZED_MIN:.0f} watchlist, "
+                f"≥{LAUNCHPAD_TIER1_NORMALIZED_MIN:.0f} high-conviction candidate."
             ),
         ),
-        "top_signal": st.column_config.TextColumn(
-            "Top Signals",
+        "top_factors": st.column_config.TextColumn(
+            "Top Factors",
             width="large",
-            help="Top 3 components by % of max. Tags: ✓ strong, ~ ok, ! weak, ✗ major gap.",
+            help="Top 3 Launchpad factors ranked by percentage of available points.",
         ),
         "tier_reason": st.column_config.TextColumn(
             "Tier Note",
@@ -177,33 +167,16 @@ def universe_table_column_config(*, strategy_id: str = "breakout") -> dict:
         "filter_label": st.column_config.TextColumn("Exclusion", width="medium"),
     }
 
-    if strategy_id == "launchpad":
-        config["tech_score"] = st.column_config.NumberColumn(
-            "Raw Total",
+    config["tech_score"] = st.column_config.NumberColumn(
+        "Raw Total",
+        format="%.0f",
+        help="Sum of the five Launchpad factors (max 100) = the final score.",
+    )
+    for label, max_pts in LAUNCHPAD_FACTOR_MAX.items():
+        config[label] = st.column_config.NumberColumn(
+            label,
             format="%.0f",
-            help="Sum of the five Launchpad factors (max 100) = the final score.",
-        )
-        for label, max_pts in LAUNCHPAD_FACTOR_MAX.items():
-            config[label] = st.column_config.NumberColumn(
-                label,
-                format="%.0f",
-                help=f"{label} factor score (0–{max_pts}).",
-            )
-    else:
-        config["tech_score"] = st.column_config.NumberColumn(
-            "Technical",
-            format="%.0f",
-            help="Sum of RS, volume, compression, pattern, and resistance points.",
-        )
-        config["RS vs Market"] = st.column_config.NumberColumn(
-            "RS Mkt",
-            format="%.0f",
-            help="Relative strength vs SPY. Higher = outperforming the broad market.",
-        )
-        config["Compression"] = st.column_config.NumberColumn(
-            "Compress",
-            format="%.0f",
-            help="Volatility squeeze score. Low = wide bands; high = coiled spring setup.",
+            help=f"{label} factor score (0–{max_pts}).",
         )
 
     return merge_column_config(config)
@@ -211,36 +184,17 @@ def universe_table_column_config(*, strategy_id: str = "breakout") -> dict:
 
 def universe_display_columns(
     table_df: pd.DataFrame,
-    *,
-    strategy_id: str = "breakout",
 ) -> list[str]:
-    if strategy_id == "launchpad":
-        preferred = [
-            "ticker",
-            "tier",
-            "eligible",
-            "final_score",
-            *LAUNCHPAD_SCORE_LABELS.values(),
-            "tech_score",
-            "sector_etf",
-            "top_signal",
-            "tier_reason",
-            "filter_label",
-        ]
-    else:
-        preferred = [
-            "ticker",
-            "tier",
-            "eligible",
-            "final_score",
-            "normalized_score",
-            "top_signal",
-            "tech_score",
-            "sector_etf",
-            "RS vs Market",
-            "Compression",
-            "Accumulation",
-            "tier_reason",
-            "filter_label",
-        ]
+    preferred = [
+        "ticker",
+        "tier",
+        "eligible",
+        "final_score",
+        *LAUNCHPAD_SCORE_LABELS.values(),
+        "tech_score",
+        "sector_etf",
+        "top_factors",
+        "tier_reason",
+        "filter_label",
+    ]
     return [column for column in preferred if column in table_df.columns]

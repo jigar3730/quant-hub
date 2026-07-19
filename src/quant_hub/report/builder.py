@@ -1,55 +1,24 @@
-from quant_hub.filters.eligibility import FILTER_LABELS, eligibility_detail
-from quant_hub.report.diagnostics import score_components_detail
 from quant_hub.report.launchpad_diagnostics import launchpad_score_components_detail
 from quant_hub.scoring.launchpad import FILTER_LABELS as LAUNCHPAD_FILTER_LABELS
 from quant_hub.scoring.launchpad import launchpad_eligibility_detail
-from quant_hub.strategies.breakout.tiers import explain_tier as explain_breakout_tier
 from quant_hub.strategies.launchpad.tiers import explain_tier as explain_launchpad_tier
-
-
-def _factor_scores_detail(scores: dict) -> dict:
-    detail = {}
-    for key, val in scores.items():
-        if not key.endswith("_score"):
-            continue
-        name = key[:-6]
-        detail[name] = {
-            "score": round(float(val), 2),
-            "max": 0,
-            "meaning": f"{name.replace('_', ' ').title()} component score",
-        }
-    return detail
 
 
 def _explain_tier(row: dict, strategy_id: str) -> str:
     if not row.get("eligible"):
         reason = row.get("filter_reason", "unknown")
-        labels = LAUNCHPAD_FILTER_LABELS if strategy_id == "launchpad" else FILTER_LABELS
-        return labels.get(reason, reason)
-
-    if strategy_id == "swing":
-        tier = row.get("tier", "")
-        final = row.get("final_adjusted_score", 0)
-        if tier == "A":
-            return f"Strong pullback setup: final score {final:.1f} (>=80)"
-        if tier == "B":
-            return f"Actionable pullback: final score {final:.1f} (65-79)"
-        return f"Lower conviction setup: final score {final:.1f} (<65)"
+        return LAUNCHPAD_FILTER_LABELS.get(reason, reason)
 
     if strategy_id == "launchpad":
         return explain_launchpad_tier(row)
 
-    return explain_breakout_tier(row)
+    tier = row.get("tier", "")
+    final = row.get("final_adjusted_score", 0)
+    return f"{tier}: final score {final:.1f}"
 
 
 def _tier_counts(results_df, strategy_id: str) -> dict:
-    if strategy_id == "swing":
-        return {
-            "A": int((results_df["tier"] == "A").sum()),
-            "B": int((results_df["tier"] == "B").sum()),
-            "C": int((results_df["tier"] == "C").sum()),
-            "filtered": int((results_df["tier"] == "filtered").sum()),
-        }
+    _ = strategy_id
     return {
         "Tier 1": int((results_df["tier"] == "Tier 1").sum()),
         "Tier 2": int((results_df["tier"] == "Tier 2").sum()),
@@ -59,14 +28,13 @@ def _tier_counts(results_df, strategy_id: str) -> dict:
 
 
 def _actionable_count(tier_counts: dict, strategy_id: str) -> int:
-    if strategy_id == "swing":
-        return tier_counts.get("A", 0) + tier_counts.get("B", 0)
+    _ = strategy_id
     return tier_counts.get("Tier 1", 0) + tier_counts.get("Tier 2", 0)
 
 
 def explain_tier(row: dict) -> str:
-    """Breakout tier explanation (legacy export for tests and callers)."""
-    return _explain_tier(row, "breakout")
+    """Launchpad tier explanation."""
+    return _explain_tier(row, "launchpad")
 
 
 def build_ticker_report(
@@ -79,22 +47,23 @@ def build_ticker_report(
     sector_etf: str | None,
     fund: dict,
     scores: dict | None,
-    strategy_id: str = "breakout",
+    strategy_id: str = "launchpad",
     eligibility_mode: str = "stock",
 ) -> dict:
+    _ = sector_df, fund, eligibility_mode
     if stock_df is None or stock_df.empty:
         eligibility = {
             "passed": False,
             "fail_reason": "no_price_data",
             "checks": [],
-            "summary": FILTER_LABELS["no_price_data"],
+            "summary": LAUNCHPAD_FILTER_LABELS["no_price_data"],
         }
         return {
             "ticker": ticker,
             "verdict": "excluded",
             "eligible": False,
             "tier": "filtered",
-            "tier_reason": FILTER_LABELS["no_price_data"],
+            "tier_reason": LAUNCHPAD_FILTER_LABELS["no_price_data"],
             "eligibility": eligibility,
             "scores": None,
             "summary": {
@@ -104,16 +73,11 @@ def build_ticker_report(
             },
         }
 
-    elig = (
-        launchpad_eligibility_detail(stock_df)
-        if strategy_id == "launchpad"
-        else eligibility_detail(stock_df, mode=eligibility_mode)
-    )
-    label_map = LAUNCHPAD_FILTER_LABELS if strategy_id == "launchpad" else FILTER_LABELS
+    elig = launchpad_eligibility_detail(stock_df)
     elig["summary"] = (
         "Passed all eligibility filters"
         if elig["passed"]
-        else label_map.get(elig["fail_reason"], elig["fail_reason"])
+        else LAUNCHPAD_FILTER_LABELS.get(elig["fail_reason"], elig["fail_reason"])
     )
 
     if not elig["passed"]:
@@ -132,24 +96,13 @@ def build_ticker_report(
             },
         }
 
-    if strategy_id == "swing":
-        score_detail = _factor_scores_detail(scores or {})
-    elif strategy_id == "launchpad":
-        score_detail = launchpad_score_components_detail(
-            stock_df=stock_df,
-            scores=scores or {},
-            spy_df=spy_df,
-        )
-    else:
-        score_detail = score_components_detail(
-            stock_df=stock_df,
-            spy_df=spy_df,
-            sector_df=sector_df,
-            sector_etf=sector_etf,
-            scores=scores or {},
-        )
+    score_detail = launchpad_score_components_detail(
+        stock_df=stock_df,
+        scores=scores or {},
+        spy_df=spy_df,
+    )
 
-    report = {
+    return {
         "ticker": ticker,
         "verdict": "eligible",
         "eligible": True,
@@ -165,9 +118,6 @@ def build_ticker_report(
             "final_adjusted_score": round(row.get("final_adjusted_score", 0), 2),
         },
     }
-    if strategy_id not in ("breakout", "launchpad") and fund:
-        report["fundamentals"] = fund
-    return report
 
 
 def build_scan_report(
@@ -181,11 +131,12 @@ def build_scan_report(
     fund_map: dict,
     regime_detail: dict,
     scores_by_ticker: dict,
-    strategy_id: str = "breakout",
+    strategy_id: str = "launchpad",
     fundamentals_quality: dict | None = None,
     eligibility_mode: str = "stock",
     data_provenance: dict | None = None,
 ) -> dict:
+    _ = fundamentals_quality, eligibility_mode
     tickers_report = []
     for ticker in universe:
         row = results_df[results_df["ticker"] == ticker].iloc[0].to_dict()
@@ -202,7 +153,6 @@ def build_scan_report(
                 fund=fund_map.get(ticker, {}),
                 scores=scores_by_ticker.get(ticker),
                 strategy_id=strategy_id,
-                eligibility_mode=eligibility_mode,
             )
         )
 
@@ -217,15 +167,13 @@ def build_scan_report(
     tier_counts = _tier_counts(results_df, strategy_id)
 
     summary = {
-            "universe_size": len(universe),
-            "eligible_count": len(eligible),
-            "excluded_count": len(excluded),
-            "tier_counts": tier_counts,
-            "actionable_count": _actionable_count(tier_counts, strategy_id),
-            "filter_breakdown": filter_counts,
-        }
-    if fundamentals_quality and strategy_id not in ("breakout", "launchpad"):
-        summary["fundamentals_quality"] = fundamentals_quality
+        "universe_size": len(universe),
+        "eligible_count": len(eligible),
+        "excluded_count": len(excluded),
+        "tier_counts": tier_counts,
+        "actionable_count": _actionable_count(tier_counts, strategy_id),
+        "filter_breakdown": filter_counts,
+    }
 
     report = {
         "strategy_id": strategy_id,

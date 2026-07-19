@@ -43,7 +43,7 @@ def run_daily_scan(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Daily Launchpad Reversal scan")
+    parser = argparse.ArgumentParser(description="Daily Launchpad scan")
     parser.add_argument(
         "--universe",
         default=PRIMARY_INDEX_UNIVERSE,

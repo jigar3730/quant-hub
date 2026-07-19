@@ -1,92 +1,65 @@
 # Quant Hub
 
-Homelab quant scanner: named ticker universes, breakout + launchpad + swing + Lynch strategies, Postgres-backed results, per-ticker Yahoo cache, and a Streamlit dashboard.
+Homelab quant stack focused on **Launchpad** (quality coiled-spring scanner + ML) and **Lynch** (fundamental screen). Postgres-backed results, parquet price cache, Streamlit dashboard, and digest emails.
 
 ## Quick start
 
 ```bash
 cd /opt/stacks/quant-hub
-cp .env.example .env
+cp .env.example .env   # set POSTGRES_PASSWORD, DATABASE_URL, SMTP_*
 docker compose up -d --build
-pip install -e .[dev,viz]
-quant-hub status
+docker exec quant-hub quant-hub status
 ```
 
-Manual scan (inside container on production):
+Manual scans (inside container):
 
 ```bash
-docker exec quant-hub quant-scan --universe sp500_index --cache
-docker exec quant-hub quant-scan-all --cache          # all configured universes
-docker exec quant-hub quant-launchpad --universe sp500_index --cache
+docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
 docker exec quant-hub quant-launchpad-all --cache --report both
-docker exec quant-hub quant-swing --universe sp500_index
-docker exec quant-hub quant-swing-all --no-email
-docker exec quant-hub quant-lynch --universe sp500_index
+docker exec quant-hub quant-lynch --universe sp500_index --no-email
 docker exec quant-hub quant-lynch-all --no-email
-docker exec quant-hub weekly-full-coverage            # breakout + swing + Lynch
-docker exec quant-hub quant-view                      # dashboard (Postgres-backed)
+docker exec quant-hub bash /app/scripts/launchpad-lynch-rescan.sh
 ```
+
+Dashboard: `http://<host>:5002` (`quant-view` inside the container).
 
 ## CLI
 
 | Command | Purpose |
 |---------|---------|
-| `quant-scan` | Run breakout scan, persist to Postgres |
-| `quant-scan-all` | Breakout scan across all universes in `universes.json` |
-| `quant-launchpad` | Single-universe Launchpad Reversal scan |
-| `quant-launchpad-all` | Launchpad scan across all stock-mode universes |
-| `quant-launchpad-daily` | Daily Launchpad workflow for the default universe |
-| `quant-swing-all` | Swing scan across all universes |
-| `quant-lynch-all` | Lynch scan across Lynch-enabled stock universes |
-| `quant-swing` | Weekly swing scan (10y / 1wk OHLCV); setup gate + 0–100 quality score |
-| `quant-lynch` | Peter Lynch fundamental screen with fetch-quality tracking |
-| `quant-daily` | Scheduled breakout workflow (cache on; cron uses `--no-email`) |
-| `quant-digest` | Consolidated daily/weekly digest emails |
-| `quant-analytics` | Build weekly analytics payload (no email) |
-| `quant-ml label\|export-features\|warm-cache\|train\|evaluate\|models\|status` | ML pipeline ([ML Ops](docs/ML_OPS.md) · [ML Foundation](docs/ML_FOUNDATION.md)) |
-| `quant-backfill swing\|coverage` | Historical swing backfill + gap report before long runs |
-| `quant-universe list\|show\|refresh` | Inspect or refresh universe registry |
-| `quant-hub status` | DB ping, table counts, recent runs |
-| `quant-hub ticker history\|show` | Cross-scan ticker lookup and single-snapshot drill-down |
-| `quant-hub cleanup-fixtures` | Remove test scan rows from Postgres |
-| `quant-hub init-db` | Apply Postgres schema |
+| `quant-launchpad` | Single-universe Launchpad scan |
+| `quant-launchpad-daily` | Weekday Launchpad workflow |
+| `quant-launchpad-all` | Launchpad across stock-mode universes |
+| `quant-lynch` / `quant-lynch-all` | Lynch fundamental screen |
+| `quant-backfill launchpad` | Point-in-time Saturday backfill for ML |
+| `quant-ml` | warm-cache / label / export / train / evaluate |
+| `quant-digest` | Daily Launchpad + weekly Lynch emails |
+| `quant-hub` | status, init-db, report, history |
+| `quant-universe` | list / show / refresh universes |
 | `quant-view` | Streamlit dashboard |
-| `quant-backfill launchpad\|coverage` | Historical point-in-time Launchpad backfill and coverage checks |
-| `weekly-full-coverage` | Breakout + swing + Lynch for all universes (~45–90 min cached); script in `/app/scripts` |
 
-## Dashboard highlights
-
-- Scan date dropdown loads up to **500** historical runs (covers ~10y weekly backfill)
-
-- **Breakout:** takeaway banner, near-miss panel, full-universe table with Yahoo ticker links, actionable signal tooltips
-- **Swing:** weekly setups ranked by **quality score** (partial rule credit − penalties), grade A–D, full-universe indicators for every ticker
-- **Lynch:** candidates-first layout, data-fetch quality banner, plain-English check explanations
-
-Ticker columns link to **Yahoo Finance** quotes. Use **Ticker Detail** / row selection for in-app scan profiles.
-
-## Architecture
-
-- **Application:** `ScanService`, `SwingScanService`, `LynchScanService`, `DigestService`, `UniverseService`
-- **Domain:** `StrategyEngine` + breakout / swing / Lynch strategies
-- **Infrastructure:** Postgres `ScanRepository`, `ParquetCache`, yfinance provider
-- **Exports:** Per-universe paths under `data/output/{strategy}/{universe_id}/`
-
-Universes are config-driven via `data/universes.json` + ticker files under `data/universes/`.
-
-**Operator scripts:** `scripts/full-rescan.sh` — truncate Postgres scan history and re-run breakout, swing, and Lynch for all universes.
-
-## Documentation
+## Docs
 
 | Doc | Audience |
 |-----|----------|
-| [docs/RUN_TEAM_QUICKSTART.md](docs/RUN_TEAM_QUICKSTART.md) | **Run team** — Docker, triage, email/schedule/universe recipes |
-| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Operators — deploy, cron, troubleshooting |
-| [docs/USER_MANUAL.md](docs/USER_MANUAL.md) | Analysts — dashboard, scans, email |
-| [docs/ANALYTICS_GUIDE.md](docs/ANALYTICS_GUIDE.md) | Analysts — SQL insights, cross-strategy analysis, weekly playbook |
-| [docs/DIGEST_POLICY.md](docs/DIGEST_POLICY.md) | Digest email rules, thresholds, schedule |
-| [docs/LYNCH_SCANNER.md](docs/LYNCH_SCANNER.md) | Lynch pipeline — pull, calculate, store fundamentals |
-| [docs/SWING_SCANNER.md](docs/SWING_SCANNER.md) | Swing pipeline — weekly indicators, setup gate, quality score |
-| [docs/BREAKOUT_SCANNER.md](docs/BREAKOUT_SCANNER.md) | Breakout pipeline — daily factors, eligibility, tiers, regime |
-| [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | ERD + data dictionary — all inputs, caches, Postgres, exports |
-| [docs/JUNIOR_DEV_DATABASE_GUIDE.md](docs/JUNIOR_DEV_DATABASE_GUIDE.md) | **Developers** — Postgres schema primer + day-to-day SQL/CLI |
-| [docs/ARCHITECTURE_GAPS.md](docs/ARCHITECTURE_GAPS.md) | Known gaps, risks, and phased remediation plan |
+| [Launchpad ML Guide](docs/LAUNCHPAD_ML_GUIDE.md) | mega_runners → backfill → ML → tune |
+| [Launchpad Scanner](docs/LAUNCHPAD_SCANNER.md) | Scoring and tiers |
+| [Lynch Scanner](docs/LYNCH_SCANNER.md) | Fundamental screen |
+| [Digest Policy](docs/DIGEST_POLICY.md) | Email content rules |
+| [Runbook](docs/RUNBOOK.md) | Ops / cron / recover |
+| [User Manual](docs/USER_MANUAL.md) | Dashboard and daily workflow |
+| [ML Ops](docs/ML_OPS.md) | Label / train / evaluate |
+
+## Layout
+
+```
+src/quant_hub/     application code (launchpad + lynch)
+data/universes/    ticker lists (sync to /mnt/fast/quant-data/data on the host)
+docker/            Dockerfile, crontab, entrypoint
+docs/              operator manuals
+scripts/           launchpad-lynch-rescan.sh
+```
+
+## Schedule (America/New_York)
+
+See `docker/crontab`: Launchpad daily, Launchpad-all Saturday, Lynch-all Saturday, Launchpad ML labels, digests.

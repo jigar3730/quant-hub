@@ -148,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
 
     label = sub.add_parser("label", help="Compute forward-return labels for scan runs")
     label.add_argument("--run-id", type=int, help="Label a single scan run by id")
-    label.add_argument("--strategy", choices=("breakout", "swing", "lynch", "launchpad"))
+    label.add_argument("--strategy", choices=("launchpad", "lynch"))
     label.add_argument("--universe", help=f"Universe id filter (e.g. {PRIMARY_INDEX_UNIVERSE})")
     label.add_argument("--since", type=date.fromisoformat)
     label.add_argument("--until", type=date.fromisoformat)
@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
 
     export = sub.add_parser("export-features", help="Export flattened features to Parquet")
     export.add_argument("--run-id", type=int)
-    export.add_argument("--strategy", choices=("breakout", "swing", "lynch", "launchpad"))
+    export.add_argument("--strategy", choices=("launchpad", "lynch"))
     export.add_argument("--universe")
     export.add_argument("--since", type=date.fromisoformat)
     export.add_argument("--until", type=date.fromisoformat)
@@ -200,8 +200,8 @@ def main(argv: list[str] | None = None) -> int:
     train = sub.add_parser("train", help="Train a LightGBM classifier on labeled setups")
     train.add_argument(
         "--strategy",
-        choices=("breakout", "swing", "lynch", "launchpad"),
-        default="swing",
+        choices=("launchpad",),
+        default="launchpad",
     )
     train.add_argument("--universe", default=PRIMARY_INDEX_UNIVERSE)
     train.add_argument("--since", type=date.fromisoformat, required=True)
@@ -216,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     train.add_argument(
         "--all-tiers",
         action="store_true",
-        help="Include all tiers (swing: non-setups; launchpad: filtered rows too)",
+        help="Include filtered Launchpad rows as well as setup tiers",
     )
     train.add_argument("--top-k", type=int, default=5, help="Top-K for holdout return metric")
 
@@ -236,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--json", action="store_true", help="Print metrics JSON")
 
     models = sub.add_parser("models", help="List registered models")
-    models.add_argument("--strategy", choices=("breakout", "swing", "lynch", "launchpad"))
+    models.add_argument("--strategy", choices=("launchpad", "lynch"))
     models.add_argument("--universe")
     models.add_argument("--status", choices=("active", "archived"))
     models.add_argument("--limit", type=int, default=20)

@@ -10,26 +10,22 @@ import streamlit as st
 from quant_hub.dashboard.viz.data import (
     LAUNCHPAD_SCORE_LABELS,
     LAUNCHPAD_TECHNICAL_KEYS,
-    SCORE_LABELS,
-    TECHNICAL_KEYS,
     TIER_COLORS,
     scores_to_dataframe,
 )
 from quant_hub.dashboard.viz.design_tokens import CHART_PALETTE, COLORS
+from quant_hub.dashboard.viz.labels import tier_friendly
 from quant_hub.dashboard.viz.launchpad_score_guide import (
     LAUNCHPAD_COMPONENT_HELP,
     LAUNCHPAD_COMPONENT_SUMMARY,
 )
-from quant_hub.dashboard.viz.labels import tier_friendly
 from quant_hub.dashboard.viz.navigation import ticker_link_html
-from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
-from quant_hub.infrastructure.postgres.repository import ScanRepository
-from quant_hub.dashboard.viz.score_guide import COMPONENT_HELP, COMPONENT_SUMMARY
-from quant_hub.dashboard.viz.signals import component_action, render_signal_insights_panel
 from quant_hub.dashboard.viz.styles import PLOTLY_LAYOUT, TIER_BADGE_CSS
+from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.dashboard.viz.validation import regime_looks_synthetic
 from quant_hub.data.news import fetch_ticker_news, fetch_ticker_snapshot
 from quant_hub.filters.eligibility import FILTER_LABELS
+from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 
 def apply_chart_style(fig: go.Figure, *, height: int | None = None) -> go.Figure:
@@ -51,7 +47,7 @@ def render_scan_header(
     regime: dict,
     *,
     scan_date: str | None = None,
-    title: str = "Breakout Scanner",
+    title: str = "Launchpad",
 ) -> None:
     tiers = summary["tier_counts"]
     t1 = tiers.get("Tier 1", 0)
@@ -75,22 +71,11 @@ def render_scan_header(
 
 
 def render_regime_panel(regime: dict) -> None:
-    if regime.get("interval") == "1wk":
-        st.markdown('<div class="info-card"><h4>Weekly Swing Context</h4>', unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        c1.metric("Interval", regime.get("interval", "1wk"))
-        c2.metric("History", regime.get("period", "10y"))
-        st.markdown(
-            "Swing scans use **10-year weekly OHLCV** and finance-vibe EMA/RSI/MACD rules."
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-        return
-
     if regime_looks_synthetic(regime):
         st.warning(
             "SPY price looks like **synthetic dry-run data**, not live market data. "
             "Reload the archived scan from the sidebar, or run "
-            "`quant-scan --report both` without `--dry-run`."
+            "`quant-launchpad --universe mega_runners --cache --report both`."
         )
     st.markdown('<div class="info-card"><h4>Market Regime (SPY)</h4>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -197,7 +182,7 @@ def render_score_bars(scores_df: pd.DataFrame, ticker: str, scores: dict | None 
         for _, row in scores_df.iterrows():
             comp = scores.get(row["key"], {})
             custom.append(
-                f"<b>{row['component']}</b><br>{component_action(row['key'], comp)}"
+                f"<b>{row['component']}</b><br>{comp.get('meaning', '')}"
             )
     fig = px.bar(
         scores_df,
@@ -306,9 +291,9 @@ def _render_score_cards(
     component_summary: dict[str, str] | None = None,
 ) -> None:
     scores = ticker_data.get("scores") or {}
-    labels = score_labels or SCORE_LABELS
-    help_map = component_help or COMPONENT_HELP
-    summary_map = component_summary or COMPONENT_SUMMARY
+    labels = score_labels or LAUNCHPAD_SCORE_LABELS
+    help_map = component_help or LAUNCHPAD_COMPONENT_HELP
+    summary_map = component_summary or LAUNCHPAD_COMPONENT_SUMMARY
     subset = [(k, labels[k]) for k in keys if k in labels]
     if not subset:
         return
@@ -345,22 +330,19 @@ def _render_score_cards(
                 st.json(raw)
 
 
-def render_component_cards(ticker_data: dict, *, strategy_id: str = "breakout") -> None:
+def render_component_cards(ticker_data: dict) -> None:
     scores = ticker_data.get("scores") or {}
     if not scores:
         st.warning("No scoring data — stock did not pass eligibility filters.")
         return
-    if strategy_id == "launchpad":
-        _render_score_cards(
-            ticker_data,
-            LAUNCHPAD_TECHNICAL_KEYS,
-            "Scoring Components",
-            score_labels=LAUNCHPAD_SCORE_LABELS,
-            component_help=LAUNCHPAD_COMPONENT_HELP,
-            component_summary=LAUNCHPAD_COMPONENT_SUMMARY,
-        )
-        return
-    _render_score_cards(ticker_data, tuple(SCORE_LABELS.keys()), "Scoring Components")
+    _render_score_cards(
+        ticker_data,
+        LAUNCHPAD_TECHNICAL_KEYS,
+        "Scoring Components",
+        score_labels=LAUNCHPAD_SCORE_LABELS,
+        component_help=LAUNCHPAD_COMPONENT_HELP,
+        component_summary=LAUNCHPAD_COMPONENT_SUMMARY,
+    )
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -474,14 +456,14 @@ def render_score_history(history: list[dict], ticker: str) -> go.Figure | None:
     return apply_chart_style(fig)
 
 
-def render_technical_panel(ticker_data: dict, ticker: str, *, strategy_id: str = "breakout") -> None:
+def render_technical_panel(ticker_data: dict, ticker: str) -> None:
     scores = ticker_data.get("scores") or {}
-    technical_keys = LAUNCHPAD_TECHNICAL_KEYS if strategy_id == "launchpad" else TECHNICAL_KEYS
+    technical_keys = LAUNCHPAD_TECHNICAL_KEYS
     if not any(scores.get(k) for k in technical_keys):
         st.info("Technical scores unavailable — ticker did not pass eligibility filters.")
         return
 
-    technical_df = scores_to_dataframe(ticker_data, strategy_id=strategy_id)
+    technical_df = scores_to_dataframe(ticker_data)
     technical_df = technical_df[technical_df["key"].isin(technical_keys)]
     if not technical_df.empty:
         st.plotly_chart(
@@ -489,17 +471,14 @@ def render_technical_panel(ticker_data: dict, ticker: str, *, strategy_id: str =
             use_container_width=True,
         )
         st.plotly_chart(render_radar(technical_df, ticker), use_container_width=True)
-    if strategy_id == "launchpad":
-        _render_score_cards(
-            ticker_data,
-            LAUNCHPAD_TECHNICAL_KEYS,
-            "Technical Scores",
-            score_labels=LAUNCHPAD_SCORE_LABELS,
-            component_help=LAUNCHPAD_COMPONENT_HELP,
-            component_summary=LAUNCHPAD_COMPONENT_SUMMARY,
-        )
-    else:
-        _render_score_cards(ticker_data, TECHNICAL_KEYS, "Technical Scores")
+    _render_score_cards(
+        ticker_data,
+        LAUNCHPAD_TECHNICAL_KEYS,
+        "Technical Scores",
+        score_labels=LAUNCHPAD_SCORE_LABELS,
+        component_help=LAUNCHPAD_COMPONENT_HELP,
+        component_summary=LAUNCHPAD_COMPONENT_SUMMARY,
+    )
 
 
 def render_ticker_detail(
@@ -510,7 +489,6 @@ def render_ticker_detail(
     show_history: bool = True,
     scan_date: str | None = None,
     repo: ScanRepository | None = None,
-    strategy_id: str = "breakout",
 ) -> None:
     """Unified detail: news, technical scores, eligibility, history."""
     tier = ticker_data.get("tier", "filtered")
@@ -532,20 +510,17 @@ def render_ticker_detail(
     m3.metric("Raw Score", f"{summary.get('raw_score', 0):.1f}")
     m4.metric("Sector ETF", ticker_data.get("sector_etf") or "—")
 
-    if ticker_data.get("scores"):
-        render_signal_insights_panel(ticker_data)
-
     render_ticker_news_panel(ticker, compact=compact_news, scan_date=scan_date)
 
     tab_tech, tab_elig = st.tabs(["Technical", "Eligibility"])
     with tab_tech:
-        render_technical_panel(ticker_data, ticker, strategy_id=strategy_id)
+        render_technical_panel(ticker_data, ticker)
     with tab_elig:
         render_eligibility_panel(ticker_data)
 
     if show_history and repo is not None:
         st.divider()
-        render_ticker_history_panel(repo, ticker, key_prefix="breakout_detail", show_header=True)
+        render_ticker_history_panel(repo, ticker, key_prefix="launchpad_detail", show_header=True)
 
 
 def build_leaderboard_df(df: pd.DataFrame) -> pd.DataFrame:

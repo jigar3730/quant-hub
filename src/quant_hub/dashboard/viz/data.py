@@ -4,18 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from quant_hub.config import PRIMARY_INDEX_UNIVERSE, scan_output_paths
-from quant_hub.dashboard.viz.design_tokens import TIER_COLORS
-from quant_hub.filters.eligibility import FILTER_LABELS
-
-SCORE_LABELS = {
-    "rs_market": "RS vs Market",
-    "rs_sector": "RS vs Sector",
-    "accumulation": "Accumulation",
-    "relative_volume": "Relative Volume",
-    "compression": "Compression",
-    "pattern": "Pattern",
-    "resistance": "Resistance",
-}
+from quant_hub.dashboard.viz.design_tokens import TIER_COLORS as TIER_COLORS
 
 LAUNCHPAD_SCORE_LABELS = {
     "macd_zero_line": "MACD Zero-Line",
@@ -27,16 +16,6 @@ LAUNCHPAD_SCORE_LABELS = {
 
 # TIER_COLORS is imported above from design_tokens and re-exported here so existing
 # `from quant_hub.dashboard.viz.data import TIER_COLORS` call sites keep working.
-
-TECHNICAL_KEYS = (
-    "rs_market",
-    "rs_sector",
-    "accumulation",
-    "relative_volume",
-    "compression",
-    "pattern",
-    "resistance",
-)
 
 LAUNCHPAD_TECHNICAL_KEYS = (
     "macd_zero_line",
@@ -50,7 +29,7 @@ LAUNCHPAD_TECHNICAL_KEYS = (
 def load_report(
     path: Path | str | None = None,
 ) -> dict:
-    path = Path(path or scan_output_paths("breakout", PRIMARY_INDEX_UNIVERSE)["json"])
+    path = Path(path or scan_output_paths("launchpad", PRIMARY_INDEX_UNIVERSE)["json"])
     with path.open() as f:
         return json.load(f)
 
@@ -75,11 +54,10 @@ def tickers_to_dataframe(tickers: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def scores_to_dataframe(ticker: dict, *, strategy_id: str = "breakout") -> pd.DataFrame:
+def scores_to_dataframe(ticker: dict) -> pd.DataFrame:
     scores = ticker.get("scores") or {}
-    labels = LAUNCHPAD_SCORE_LABELS if strategy_id == "launchpad" else SCORE_LABELS
     rows = []
-    for key, label in labels.items():
+    for key, label in LAUNCHPAD_SCORE_LABELS.items():
         comp = scores.get(key)
         if not comp:
             continue
@@ -105,20 +83,26 @@ def _component_total(scores: dict, keys: tuple[str, ...]) -> float | None:
     return round(sum(values), 1) if values else None
 
 
+def _top_factors(scores: dict, *, limit: int = 3) -> str:
+    ranked = sorted(
+        (
+            (
+                component.get("score", 0) / component.get("max", 1),
+                label,
+            )
+            for key, label in LAUNCHPAD_SCORE_LABELS.items()
+            if (component := scores.get(key)) and component.get("max")
+        ),
+        reverse=True,
+    )
+    return " · ".join(label for _, label in ranked[:limit])
+
+
 def full_universe_dataframe(
     tickers: list[dict],
-    *,
-    strategy_id: str = "breakout",
 ) -> pd.DataFrame:
     """Full scan table with summary, component scores, and fundamental metrics."""
-    from quant_hub.dashboard.viz.signals import top_signals_short, top_signals_tooltip
     from quant_hub.scoring.launchpad import FILTER_LABELS as LAUNCHPAD_FILTER_LABELS
-
-    score_labels = LAUNCHPAD_SCORE_LABELS if strategy_id == "launchpad" else SCORE_LABELS
-    technical_keys = (
-        LAUNCHPAD_TECHNICAL_KEYS if strategy_id == "launchpad" else TECHNICAL_KEYS
-    )
-    filter_labels = LAUNCHPAD_FILTER_LABELS if strategy_id == "launchpad" else FILTER_LABELS
 
     rows = []
     for t in tickers:
@@ -135,13 +119,14 @@ def full_universe_dataframe(
             "normalized_score": round(summary.get("normalized_score", 0), 1),
             "raw_score": round(summary.get("raw_score", 0), 1),
             "tier_reason": t.get("tier_reason", ""),
-            "top_signal": top_signals_short(scores),
-            "signal_tooltip": top_signals_tooltip(scores),
-            "tech_score": _component_total(scores, technical_keys),
+            "top_factors": _top_factors(scores),
+            "tech_score": _component_total(scores, LAUNCHPAD_TECHNICAL_KEYS),
             "filter_reason": fail_reason,
-            "filter_label": filter_labels.get(fail_reason, fail_reason) if fail_reason else "",
+            "filter_label": LAUNCHPAD_FILTER_LABELS.get(fail_reason, fail_reason)
+            if fail_reason
+            else "",
         }
-        for key, label in score_labels.items():
+        for key, label in LAUNCHPAD_SCORE_LABELS.items():
             comp = scores.get(key)
             row[label] = round(comp.get("score", 0), 1) if comp else None
         rows.append(row)
@@ -151,16 +136,13 @@ def full_universe_dataframe(
 def score_heatmap_dataframe(
     tickers: list[dict],
     eligible_only: bool = True,
-    *,
-    strategy_id: str = "breakout",
 ) -> pd.DataFrame:
-    score_labels = LAUNCHPAD_SCORE_LABELS if strategy_id == "launchpad" else SCORE_LABELS
     subset = [t for t in tickers if t.get("eligible")] if eligible_only else tickers
     rows = []
     for t in subset:
         scores = t.get("scores") or {}
         row = {"ticker": t["ticker"]}
-        for key, label in score_labels.items():
+        for key, label in LAUNCHPAD_SCORE_LABELS.items():
             comp = scores.get(key, {})
             row[label] = comp.get("score", 0)
         rows.append(row)

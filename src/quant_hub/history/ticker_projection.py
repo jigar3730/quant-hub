@@ -6,10 +6,8 @@ import json
 from typing import Any
 
 _STRATEGY_LABELS = {
-    "breakout": "Breakout",
-    "swing": "Swing",
+    "launchpad": "Launchpad",
     "lynch": "Lynch",
-    "mean_reversion": "Mean Reversion",
 }
 
 _TIER_LABELS = {
@@ -17,10 +15,6 @@ _TIER_LABELS = {
     "Tier 2": "Watchlist",
     "Tier 3": "Monitor",
     "filtered": "Excluded",
-    "SETUP_LONG": "Long setup",
-    "SETUP_SHORT": "Short setup",
-    "HIGH_CONVICTION": "High conv.",
-    "WATCHLIST": "Watchlist",
     "fast_grower": "Fast grower",
     "stalwart": "Stalwart",
     "asset_play": "Asset play",
@@ -83,9 +77,7 @@ def project_row(
     """Flatten one history row with strategy-specific analyst fields."""
     detail_dict = _parse_detail(detail)
     summary = detail_dict.get("summary") or {}
-    setup = detail_dict.get("setup_detail") or {}
     scores = detail_dict.get("scores") or {}
-    trade_plan = setup.get("trade_plan") or {}
 
     row: dict[str, Any] = {
         "run_id": run_id,
@@ -105,31 +97,15 @@ def project_row(
         "final_score": final_score if final_score is not None else summary.get("final_adjusted_score"),
     }
 
-    if strategy_id == "breakout":
+    if strategy_id == "launchpad":
         row.update(
             {
                 "normalized_score": summary.get("normalized_score"),
                 "final_adjusted_score": summary.get("final_adjusted_score"),
                 "tier_reason": detail_dict.get("tier_reason"),
-                "rs_market": _score_component(scores, "rs_market"),
-                "rs_sector": _score_component(scores, "rs_sector"),
-                "compression": _score_component(scores, "compression"),
-                "accumulation": _score_component(scores, "accumulation"),
-                "relative_volume": _score_component(scores, "relative_volume"),
-                "pattern": _score_component(scores, "pattern"),
-            }
-        )
-    elif strategy_id == "swing":
-        row.update(
-            {
-                "setup_type": tier,
-                "swing_score": setup.get("swing_score") or summary.get("swing_score"),
-                "quality_label": setup.get("quality_label"),
-                "rsi": setup.get("rsi") or summary.get("rsi"),
-                "rs_percentile": setup.get("rs_percentile"),
-                "vol_ratio": setup.get("vol_ratio"),
-                "scored_side": setup.get("scored_side"),
-                "tier_reason": detail_dict.get("tier_reason"),
+                "macd_zero_line": _score_component(scores, "macd_zero_line"),
+                "squeeze_intensity": _score_component(scores, "squeeze_intensity"),
+                "tightness_percentile": _score_component(scores, "tightness_percentile"),
             }
         )
     elif strategy_id == "lynch":
@@ -156,21 +132,6 @@ def project_row(
                 "tier_reason": detail_dict.get("tier_reason"),
             }
         )
-    elif strategy_id == "mean_reversion":
-        row.update(
-            {
-                "mean_reversion_score": summary.get("mean_reversion_score"),
-                "signal": summary.get("signal") or setup.get("signal"),
-                "setup_type": summary.get("setup_type") or setup.get("bias"),
-                "long_score": summary.get("long_score") or setup.get("long_score"),
-                "short_score": summary.get("short_score") or setup.get("short_score"),
-                "entry_trigger": trade_plan.get("entry_trigger"),
-                "stop_loss": trade_plan.get("stop_loss"),
-                "rr_t1": trade_plan.get("rr_t1"),
-                "tier_reason": detail_dict.get("tier_reason"),
-            }
-        )
-
     return row
 
 
@@ -186,10 +147,8 @@ def history_display_columns(rows: list[dict[str, Any]]) -> list[str]:
     ]
     strategies = {r.get("strategy_id") for r in rows}
     extra: list[str] = []
-    if "breakout" in strategies:
-        extra.extend(["normalized_score", "compression", "accumulation", "rs_market"])
-    if "swing" in strategies:
-        extra.extend(["swing_score", "quality_label", "rsi", "setup_type"])
+    if "launchpad" in strategies:
+        extra.extend(["normalized_score", "squeeze_intensity", "tightness_percentile"])
     if "lynch" in strategies:
         extra.extend(
             [
@@ -201,9 +160,6 @@ def history_display_columns(rows: list[dict[str, Any]]) -> list[str]:
                 "categories",
             ]
         )
-    if "mean_reversion" in strategies:
-        extra.extend(["mean_reversion_score", "signal", "entry_trigger", "stop_loss", "rr_t1"])
-
     seen: set[str] = set()
     ordered: list[str] = []
     for col in base + extra:

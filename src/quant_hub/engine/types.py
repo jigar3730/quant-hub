@@ -53,7 +53,7 @@ class TickerResult:
         return fr.score if fr else 0.0
 
     def to_row_dict(self) -> dict[str, Any]:
-        """Flat dict matching legacy breakout CSV columns."""
+        """Flat dict matching legacy scan CSV columns."""
         row: dict[str, Any] = {
             "ticker": self.ticker,
             "eligible": self.eligible,

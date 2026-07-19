@@ -25,12 +25,7 @@ def copy_to_legacy(path: Path, legacy_path: Path) -> None:
 
 
 def _regime_line(regime: dict) -> list[str]:
-    """Render regime section; supports breakout SPY and swing weekly contexts."""
-    if regime.get("interval") == "1wk":
-        return [
-            f"- **Mode:** Weekly swing ({regime.get('period', '10y')} history)",
-            f"- **Interval:** {regime.get('interval')}",
-        ]
+    """Render market regime section for Launchpad reports."""
     spy = regime.get("spy_price")
     sma50 = regime.get("sma50")
     sma200 = regime.get("sma200")
@@ -59,11 +54,10 @@ def _regime_line(regime: dict) -> list[str]:
 def _render_markdown(report: dict) -> list[str]:
     summary = report["scan_summary"]
     regime = report["market_regime"]
-    strategy_id = report.get("strategy_id", "breakout")
+    strategy_id = report.get("strategy_id", "launchpad")
     title = {
-        "swing": "Swing Pullback Scan Report",
-        "breakout": "Breakout Scan Report",
-        "launchpad": "Launchpad Reversal Scan Report",
+        "launchpad": "Launchpad Scan Report",
+        "lynch": "Lynch Scan Report",
     }.get(strategy_id, f"{strategy_id.title()} Scan Report")
     tier_line = " | ".join(
         f"{name}: {count}" for name, count in summary["tier_counts"].items()

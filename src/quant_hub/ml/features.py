@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from quant_hub.ml.constants import BREAKOUT_SCORE_FACTORS, FEATURE_SCHEMA_VERSION
+from quant_hub.ml.constants import FEATURE_SCHEMA_VERSION
 
 
 def _categories_str(categories: list | None) -> str | None:
@@ -75,33 +75,7 @@ def extract_features(
         "universe_size": run.get("universe_size"),
     }
 
-    if strategy_id == "breakout":
-        row["normalized_score"] = summary.get("normalized_score")
-        row["raw_score"] = summary.get("raw_score")
-        row["sector_etf"] = detail.get("sector_etf")
-        scores = detail.get("scores") or {}
-        for factor in BREAKOUT_SCORE_FACTORS:
-            block = scores.get(factor) or {}
-            row[f"score_{factor}"] = block.get("score")
-
-    elif strategy_id == "swing":
-        setup = detail.get("setup_detail") or {}
-        row["swing_score"] = setup.get("swing_score") or summary.get("swing_score")
-        row["quality_label"] = setup.get("quality_label")
-        row["checks_passed"] = setup.get("checks_passed")
-        row["checks_total"] = setup.get("checks_total")
-        row["scored_side"] = setup.get("scored_side")
-        row["rsi"] = setup.get("rsi") or summary.get("rsi")
-        row["close"] = setup.get("close")
-        row["ema20"] = setup.get("ema20")
-        row["ema50"] = setup.get("ema50")
-        row["atr"] = setup.get("atr")
-        row["penalty_total"] = setup.get("penalty_total")
-        row["rs_ratio"] = setup.get("rs_ratio")
-        row["rs_percentile"] = setup.get("rs_percentile")
-        row["vol_ratio"] = setup.get("vol_ratio")
-
-    elif strategy_id == "launchpad":
+    if strategy_id == "launchpad":
         # Spec feature names ← live Launchpad payload fields (scores.*.raw / summary).
         scores = detail.get("scores") or {}
         row["final_score"] = (

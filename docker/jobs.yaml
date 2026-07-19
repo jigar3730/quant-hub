@@ -1,5 +1,5 @@
 # Reference schedule — authoritative source is docker/crontab (installed into the container).
-# Last synced: 2026-07-19 (Launchpad-forward; many other scanners commented out in crontab)
+# Last synced: 2026-07-19 (Launchpad + Lynch only)
 
 jobs:
   - name: launchpad-sp500-index-daily
@@ -28,10 +28,17 @@ jobs:
     email: false
     status: active
 
-  - name: ml-label-swing-sp500-index
+  - name: lynch-full-coverage-weekly
+    cron: "0 5 * * 6"
+    command: quant-lynch-all --no-email
+    strategy: lynch
+    email: false
+    status: active
+
+  - name: ml-label-launchpad-sp500-index
     cron: "0 6 * * 6"
-    command: quant-ml label --strategy swing --universe sp500_index --since <90d>
-    strategy: swing
+    command: quant-ml label --strategy launchpad --universe sp500_index --since <90d>
+    strategy: launchpad
     status: active
 
   - name: analytics-weekly
@@ -44,41 +51,3 @@ jobs:
     command: quant-digest weekly
     email: true
     status: active
-
-  # --- commented out in docker/crontab (restore by uncommenting) ---
-  - name: breakout-sp500-index-daily
-    cron: "0 17 * * 1-5"
-    command: quant-daily --universe sp500_index --no-email
-    strategy: breakout
-    status: disabled
-
-  - name: breakout-sector-commodity-etfs-weekly
-    cron: "30 16 * * 5"
-    command: quant-daily --universe sector_commodity_etfs --no-email
-    status: disabled
-
-  - name: swing-sector-commodity-etfs-weekly
-    cron: "35 16 * * 5"
-    command: quant-swing --universe sector_commodity_etfs --no-email
-    status: disabled
-
-  - name: swing-sp500-index-weekly
-    cron: "45 17 * * 5"
-    command: quant-swing --universe sp500_index --no-email
-    strategy: swing
-    status: disabled
-
-  - name: breakout-full-coverage-weekly
-    cron: "0 1 * * 6"
-    command: quant-scan-all --cache --report both
-    status: disabled
-
-  - name: swing-full-coverage-weekly
-    cron: "0 4 * * 6"
-    command: quant-swing-all --no-email
-    status: disabled
-
-  - name: lynch-full-coverage-weekly
-    cron: "0 5 * * 6"
-    command: quant-lynch-all --no-email
-    status: disabled

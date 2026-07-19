@@ -61,30 +61,6 @@
         }
       ]
     },
-    "sector_commodity_etfs": {
-      "name": "Sector & Commodity ETFs",
-      "description": "GICS sector SPDRs plus liquid commodity proxies (17 names)",
-      "eligibility_mode": "etf",
-      "lynch_enabled": false,
-      "sources": [
-        {
-          "type": "file",
-          "path": "data/universes/sector_commodity_etfs.txt"
-        }
-      ]
-    },
-    "mean_reversion_core": {
-      "name": "Mean Reversion Core",
-      "description": "QQQ, SPY, and major GICS sector SPDRs for mean-reversion scans",
-      "eligibility_mode": "etf",
-      "lynch_enabled": false,
-      "sources": [
-        {
-          "type": "file",
-          "path": "data/universes/mean_reversion_core.txt"
-        }
-      ]
-    },
     "sp500_index": {
       "name": "S&P 500 (SPY holdings)",
       "description": "Full S&P 500 proxy from SSGA SPY daily holdings (~503 names)",
@@ -100,7 +76,7 @@
     },
     "mega_runners": {
       "name": "Mega Runners Watchlist",
-      "description": "PLTR HOOD TSLA COIN IREN for launchpad backfill",
+      "description": "Curated mega-mover names for Launchpad ML tuning",
       "sources": [
         {
           "type": "file",

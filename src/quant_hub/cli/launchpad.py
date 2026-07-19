@@ -1,4 +1,4 @@
-"""quant-launchpad — run a Launchpad Reversal scan."""
+"""quant-launchpad — run a Launchpad scan."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run Launchpad Reversal scan")
+    parser = argparse.ArgumentParser(description="Run Launchpad scan")
     parser.add_argument("--universe", help=f"Named universe id (e.g. {PRIMARY_INDEX_UNIVERSE})")
     parser.add_argument("--tickers", nargs="+", help="Explicit ticker list")
     parser.add_argument("--tickers-file", type=Path, help="Path to ticker file")

@@ -1,4 +1,4 @@
-"""Weekly scan-date helpers for historical backfill."""
+"""Daily-price scan-date helpers for Launchpad historical backfill."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ class BackfillCoverage:
         if self.earliest_existing:
             lines.append(
                 f"db_range={self.earliest_existing}..{self.latest_existing} "
-                f"({len(self.existing_dates)} Fridays in range)"
+                f"({len(self.existing_dates)} Saturdays in range)"
             )
         else:
             lines.append("db_range=empty (no scan_runs in requested window)")
@@ -77,7 +77,7 @@ def compute_backfill_coverage(
     until: date,
     existing_dates: list[date] | set[date] | None = None,
 ) -> BackfillCoverage:
-    planned = iter_weekly_scan_dates(since, until)
+    planned = iter_saturday_scan_dates(since, until)
     existing = {as_scan_date(d) for d in (existing_dates or []) if as_scan_date(d) is not None}
     return BackfillCoverage(
         since=since,
@@ -87,48 +87,13 @@ def compute_backfill_coverage(
     )
 
 
-def earliest_backfill_supported(*, today: date | None = None, min_weekly_bars: int = 60) -> date:
-    """
-    Earliest scan_date with enough truncated 10y weekly history for swing indicators.
-
-    yfinance 10y weekly cache spans ~520 weeks ending today; backfill keeps bars <= scan_date.
-    """
-    today = today or date.today()
-    weeks_of_history = 520 - min_weekly_bars
-    return today - timedelta(days=weeks_of_history * 7)
-
-
-def iter_weekly_scan_dates(since: date, until: date) -> list[date]:
-    """Fridays from `since` through `until` (inclusive), aligned to week-ending Friday."""
-    if since > until:
-        return []
-    current = since
-    while current.weekday() != 4:
-        current += timedelta(days=1)
-        if current > until:
-            return []
-    dates: list[date] = []
-    while current <= until:
-        dates.append(current)
-        current += timedelta(days=7)
-    return dates
-
-
-def truncate_weekly_to_date(df: pd.DataFrame | None, as_of: date) -> pd.DataFrame | None:
-    """Keep weekly OHLCV rows on or before `as_of` (point-in-time, no lookahead)."""
+def truncate_daily_to_date(df: pd.DataFrame | None, as_of: date) -> pd.DataFrame | None:
+    """Keep daily OHLCV rows on or before `as_of` (point-in-time, no lookahead)."""
     if df is None or df.empty or "Date" not in df.columns:
         return df
     out = df.copy()
     out["Date"] = pd.to_datetime(out["Date"])
-    trimmed = out[out["Date"].dt.date <= as_of]
-    if trimmed.empty:
-        return trimmed.reset_index(drop=True)
-    return trimmed.reset_index(drop=True)
-
-
-def truncate_daily_to_date(df: pd.DataFrame | None, as_of: date) -> pd.DataFrame | None:
-    """Keep daily OHLCV rows on or before `as_of` (point-in-time, no lookahead)."""
-    return truncate_weekly_to_date(df, as_of)
+    return out[out["Date"].dt.date <= as_of].reset_index(drop=True)
 
 
 def iter_saturday_scan_dates(since: date, until: date) -> list[date]:
@@ -153,7 +118,7 @@ def earliest_daily_backfill_supported(
     min_daily_bars: int = 200,
     lookback_days: int = 1260,
 ) -> date:
-    """Earliest scan_date with enough truncated daily history for launchpad/breakout."""
+    """Earliest scan_date with enough truncated daily history for Launchpad."""
     today = today or date.today()
     calendar_span = int(lookback_days * 1.6)
     return today - timedelta(days=max(calendar_span - min_daily_bars, min_daily_bars))

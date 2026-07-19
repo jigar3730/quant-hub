@@ -15,8 +15,6 @@ from quant_hub.ml.constants import (
     LABEL_STATUS_OK,
     LAUNCHPAD_FEATURE_COLUMNS,
     LAUNCHPAD_SETUP_TIERS,
-    SWING_FEATURE_COLUMNS,
-    SWING_SETUP_TIERS,
 )
 from quant_hub.ml.features import extract_features, merge_outcome_columns
 from quant_hub.ml.walk_forward import apply_ticker_signal_embargo
@@ -55,8 +53,6 @@ class TrainingSetResult:
 
 
 def feature_columns_for_strategy(strategy_id: str) -> tuple[str, ...]:
-    if strategy_id == "swing":
-        return SWING_FEATURE_COLUMNS
     if strategy_id == "launchpad":
         return LAUNCHPAD_FEATURE_COLUMNS
     raise ValueError(f"No feature columns defined for strategy {strategy_id!r}")
@@ -64,8 +60,6 @@ def feature_columns_for_strategy(strategy_id: str) -> tuple[str, ...]:
 
 def setup_tiers_for_strategy(strategy_id: str) -> frozenset[str] | None:
     """Return tier allow-list for setups_only training, or None if not applicable."""
-    if strategy_id == "swing":
-        return SWING_SETUP_TIERS
     if strategy_id == "launchpad":
         return LAUNCHPAD_SETUP_TIERS
     return None
@@ -248,7 +242,7 @@ def split_features_target(
     *,
     target_column: str = "label_binary",
 ) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
-    """Return X, y, and metadata (scan_date, ticker, run_id, forward_return_pct, swing_score)."""
+    """Return X, y, and metadata for evaluation."""
     df = result.frame
     meta_cols = [
         c
@@ -257,7 +251,7 @@ def split_features_target(
             "ticker",
             "run_id",
             "forward_return_pct",
-            "swing_score",
+            "final_score",
             "normalized_score",
             "tier",
         )

@@ -1,81 +1,65 @@
-# Quant Hub — Digest Email Policy
+# Quant Hub Digest Policy
 
-**Version:** 1.0  
-**Last updated:** 2026-06-29
+**Product scope:** Launchpad + Lynch
+**Last updated:** 2026-07-19
 
-Related: [Analytics Guide](ANALYTICS_GUIDE.md) · [Runbook](RUNBOOK.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
-
----
+Related: [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Runbook](RUNBOOK.md)
 
 ## Overview
 
-Quant Hub sends **two consolidated emails** instead of per-scan mail:
+Quant Hub sends two consolidated emails. Product scans persist to Postgres with `--no-email`; digest commands read the persisted results.
 
-| Digest | When (ET) | Command |
-|--------|-----------|---------|
-| **Daily** | Mon–Fri 5:35 PM | `quant-digest daily` |
-| **Weekly** | Sat 8:00 AM | `quant-digest weekly` |
+| Digest | When (ET) | Command | Primary data |
+|---|---|---|---|
+| Daily | Mon–Fri 5:35 PM | `quant-digest daily` | Launchpad on `sp500_index` |
+| Weekly | Saturday 8:00 AM | `quant-digest weekly` | Lynch plus Launchpad ∩ Lynch overlap |
 
-All scheduled scans use `--no-email`. Manual scans can still send individual emails if needed.
+## Daily Launchpad digest
 
----
-
-## Daily digest (Mon–Fri)
-
-**After:** `quant-daily --universe sp500_index --no-email` (5:00 PM)
+The daily digest follows the 5:10 PM ET `quant-launchpad-daily --universe sp500_index --no-email` run.
 
 | Section | Rule |
-|---------|------|
-| **Tier 1 — High conviction** | Breakout Tier 1 only, max **15** names |
-| **Tier 2 — Watchlist** | Breakout Tier 2, max **10** names; **omitted when regime = weak** |
-| **New / dropped** | vs prior breakout scan date |
-| **Persistent** | Actionable on ≥ **3** of last **5** weekdays |
-| **Empty day** | Email still sent with “no signals” message |
+|---|---|
+| High conviction | Launchpad Tier 1, maximum 15 names |
+| Watchlist | Launchpad Tier 2, maximum 10 names; omit when regime is weak |
+| Changes | New and dropped names versus the prior Launchpad scan |
+| Persistence | Actionable on at least 3 of the last 5 weekdays |
+| Empty run | Send a successful “no signals” digest |
 
-### Breakout tier definitions (from scanner)
+## Weekly Lynch digest and overlap
 
-| Tier | Criteria |
-|------|----------|
-| **Tier 1** | normalized ≥ 80, final ≥ 70, compression ≥ 8, accumulation ≥ 8 OR relative volume ≥ 5 pts (≈1.5× avg volume) |
-| **Tier 2** | normalized ≥ 60 |
-| **Tier 3** | below 60 |
-
----
-
-## Weekly digest (Saturday)
-
-**After:** Fri swing + Sat `quant-lynch-all` (5:00 AM) + `quant-analytics weekly` (7:50 AM)
+The weekly digest follows Saturday Launchpad coverage, Lynch coverage, and weekly analytics.
 
 | Section | Rule |
-|---------|------|
-| **Triple alignment** | Breakout **Tier 1** + Swing setup (score ≥ **70** / A–B) + Lynch passed |
-| **Swing highlights** | SETUP_LONG/SHORT with quality score ≥ **70**, max **15** |
-| **Lynch top** | Passed names, top **15** by Lynch score |
-| **Regime recap** | Breakout regime + actionable count per day this week |
-| **ETF tone** | Fri `sector_commodity_etfs` breakout + swing overlap |
+|---|---|
+| **Launchpad ∩ Lynch** | The intended combined signal: symbols actionable in both products, with both scores/tiers |
+| Lynch candidates | Up to 15 passed names ranked by Lynch score |
+| Regime recap | Latest available Launchpad market context |
 
----
+The overlap is not optional framing. If no recent technical run or no common actionable symbols exist, the digest explicitly says so; it does not substitute a different multi-product concept.
+
+The weekly analytics payload uses `overlap_count` and `launchpad_lynch_overlap`.
 
 ## Idempotency
 
-- One daily digest per calendar day (`job_runs`: `digest-daily-YYYY-MM-DD`)
-- One weekly digest per Saturday (`digest-weekly-YYYY-MM-DD`)
-- Sat 9:00 AM retry is safe — skips if already sent
+- Daily: one digest per calendar day, recorded as `digest-daily-YYYY-MM-DD`.
+- Weekly: one Saturday digest, recorded as `digest-weekly-YYYY-MM-DD`.
 
----
-
-## Manual commands
+## Manual operations
 
 ```bash
 docker exec quant-hub quant-digest daily
 docker exec quant-hub quant-analytics weekly
 docker exec quant-hub quant-digest weekly --rebuild-analytics
 docker exec quant-hub quant-digest daily --no-email
-docker exec quant-hub weekly-full-coverage   # or: bash /app/scripts/weekly-full-coverage.sh (~45–90 min cached)
 ```
 
----
+`--rebuild-analytics` is appropriate after recovered Saturday scans or when the overlap payload must be regenerated.
 
 ## Configuration
 
-Thresholds: `src/quant_hub/digest/policy.py`. Rebuild container after changes.
+SMTP requires `.env` values `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and comma-separated `EMAIL_TO`. After editing `.env`, recreate the app container:
+
+```bash
+docker compose up -d --force-recreate quant-hub
+```
