@@ -245,6 +245,7 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 | Job | Cron | When | Command | Email |
 |-----|------|------|---------|-------|
 | **Launchpad daily** | `10 17 * * 1-5` | Mon–Fri **5:10 PM ET** | `quant-launchpad-daily --universe sp500_index --no-email` | No |
+| **Launchpad full coverage** | `30 1 * * 6` | Sat **1:30 AM ET** | `quant-launchpad-all --cache --report both` | No |
 | **Breakout daily** | `0 17 * * 1-5` | Mon–Fri **5:00 PM ET** | `quant-daily --universe sp500_index --no-email` | No |
 | **Daily digest** | `35 17 * * 1-5` | Mon–Fri **5:35 PM ET** | `quant-digest daily` | **Yes** |
 | **ETF breakout** | `30 16 * * 5` | Fri **4:30 PM ET** | `quant-daily --universe sector_commodity_etfs --no-email` | No |

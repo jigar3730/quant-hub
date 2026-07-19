@@ -1,6 +1,6 @@
 # Quant Hub
 
-Homelab quant scanner: named ticker universes, breakout + swing + Lynch strategies, Postgres-backed results, per-ticker Yahoo cache, and a Streamlit dashboard.
+Homelab quant scanner: named ticker universes, breakout + launchpad + swing + Lynch strategies, Postgres-backed results, per-ticker Yahoo cache, and a Streamlit dashboard.
 
 ## Quick start
 
@@ -17,6 +17,8 @@ Manual scan (inside container on production):
 ```bash
 docker exec quant-hub quant-scan --universe sp500_index --cache
 docker exec quant-hub quant-scan-all --cache          # all configured universes
+docker exec quant-hub quant-launchpad --universe sp500_index --cache
+docker exec quant-hub quant-launchpad-all --cache --report both
 docker exec quant-hub quant-swing --universe sp500_index
 docker exec quant-hub quant-swing-all --no-email
 docker exec quant-hub quant-lynch --universe sp500_index
@@ -31,6 +33,9 @@ docker exec quant-hub quant-view                      # dashboard (Postgres-back
 |---------|---------|
 | `quant-scan` | Run breakout scan, persist to Postgres |
 | `quant-scan-all` | Breakout scan across all universes in `universes.json` |
+| `quant-launchpad` | Single-universe Launchpad Reversal scan |
+| `quant-launchpad-all` | Launchpad scan across all stock-mode universes |
+| `quant-launchpad-daily` | Daily Launchpad workflow for the default universe |
 | `quant-swing-all` | Swing scan across all universes |
 | `quant-lynch-all` | Lynch scan across Lynch-enabled stock universes |
 | `quant-swing` | Weekly swing scan (10y / 1wk OHLCV); setup gate + 0–100 quality score |
@@ -46,6 +51,7 @@ docker exec quant-hub quant-view                      # dashboard (Postgres-back
 | `quant-hub cleanup-fixtures` | Remove test scan rows from Postgres |
 | `quant-hub init-db` | Apply Postgres schema |
 | `quant-view` | Streamlit dashboard |
+| `quant-backfill launchpad\|coverage` | Historical point-in-time Launchpad backfill and coverage checks |
 | `weekly-full-coverage` | Breakout + swing + Lynch for all universes (~45–90 min cached); script in `/app/scripts` |
 
 ## Dashboard highlights

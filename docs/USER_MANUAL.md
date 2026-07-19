@@ -1,7 +1,7 @@
 # Quant Hub — User Manual
 
 **Version:** 1.1  
-**Product:** Quant Hub homelab stock scanner (breakout + swing + Lynch)  
+**Product:** Quant Hub homelab stock scanner (breakout + launchpad + swing + Lynch)  
 **Audience:** Traders, analysts, and operators who run scans and use the dashboard  
 **Last updated:** 2026-06-29 (full universe coverage, batch CLIs, digest schedule)
 
@@ -26,7 +26,7 @@
 
 ## 1. What Quant Hub does
 
-Quant Hub is a **stock scanner** for a homelab environment. It runs two strategies:
+Quant Hub is a **stock scanner** for a homelab environment. It runs four active strategies:
 
 
 | Strategy     | Cadence           | What it finds                                                                          |
@@ -45,7 +45,7 @@ All strategies:
 - Display results in a **Streamlit web dashboard** (`quant-view`)
 - Can **email** actionable results when SMTP is configured
 
-**v1 scope:** Breakout, swing, and Lynch scanners with Postgres-backed results.
+**Current scope:** Breakout, Launchpad Reversal, swing, and Lynch scanners with Postgres-backed results.
 
 ### What you should use it for
 
@@ -55,7 +55,7 @@ All strategies:
 
 ### What it is not
 
-- Not a broker or order execution systemasdfsedfas
+- Not a broker or order execution system
 - Not financial advice
 - Not a real-time streaming quote platform (data is daily OHLCV with optional cache)
 
@@ -225,6 +225,9 @@ All scan commands run on the server where Quant Hub is installed (`/opt/stacks/q
 | `quant-daily --universe sp500_index`                | Breakout | **Yes**                | Same as the weekday cron job  |
 | `quant-scan --universe sp500_index --cache`         | Breakout | No                     | Manual scan, no mail          |
 | `quant-scan-all --cache --email`              | Breakout | **Yes** (per universe) | Batch all universes           |
+| `quant-launchpad --universe sp500_index --cache` | Launchpad | No | Manual Launchpad scan |
+| `quant-launchpad-daily --universe sp500_index --no-email` | Launchpad | No | Weekday Launchpad workflow |
+| `quant-launchpad-all --cache --report both` | Launchpad | No | All stock-mode universes |
 | `quant-swing --universe sp500_index`                | Swing    | **Yes**                | Same as the Friday cron job   |
 | `quant-swing --universe sp500_index --no-email`     | Swing    | No                     | Manual swing without mail     |
 | `quant-swing-all --no-email`                  | Swing    | No                     | All universes (Saturday cron)   |

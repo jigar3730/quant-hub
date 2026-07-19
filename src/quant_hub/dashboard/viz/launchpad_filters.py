@@ -20,9 +20,9 @@ def launchpad_scatter_dataframe(tickers: list[dict]) -> pd.DataFrame:
             {
                 "ticker": ticker["ticker"],
                 "tier": ticker["tier"],
-                "macd_zero_line": scores["macd_zero_line"]["score"],
-                "ma_tightness": scores["ma_tightness"]["score"],
-                "final_score": ticker["summary"]["final_adjusted_score"],
+                "squeeze_intensity": scores.get("squeeze_intensity", {}).get("score", 0),
+                "tightness_percentile": scores.get("tightness_percentile", {}).get("score", 0),
+                "final_score": ticker["summary"].get("final_adjusted_score", 0),
                 "normalized_score": ticker["summary"].get("normalized_score"),
             }
         )

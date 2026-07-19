@@ -55,21 +55,21 @@ from quant_hub.infrastructure.postgres.repository import ScanRepository
 def _render_launchpad_scatter(scatter_df: pd.DataFrame):
     fig = px.scatter(
         scatter_df,
-        x="macd_zero_line",
-        y="ma_tightness",
+        x="squeeze_intensity",
+        y="tightness_percentile",
         text="ticker",
         size="final_score",
         color="tier",
         color_discrete_map=TIER_COLORS,
         hover_data=["final_score", "tier"],
         labels={
-            "macd_zero_line": "MACD Zero-Line Score",
-            "ma_tightness": "MA Tightness Score",
+            "squeeze_intensity": "Squeeze Intensity",
+            "tightness_percentile": "Candle Tightness",
             "final_score": "Final Score",
         },
     )
     fig.update_traces(textposition="top center", marker=dict(line=dict(width=1, color="white")))
-    fig.update_layout(title="MACD Ignition vs MA Tightness")
+    fig.update_layout(title="Squeeze vs Tightness")
     return apply_chart_style(fig, height=400)
 
 
