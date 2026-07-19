@@ -1,9 +1,9 @@
 # Quant Hub — User Manual
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Product:** Quant Hub homelab stock scanner (breakout + launchpad + swing + Lynch)  
 **Audience:** Traders, analysts, and operators who run scans and use the dashboard  
-**Last updated:** 2026-06-29 (full universe coverage, batch CLIs, digest schedule)
+**Last updated:** 2026-07-19 (Launchpad mega_runners + ML guide)
 
 ---
 
@@ -20,7 +20,7 @@
 9. [Automated schedule and daily workflow](#9-automated-schedule-and-daily-workflow)
 10. [FAQ](#10-faq)
 
-**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md)
+**Deep dive:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Swing Scanner](SWING_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Data Model / ERD](DATA_MODEL.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Junior Dev Database Guide](JUNIOR_DEV_DATABASE_GUIDE.md) · [Architecture Gaps](ARCHITECTURE_GAPS.md) · [Run Team Quickstart](RUN_TEAM_QUICKSTART.md) · [ML Ops](ML_OPS.md)
 
 ---
 
@@ -612,50 +612,37 @@ All scheduled jobs run **inside the `quant-hub` container** in **America/New_Yor
 
 ### Production schedule
 
-| Day | Time (ET) | Job | What you receive |
-|-----|-----------|-----|------------------|
-| Mon–Fri | **5:00 PM** | Breakout (`quant-daily --universe sp500_index --no-email`) | No scan email |
-| Mon–Fri | **5:35 PM** | Daily digest (`quant-digest daily`) | **Daily digest email** (sp500 Tier 1/2) |
-| Friday | **4:30 PM** | Breakout (`sector_commodity_etfs --no-email`) | Dashboard only |
-| Friday | **4:35 PM** | Swing (`sector_commodity_etfs --no-email`) | Dashboard only |
-| Friday | **5:45 PM** | Swing (`sp500 --no-email`) | Dashboard only — feeds weekly digest |
-| Saturday | **12:30 AM** (quarterly) | `quant-universe refresh sp500_index` | First Sat of Jan/Apr/Jul/Oct |
-| Saturday | **1:00 AM** | `quant-scan-all --cache --report both` | Full breakout — all 9 universes → Postgres |
-| Saturday | **4:00 AM** | `quant-swing-all --no-email` | Full swing — all 9 universes |
-| Saturday | **5:00 AM** | `quant-lynch-all --no-email` | Full Lynch — 8 stock universes |
-| Saturday | **7:50 AM** | `quant-analytics weekly` | No email |
-| Saturday | **8:00 AM** | `quant-digest weekly` | **Weekly digest email** (sp500 focus) |
+Authoritative file: `docker/crontab`. Many breakout/swing/Lynch lines are **commented out**; Launchpad is the primary automated scanner. Verify with `docker exec quant-hub cat /etc/cron.d/quant-hub`.
 
-### Coverage matrix
+| Day | Time (ET) | Job | Status |
+|-----|-----------|-----|--------|
+| Mon–Fri | **5:10 PM** | Launchpad daily (`sp500_index`) | **Active** |
+| Mon–Fri | **5:35 PM** | Daily digest | Active (needs breakout data to be useful) |
+| Sat | **12:30 AM** (quarterly) | Refresh `sp500_index` holdings | **Active** |
+| Sat | **1:30 AM** | `quant-launchpad-all` | **Active** |
+| Sat | **6:00 AM** | Swing ML label (90d) | Active in crontab |
+| Sat | **7:50 / 8:00 AM** | Analytics + weekly digest | Active |
 
-| Universe | Breakout | Swing | Lynch |
-|----------|----------|-------|-------|
-| `sp500_index` | daily + Sat | Fri + Sat | Sat |
-| `sp500_index` | Sat | Sat | Sat |
-| `large_cap_growth` | Sat | Sat | Sat |
-| `small_cap_growth` | Sat | Sat | Sat |
-| `mid_cap_growth` | Sat | Sat | Sat |
-| `dividend_growers` | Sat | Sat | Sat |
-| `fintech_growth` | Sat | Sat | Sat |
-| `most_actives` | Sat | Sat | Sat |
-| `sector_commodity_etfs` | Fri + Sat | Fri + Sat | — |
+**Launchpad tuning on `mega_runners`:** see [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md).
 
-Digests highlight **`sp500_index`** only. All universes appear in the dashboard after Saturday overnight runs.
+### Coverage matrix (when full cron is restored)
+
+| Universe | Breakout | Swing | Lynch | Launchpad |
+|----------|----------|-------|-------|-----------|
+| `sp500_index` | daily + Sat | Fri + Sat | Sat | daily + Sat |
+| `mega_runners` | — | — | — | manual / backfill |
+| Other stock universes | Sat | Sat | Sat | Sat (`launchpad-all`) |
+| `sector_commodity_etfs` | Fri + Sat | Fri + Sat | — | skipped (ETF mode) |
 
 ### Typical user routine
 
-**Weekdays (breakout)**
+**Weekdays (Launchpad)**
 
-1. After **~5:35 PM ET** — check the **daily digest** email (or open the dashboard)
-2. Open `http://<host>:5002`, select **Breakout**, universe **sp500_index**, today’s **Scan date**
-3. Review **Actionable Watchlist** (Tier 1 first); use **Ticker Detail** for confirmation
+1. After **~5:10 PM ET** — Launchpad daily finishes
+2. Open `http://<host>:5002`, select **Launchpad**, universe **sp500_index** (or **mega_runners** for tuning)
+3. Review Tier 1 / 2 names; use ticker detail for confirmation
 
-**Fridays (swing + ETFs)**
-
-1. After **~5:45 PM ET** — ETF and sp500 swing scans finish (dashboard only)
-2. In the dashboard: **Swing** → **Sector & Commodity ETFs** or **sp500**
-
-**Saturdays (full coverage + weekly digest)**
+**Saturdays (Launchpad coverage + digests)**
 
 1. Overnight — all universes scanned (breakout 1 AM, swing 4 AM, Lynch 5 AM ET)
 2. After **~8:00 AM ET** — check the **weekly digest** email

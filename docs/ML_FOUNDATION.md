@@ -8,20 +8,25 @@
 
 ## ML phase scope (current)
 
-Until swing ML and historical backfill are solid, the platform runs in **narrow scope**. See **[ML Ops Guide](ML_OPS.md)** for day-to-day commands, verification SQL, and troubleshooting.
+Ops focus is **Launchpad first** on a small universe (`mega_runners`), then scale. See **[Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)** and **[ML Ops Guide](ML_OPS.md)** for day-to-day commands.
 
-| Active | Paused |
-|--------|--------|
-| `quant-swing --universe sp500_index` (Fri 5:45 PM ET cron) | Breakout, Lynch, other universes |
-| `quant-ml label --strategy swing --universe sp500_index` (Sat 6 AM ET) | Daily/weekly digests, `quant-swing-all`, `quant-scan-all` |
+| Active (typical) | Paused / optional |
+|------------------|-------------------|
+| `quant-launchpad-daily` / `quant-launchpad-all` (cron) | Breakout / swing / Lynch full-coverage cron (commented in `docker/crontab`) |
+| `quant-backfill launchpad` + `quant-ml … --strategy launchpad` | Live model inference in scanners (not built) |
+| Swing ML path still supported via CLI | — |
 
-**Manual one-shot** (scan + label):
+**Launchpad mega_runners one-shot path:**
 
 ```bash
-docker exec quant-hub bash /app/scripts/ml-phase-swing-sp500-index.sh
+docker exec quant-hub quant-launchpad --universe mega_runners --cache
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2021-07-29
+docker exec quant-hub quant-ml warm-cache --universe mega_runners
+docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since 2021-07-29
+docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
 ```
 
-**Operator commands** (scoped):
+**Swing (legacy scoped) commands:**
 
 ```bash
 docker exec quant-hub quant-swing --universe sp500_index --no-email

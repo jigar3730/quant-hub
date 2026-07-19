@@ -11,8 +11,15 @@ from typing import Any
 import pandas as pd
 
 from quant_hub.infrastructure.postgres.connection import get_connection
-from quant_hub.ml.constants import LABEL_STATUS_OK, SWING_FEATURE_COLUMNS, SWING_SETUP_TIERS
+from quant_hub.ml.constants import (
+    LABEL_STATUS_OK,
+    LAUNCHPAD_FEATURE_COLUMNS,
+    LAUNCHPAD_SETUP_TIERS,
+    SWING_FEATURE_COLUMNS,
+    SWING_SETUP_TIERS,
+)
 from quant_hub.ml.features import extract_features, merge_outcome_columns
+from quant_hub.ml.walk_forward import apply_ticker_signal_embargo
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +34,15 @@ class TrainingSetStats:
     drop_label_status: int = 0
     drop_missing_target: int = 0
     drop_missing_features: int = 0
+    drop_embargo: int = 0
 
     def summary(self) -> str:
         return (
             f"raw={self.rows_raw} tier_ok={self.rows_after_tier} "
             f"label_ok={self.rows_after_label} final={self.rows_final} "
             f"drops[tier={self.drop_tier} label={self.drop_label_status} "
-            f"target={self.drop_missing_target} features={self.drop_missing_features}]"
+            f"target={self.drop_missing_target} features={self.drop_missing_features} "
+            f"embargo={self.drop_embargo}]"
         )
 
 
@@ -48,7 +57,18 @@ class TrainingSetResult:
 def feature_columns_for_strategy(strategy_id: str) -> tuple[str, ...]:
     if strategy_id == "swing":
         return SWING_FEATURE_COLUMNS
+    if strategy_id == "launchpad":
+        return LAUNCHPAD_FEATURE_COLUMNS
     raise ValueError(f"No feature columns defined for strategy {strategy_id!r}")
+
+
+def setup_tiers_for_strategy(strategy_id: str) -> frozenset[str] | None:
+    """Return tier allow-list for setups_only training, or None if not applicable."""
+    if strategy_id == "swing":
+        return SWING_SETUP_TIERS
+    if strategy_id == "launchpad":
+        return LAUNCHPAD_SETUP_TIERS
+    return None
 
 
 def _parse_detail(detail: Any) -> dict[str, Any]:
@@ -145,9 +165,10 @@ def build_training_frame(
     stats.rows_raw = len(raw_rows)
 
     records: list[dict[str, Any]] = []
+    setup_tiers = setup_tiers_for_strategy(strategy_id)
     for row in raw_rows:
         tier = row.get("tier") or ""
-        if setups_only and tier not in SWING_SETUP_TIERS:
+        if setups_only and setup_tiers is not None and tier not in setup_tiers:
             stats.drop_tier += 1
             continue
         stats.rows_after_tier += 1
@@ -204,6 +225,10 @@ def build_training_frame(
         if col not in df.columns:
             df[col] = None
 
+    before_embargo = len(df)
+    df = apply_ticker_signal_embargo(df)
+    stats.drop_embargo = before_embargo - len(df)
+
     numeric = df[list(feature_columns)].apply(pd.to_numeric, errors="coerce")
     valid = numeric.notna().all(axis=1)
     stats.drop_missing_features = int((~valid).sum())
@@ -233,6 +258,7 @@ def split_features_target(
             "run_id",
             "forward_return_pct",
             "swing_score",
+            "normalized_score",
             "tier",
         )
         if c in df.columns

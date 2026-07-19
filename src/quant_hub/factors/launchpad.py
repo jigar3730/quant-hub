@@ -5,11 +5,25 @@ from dataclasses import dataclass
 from quant_hub.engine.context import ScanContext
 from quant_hub.factors.base import make_factor_result
 from quant_hub.scoring.launchpad import (
+    score_macd_zero_line,
     score_squeeze_intensity,
     score_tightness_percentile,
     score_volume_vacuum_depth,
     score_trend_proximity_match,
 )
+
+
+@dataclass
+class MacdZeroLineFactor:
+    """Tier-1 ignition gate (not counted toward the 100-pt raw score)."""
+
+    name: str = "macd_zero_line"
+    pass_kind: str = "ticker"
+
+    def compute(self, ctx: ScanContext, ticker: str):
+        df = ctx.stock_dfs[ticker]
+        score, details = score_macd_zero_line(df)
+        return make_factor_result(self.name, score, 25.0, **details)
 
 
 @dataclass

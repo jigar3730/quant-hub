@@ -2,38 +2,40 @@
 
 **Audience:** Operators running the ML data pipeline on the homelab stack  
 **Status:** Phase 2 — labels, backfill, feature export, model training & evaluation  
-**Related:** [ML Foundation](ML_FOUNDATION.md) (schema & leakage rules) · [Data Model](DATA_MODEL.md) · [Runbook](RUNBOOK.md) · [Swing Scanner](SWING_SCANNER.md)
+**Related:** [ML Foundation](ML_FOUNDATION.md) (schema & leakage rules) · [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Data Model](DATA_MODEL.md) · [Runbook](RUNBOOK.md) · [Swing Scanner](SWING_SCANNER.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md)
 
 ---
 
 ## 1. What ML Ops does today
 
-Quant Hub ML Ops prepares **training-ready datasets** from scan history:
+Quant Hub ML Ops prepares **training-ready datasets** from scan history for **swing** and **launchpad** (breakout/lynch label CLI choices exist; feature columns are strategy-specific).
 
 | Step | Tool | Output |
 |------|------|--------|
-| Live signals | `quant-swing` (Friday cron) | `scan_runs` + `ticker_results` in Postgres |
-| Historical signals | `quant-backfill swing` | Same tables, one row per past Friday |
+| Live signals | `quant-launchpad*` / `quant-swing` | `scan_runs` + `ticker_results` in Postgres |
+| Historical signals | `quant-backfill launchpad` / `quant-backfill swing` | Same tables (Saturdays / Fridays) |
 | Price cache for labels | `quant-ml warm-cache` | Daily OHLCV parquet (~5y) |
-| Forward-return labels | `quant-ml label` | `signal_outcomes` in Postgres |
+| Forward-return labels | `quant-ml label --strategy launchpad\|swing` | `signal_outcomes` in Postgres |
 | Training export | `quant-ml export-features` | Parquet under `data/ml/features/` |
 | Model training | `quant-ml train` | LightGBM artifact + `ml_models` registry row |
-| Model evaluation | `quant-ml evaluate` | Walk-forward AUC and top-K return vs `swing_score` |
+| Model evaluation | `quant-ml evaluate` | Walk-forward AUC and top-K return metrics |
 
-**Not built yet (Phase 2.5 / Phase 3):** dashboard ML UI, live inference in scans.
+**Preferred Launchpad path (small universe first):** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) (`mega_runners` → label → train @ h20).
+
+**Not built yet (Phase 2.5 / Phase 3):** dashboard ML UI, live model inference inside scanners.
 
 ---
 
-## 2. Current scope (ML phase)
+## 2. Current scope (ops phase)
 
-Until swing ML is production-ready, cron is narrowed to **swing + sp500 only**:
+`docker/crontab` is Launchpad-forward: weekday Launchpad daily + Saturday Launchpad-all are **on**; most breakout/swing/Lynch scan lines are **commented out**. Digests and a swing ML label job may still be present — confirm with `docker exec quant-hub cat /etc/cron.d/quant-hub`.
 
-| Schedule | Job |
-|----------|-----|
-| Fri **5:45 PM ET** | `quant-swing --universe sp500_index --no-email` |
-| Sat **6:00 AM ET** | `quant-ml label --strategy swing --universe sp500_index --since <90d>` |
+| Focus | Commands |
+|-------|----------|
+| Tune Launchpad | `mega_runners` live scan + backfill + `quant-ml … --strategy launchpad` |
+| Scale later | Same pipeline with `--universe sp500_index` |
 
-Breakout, Lynch, other universes, and digests are **disabled** in `docker/crontab`. See [ML Foundation § ML phase scope](ML_FOUNDATION.md#ml-phase-scope-current) to restore full cron.
+See [ML Foundation § ML phase scope](ML_FOUNDATION.md#ml-phase-scope-current) and [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md).
 
 ---
 

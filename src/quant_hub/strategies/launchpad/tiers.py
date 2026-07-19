@@ -34,7 +34,7 @@ def assign_tier_from_row(row) -> str:
         return "filtered"
 
     normalized = row["normalized_score"]
-    macd_score = row["macd_zero_line_score"]
+    macd_score = row.get("macd_zero_line_score", 0) or 0
 
     if _tier1_criteria(normalized=normalized, macd_score=macd_score):
         return "Tier 1"

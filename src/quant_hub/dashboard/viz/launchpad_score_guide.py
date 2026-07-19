@@ -5,19 +5,19 @@ from __future__ import annotations
 import streamlit as st
 
 LAUNCHPAD_COMPONENT_HELP = {
-    "ma_tightness": "How tightly SMA50 and SMA200 are coiled together.",
-    "macd_zero_line": "MACD line crossing above zero with signal confirmation.",
-    "atr_contraction": "Short-term ATR vs long-term ATR — proves daily ranges are shrinking.",
-    "volume_dry_up": "Recent 3-day volume vs the 50-day baseline — supply exhaustion.",
-    "swing_low_vcp": "Latest pullback depth vs the prior pullback (contraction pattern).",
+    "macd_zero_line": "MACD line crossing above zero with signal confirmation (Tier-1 gate).",
+    "squeeze_intensity": "Bollinger vs Keltner squeeze — volatility compression.",
+    "tightness_percentile": "Recent candle range tightness vs the prior 60 bars.",
+    "volume_vacuum_depth": "Current volume vs the 50-day baseline — supply exhaustion.",
+    "trend_proximity_match": "Partial credit: RS vs SPY (8) + near EMA50/ATR/shelf (4–7).",
 }
 
 LAUNCHPAD_COMPONENT_SUMMARY = {
-    "ma_tightness": "Multi-MA compression before expansion.",
     "macd_zero_line": "Momentum ignition at the zero line.",
-    "atr_contraction": "Daily candle range squeeze.",
-    "volume_dry_up": "Absolute liquidity/supply exhaustion.",
-    "swing_low_vcp": "Progressive higher-low wave structure (VCP).",
+    "squeeze_intensity": "Volatility coil before expansion.",
+    "tightness_percentile": "Daily candle range squeeze.",
+    "volume_vacuum_depth": "Absolute liquidity/supply exhaustion.",
+    "trend_proximity_match": "Relative strength + proximity to support.",
 }
 
 
@@ -28,17 +28,15 @@ def render_launchpad_score_guide(*, in_sidebar: bool = False) -> None:
         """
 | Eligibility | Condition |
 |-------------|-----------|
-| Base clearance | Price > SMA50 AND Price > SMA200 |
-| Fresh trend | SMA50 > SMA50 (10 days ago) |
-| Not extended | Price ≤ 8% above 20-day median close |
-| Liquidity | 20-day avg volume ≥ 750,000 |
+| History | ≥ 200 trading days |
+| Price / liquidity | Close ≥ $10 · 30d avg vol ≥ 750,000 |
+| Macro trend | Price > EMA200 |
+| Proximity | Within 5% of EMA50, 1.0×ATR(14), or 2% of support shelf |
 
-**Scoring (raw max 100) — the Coiled Spring engine:**
-- MA Tightness (25): SMA50/200 spread ≤3% → 25 · ≤6% → 15
-- MACD Zero-Line (25): zero-line ignition → 25 · early recovery → 15
-- ATR Contraction (20): ATR(14)/ATR(50) < 0.70 → 20 · < 0.80 → 12
-- Volume Dry-Up (15): 3d/50d volume ≤0.50 → 15 · ≤0.60 → 10
-- Swing-Low VCP (15): latest pullback ≤50% of prior → 15 · ≤75% → 8
+**Scoring (raw max 100):**
+- Squeeze Intensity (40) · Tightness (15) · Volume Vacuum (30)
+- Trend & Proximity (15): RS vs SPY 0/8 + near support 0/4/7
+- MACD Zero-Line (gate only): ignition 25 → Tier 1 with norm ≥80
 
 **Tiers:** Tier 1 = norm ≥80 + MACD=25 · Tier 2 = norm ≥65
         """

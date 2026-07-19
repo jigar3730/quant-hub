@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -24,6 +26,9 @@ class FundamentalsCache:
     def path_for(self, ticker: str) -> Path:
         return self.base_dir / f"{ticker.upper()}.json"
 
+    def _lock_path(self, ticker: str) -> Path:
+        return self.base_dir / f"{ticker.upper()}.json.lock"
+
     def is_fresh(self, ticker: str) -> bool:
         path = self.path_for(ticker)
         if not path.exists():
@@ -45,7 +50,18 @@ class FundamentalsCache:
     def write(self, snapshot: FundamentalsSnapshot) -> None:
         path = self.path_for(snapshot.ticker)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(snapshot.to_dict(), indent=2))
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        lock_path = self._lock_path(snapshot.ticker)
+        payload = json.dumps(snapshot.to_dict(), indent=2)
+        with open(lock_path, "a", encoding="utf-8") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                tmp_path.write_text(payload)
+                os.replace(tmp_path, path)
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def partition(self, tickers: list[str], *, use_cache: bool) -> tuple[list[str], list[str]]:
         if not use_cache:

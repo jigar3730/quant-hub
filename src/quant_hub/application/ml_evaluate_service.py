@@ -13,9 +13,14 @@ import pandas as pd
 from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.infrastructure.postgres.ml_models_repository import MlModelsRepository
 from quant_hub.ml.evaluate import EvalMetrics, aggregate_fold_metrics, evaluate_predictions
-from quant_hub.ml.train import load_model_artifact
+from quant_hub.ml.train import load_model_artifact, train_lightgbm_classifier
 from quant_hub.ml.training_set import build_training_frame, split_features_target
-from quant_hub.ml.walk_forward import iter_walk_forward_folds, mask_by_dates, unique_sorted_dates
+from quant_hub.ml.walk_forward import (
+    iter_walk_forward_folds,
+    mask_by_dates,
+    purge_train_dates,
+    unique_sorted_dates,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +58,7 @@ class MLEvaluateService:
         test_weeks: int = 13,
         top_k: int = 5,
         persist_metrics: bool = True,
+        train_params: dict[str, Any] | None = None,
     ) -> EvaluateRunStats:
         if model_id is not None:
             record = self.models_repo.get_by_id(model_id)
@@ -74,8 +80,11 @@ class MLEvaluateService:
         else:
             raise ValueError("Specify --model-id or --artifact-path")
 
-        booster, feature_columns = load_model_artifact(artifact_path)
-        since = since or (date.fromisoformat(record["train_since"]) if record and record.get("train_since") else None)
+        since = since or (
+            date.fromisoformat(record["train_since"])
+            if record and record.get("train_since")
+            else None
+        )
         until = until or date.today()
 
         result = build_training_frame(
@@ -90,11 +99,11 @@ class MLEvaluateService:
             return EvaluateRunStats(model_id=model_id, metrics={"error": "empty dataset"})
 
         X, y, meta = split_features_target(result)
-        X = X[list(feature_columns)].astype(float)
-
         stats = EvaluateRunStats(model_id=model_id)
 
         if walk_forward:
+            feature_columns = list(result.feature_columns)
+            X = X[feature_columns].astype(float)
             folds = iter_walk_forward_folds(
                 unique_sorted_dates(result.frame["scan_date"]),
                 train_weeks=train_weeks,
@@ -102,15 +111,36 @@ class MLEvaluateService:
             )
             fold_metrics: list[EvalMetrics] = []
             for fold in folds:
+                purged_train = purge_train_dates(
+                    fold.train_dates,
+                    test_start=fold.split_date,
+                    horizon_days=horizon_days,
+                )
+                train_mask = mask_by_dates(meta, purged_train)
                 test_mask = mask_by_dates(meta, fold.test_dates)
-                if not test_mask.any():
+                if not train_mask.any() or not test_mask.any():
                     continue
-                y_score = pd.Series(booster.predict(X.loc[test_mask]), index=X.loc[test_mask].index)
-                fm = evaluate_predictions(y.loc[test_mask], y_score, meta.loc[test_mask], top_k=top_k)
+                fold_booster = train_lightgbm_classifier(
+                    X.loc[train_mask],
+                    y.loc[train_mask],
+                    params=train_params,
+                )
+                y_score = pd.Series(
+                    fold_booster.predict(X.loc[test_mask]),
+                    index=X.loc[test_mask].index,
+                )
+                fm = evaluate_predictions(
+                    y.loc[test_mask], y_score, meta.loc[test_mask], top_k=top_k
+                )
                 fold_metrics.append(fm)
-                stats.fold_summaries.append(f"split={fold.split_date} {fm.summary()}")
+                stats.fold_summaries.append(
+                    f"split={fold.split_date} train={int(train_mask.sum())} "
+                    f"purged_from={len(fold.train_dates)} {fm.summary()}"
+                )
             stats.metrics = aggregate_fold_metrics(fold_metrics)
         else:
+            booster, feature_columns = load_model_artifact(artifact_path)
+            X = X[list(feature_columns)].astype(float)
             split_date = None
             if record and record.get("eval_split_date"):
                 split_date = date.fromisoformat(record["eval_split_date"])

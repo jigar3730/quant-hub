@@ -135,11 +135,11 @@ def render_universe_detail_panel(ticker: str, ticker_data: dict) -> None:
 
 # Launchpad factor columns (label -> max points) surfaced individually in the table.
 LAUNCHPAD_FACTOR_MAX = {
-    "MA Tightness": 25,
     "MACD Zero-Line": 25,
-    "ATR Contraction": 20,
-    "Volume Dry-Up": 15,
-    "Swing-Low VCP": 15,
+    "Squeeze Intensity": 40,
+    "Candle Tightness": 15,
+    "Volume Vacuum": 30,
+    "Trend & Proximity": 15,
 }
 
 

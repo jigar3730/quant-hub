@@ -2,7 +2,7 @@
 
 **Strategy ID:** `launchpad`  
 **Cadence:** Daily scanner for stock universes; Saturday batch coverage/backfill for historical point-in-time runs  
-**Related:** [Breakout Scanner](BREAKOUT_SCANNER.md) · [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md)
+**Related:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Breakout Scanner](BREAKOUT_SCANNER.md) · [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [ML Ops](ML_OPS.md)
 
 ## What the scanner does
 
@@ -23,20 +23,23 @@ Universe tickers → price download/cache → strategy engine → eligibility fi
 
 | Command | Purpose |
 |---------|---------|
-| `quant-launchpad --universe sp500_index --cache` | Manual single-universe scan |
-| `quant-launchpad-daily --universe sp500_index --no-email` | Scheduled daily scan for the default universe |
+| `quant-launchpad --universe mega_runners --cache` | Manual scan on the small tuning universe |
+| `quant-launchpad --universe sp500_index --cache` | Manual single-universe scan (broad) |
+| `quant-launchpad-daily --universe sp500_index --no-email` | Scheduled daily scan (cron default) |
 | `quant-launchpad-all --cache --report both` | Run across all stock-mode universes |
-| `quant-backfill launchpad --since 2024-01-01 --until 2024-03-01` | Point-in-time Saturday backfill for one universe |
-| `quant-backfill launchpad --all-universes --since 2024-01-01` | Backfill every stock universe used by `quant-launchpad-all` |
-| `quant-backfill coverage --strategy launchpad --universe sp500_index --since 2024-01-01` | Preview planned vs missing backfill dates |
+| `quant-backfill launchpad --universe mega_runners --since 2021-07-29` | Point-in-time Saturday backfill for one universe |
+| `quant-backfill launchpad --all-universes --since 2021-07-29` | Backfill every stock universe used by `quant-launchpad-all` |
+| `quant-backfill coverage --strategy launchpad --universe mega_runners --since 2021-07-29` | Preview planned vs missing backfill dates |
 
 Typical manual use from the container:
 
 ```bash
-docker exec quant-hub quant-launchpad --universe sp500_index --cache
-docker exec quant-hub quant-launchpad-daily --universe sp500_index --no-email
+docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
+docker exec quant-hub quant-launchpad-daily --universe mega_runners --no-email
 docker exec quant-hub quant-launchpad-all --cache --report both
 ```
+
+**ML workflow (label → export → train):** see **[Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)**.
 
 ## Scope and eligibility
 
@@ -48,22 +51,23 @@ Eligibility is enforced in the current code via `launchpad_eligibility_detail()`
 |------|-----------|
 | Trading history | At least `LAUNCHPAD_MIN_HISTORY_DAYS` bars (currently 200) |
 | Price minimum | Last close is at least `$10.00` |
-| Liquidity | 30-day average volume is at least 500,000 shares |
+| Liquidity | 30-day average volume is at least `LAUNCHPAD_MIN_AVG_VOLUME` (750,000) |
 | Macro trend | Price is above the 200-day EMA |
-| Structural proximity | Price is within 2.5% of the 50-day EMA or within 2.0% of a recent support shelf |
+| Structural proximity | Price within **5%** of EMA50, or within **1.0×ATR(14)** of EMA50, or within 2% of a recent support shelf |
 
 Fail reasons include `insufficient_history`, `price_below_10`, `volume_below_min`, `macro_trend_not_aligned`, `structural_proximity`, and `no_price_data`.
 
 ## Current scoring model
 
-The current engine uses four factor scores that normalize to a raw max of 100 points. The implementation lives in `src/quant_hub/scoring/launchpad.py` and is wired through `src/quant_hub/strategies/launchpad/spec.py`.
+The current engine uses four factor scores that normalize to a raw max of 100 points (plus a MACD gate used only for Tier 1). The implementation lives in `src/quant_hub/scoring/launchpad.py` and is wired through `src/quant_hub/strategies/launchpad/spec.py`.
 
 | Factor | Max points | Current rule |
 |--------|------------:|--------------|
 | Squeeze Intensity | 40 | Bollinger/Keltner squeeze ratio; strong compression yields the full score |
 | Tightness Percentile | 15 | Recent bar tightness percentile vs the prior 60 bars |
 | Volume Vacuum Depth | 30 | Current volume relative to the 50-day baseline |
-| Trend & Proximity | 15 | Price strength versus SPY and proximity to the 50-day EMA/support shelf |
+| Trend & Proximity | 15 | **Partial credit:** RS vs SPY (0/8) + near support (0/4/7 via % or ATR band) |
+| MACD Zero-Line (gate) | 25 | Tier-1 ignition only — not added to the 100-pt raw score |
 
 The normalized score is computed as the raw score divided by the 100-point maximum, so the final score is effectively a percent score.
 
@@ -98,11 +102,13 @@ Launchpad backfills are point-in-time Saturday runs for ML and historical replay
 
 ## Schedule (America/New_York)
 
+Authoritative cron: `docker/crontab`. Breakout/swing/Lynch scan jobs are currently commented out; Launchpad daily + Saturday full coverage remain active.
+
 | When | Command |
 |------|---------|
 | Mon–Fri 5:10 PM | `quant-launchpad-daily --universe sp500_index --no-email` |
 | Sat 1:30 AM | `quant-launchpad-all --cache --report both` |
-| Saturday backfill | `quant-backfill launchpad --since <date> [--until <date>] [--all-universes]` |
+| Manual backfill | `quant-backfill launchpad --universe <id> --since <date>` |
 
 ## Source code
 

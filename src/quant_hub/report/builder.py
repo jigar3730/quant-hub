@@ -138,6 +138,7 @@ def build_ticker_report(
         score_detail = launchpad_score_components_detail(
             stock_df=stock_df,
             scores=scores or {},
+            spy_df=spy_df,
         )
     else:
         score_detail = score_components_detail(

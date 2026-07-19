@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import fcntl
 import logging
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -25,6 +27,9 @@ class ParquetCache:
 
     def path_for(self, ticker: str) -> Path:
         return self.base_dir / f"{ticker.upper()}.parquet"
+
+    def _lock_path(self, ticker: str) -> Path:
+        return self.base_dir / f"{ticker.upper()}.parquet.lock"
 
     def is_fresh(self, ticker: str, *, max_bar_age_days: int | None = None) -> bool:
         path = self.path_for(ticker)
@@ -61,7 +66,18 @@ class ParquetCache:
         out = df.copy()
         if "ticker" not in out.columns:
             out["ticker"] = ticker.upper()
-        out.to_parquet(path, index=False)
+
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        lock_path = self._lock_path(ticker)
+        with open(lock_path, "a", encoding="utf-8") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                out.to_parquet(tmp_path, index=False)
+                os.replace(tmp_path, path)
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def partition(
         self,

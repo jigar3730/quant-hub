@@ -4,7 +4,18 @@ from quant_hub.config import LAUNCHPAD_RAW_SCORE_MAX
 from quant_hub.engine.types import TickerResult
 from quant_hub.regime.market import MarketRegime
 
+# Factors that contribute to the 100-pt raw score (macd_zero_line is a Tier-1 gate only).
+LAUNCHPAD_SCORE_FACTORS = frozenset(
+    {
+        "squeeze_intensity",
+        "tightness_percentile",
+        "volume_vacuum_depth",
+        "trend_proximity_match",
+    }
+)
+
 LAUNCHPAD_SCORE_COLUMNS = [
+    "macd_zero_line_score",
     "squeeze_intensity_score",
     "tightness_percentile_score",
     "volume_vacuum_depth_score",
@@ -14,7 +25,9 @@ LAUNCHPAD_SCORE_COLUMNS = [
 
 def aggregate_launchpad_ticker(ticker: TickerResult, regime: MarketRegime) -> TickerResult:
     _ = regime
-    raw = sum(fr.score for fr in ticker.factors.values())
+    raw = sum(
+        fr.score for name, fr in ticker.factors.items() if name in LAUNCHPAD_SCORE_FACTORS
+    )
     penalty = sum(ticker.penalties.values())
     raw = max(0.0, raw + penalty)
     ticker.raw_score = raw

@@ -83,6 +83,48 @@ def test_extract_lynch_features():
     assert row["fetch_complete"] is True
 
 
+def test_extract_launchpad_features():
+    detail = {
+        "ticker": "HOOD",
+        "tier": "Tier 2",
+        "eligible": True,
+        "summary": {
+            "final_adjusted_score": 82,
+            "normalized_score": 82,
+            "raw_score": 82,
+        },
+        "scores": {
+            "squeeze_intensity": {
+                "score": 40.0,
+                "raw": {"squeeze_ratio": 0.8459, "squeeze_active": True},
+            },
+            "tightness_percentile": {
+                "score": 15.0,
+                "raw": {"tightness_rank_pct": 0.0667},
+            },
+            "volume_vacuum_depth": {
+                "score": 15.0,
+                "raw": {"rvol": 0.42},
+            },
+            "trend_proximity_match": {
+                "score": 12.0,
+                "raw": {"pct_distance": 0.031},
+            },
+            "macd_zero_line": {"score": 0.0, "raw": {}},
+        },
+    }
+    row = extract_features(strategy_id="launchpad", detail=detail, run=_run("launchpad"))
+    assert row["final_score"] == 82
+    assert row["volatility_compression_ratio"] == 0.8459
+    assert row["relative_strength_rank"] == 0.0667
+    assert row["volume_rs_score"] == 0.42
+    assert row["resistance_distance_pct"] == 0.031
+    assert row["market_regime_multiplier"] == 0.85
+    assert row["eligible"] == 1.0
+    # Diagnostic score columns still exported
+    assert row["score_squeeze_intensity"] == 40.0
+
+
 def test_merge_outcome_columns():
     features = {"ticker": "AAPL", "final_score": 80}
     outcome = {

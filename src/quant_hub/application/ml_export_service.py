@@ -102,6 +102,7 @@ class MLExportService:
                     universe_id=run["universe_id"],
                     scan_date=run["scan_date"],
                     run_id=run["id"],
+                    horizon_days=horizon_days,
                 )
                 stats.output_paths.append(path)
                 stats.rows_written += len(run_rows)
@@ -113,6 +114,7 @@ class MLExportService:
                 universe_id=universe_id or "all",
                 scan_date=since or runs[-1]["scan_date"],
                 run_id=None,
+                horizon_days=horizon_days,
             )
             stats.output_paths.append(path)
             stats.rows_written = len(all_rows)
@@ -128,11 +130,17 @@ class MLExportService:
         universe_id: str,
         scan_date: date,
         run_id: int | None,
+        horizon_days: int | None = None,
     ) -> Path:
         df = pd.DataFrame(rows)
         base = self.output_dir / strategy_id / universe_id
         base.mkdir(parents=True, exist_ok=True)
-        suffix = f"run_{run_id}" if run_id is not None else f"{scan_date}_export"
+        if run_id is not None:
+            suffix = f"run_{run_id}"
+        else:
+            suffix = f"{scan_date}_export"
+        if horizon_days is not None:
+            suffix = f"{suffix}_h{horizon_days}"
         path = base / f"features_{suffix}.parquet"
         df.to_parquet(path, index=False)
         return path

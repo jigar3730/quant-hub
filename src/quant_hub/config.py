@@ -33,7 +33,7 @@ FUNDAMENTALS_CACHE_SUBDIR = CACHE_DIR / "fundamentals"
 ML_DIR = DATA_DIR / "ml"
 ML_FEATURES_DIR = ML_DIR / "features"
 ML_MODELS_DIR = ML_DIR / "models"
-FEATURE_SCHEMA_VERSION = "v3"
+FEATURE_SCHEMA_VERSION = "v4"
 DEFAULT_LABEL_HORIZONS = (5, 10, 20, 63)
 LABEL_RETURN_THRESHOLD_PCT = 2.0
 BENCHMARK_TICKER_FOR_LABELS = "SPY"
@@ -188,6 +188,21 @@ LAUNCHPAD_SWING_HISTORY_DAYS = 120
 # Min bars between distinct structural swing lows (collapse adjacent detections).
 LAUNCHPAD_SWING_DEDUPE_MIN_GAP = 5
 
+# Structural proximity (eligibility): within max(pct band, ATR multiple) of EMA50.
+LAUNCHPAD_PROXIMITY_EMA50_PCT = 0.05  # 5% soft band (was hard 2.5%)
+LAUNCHPAD_PROXIMITY_ATR_MULT = 1.0  # or within 1.0 × ATR(14) of EMA50
+LAUNCHPAD_PROXIMITY_ATR_WINDOW = 14
+LAUNCHPAD_SUPPORT_SHELF_PCT = 0.02
+
+# Trend & proximity score (max 15): partial credit for RS and near-support.
+LAUNCHPAD_RS_SCORE_POINTS = 8.0
+LAUNCHPAD_NEAR_SUPPORT_FULL_POINTS = 7.0
+LAUNCHPAD_NEAR_SUPPORT_PARTIAL_POINTS = 4.0
+LAUNCHPAD_NEAR_SUPPORT_TIGHT_PCT = 0.015  # full near-support (tight coil)
+LAUNCHPAD_NEAR_SUPPORT_OK_PCT = 0.05  # partial near-support
+LAUNCHPAD_NEAR_SUPPORT_TIGHT_ATR_MULT = 0.5
+LAUNCHPAD_NEAR_SUPPORT_OK_ATR_MULT = 1.0
+
 # ATR contraction (True Range shrinkage): Volatility_Ratio = ATR(short) / ATR(long).
 LAUNCHPAD_ATR_SHORT_WINDOW = 14
 LAUNCHPAD_ATR_LONG_WINDOW = 50
@@ -206,7 +221,10 @@ LAUNCHPAD_VCP_RATIO_OK = 0.75  # <= 0.75 -> partial points
 
 
 def database_url() -> str:
-    return os.environ.get(
-        "DATABASE_URL",
-        "postgresql://quant:quant@localhost:5432/quant_hub",
-    )
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if not url:
+        raise RuntimeError(
+            "DATABASE_URL is required (e.g. postgresql://user:pass@host:5432/quant_hub). "
+            "Refusing to fall back to default credentials."
+        )
+    return url

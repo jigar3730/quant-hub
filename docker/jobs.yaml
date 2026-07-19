@@ -1,84 +1,84 @@
 # Reference schedule — authoritative source is docker/crontab (installed into the container).
-# All times America/New_York (container TZ).
+# Last synced: 2026-07-19 (Launchpad-forward; many other scanners commented out in crontab)
 
 jobs:
-  - name: breakout-sp500-index-daily
-    cron: "0 17 * * 1-5"
-    command: quant-daily --universe sp500_index --no-email
-    strategy: breakout
-    universe: sp500_index
-    email: false
-    active: true
-
   - name: launchpad-sp500-index-daily
     cron: "10 17 * * 1-5"
     command: quant-launchpad-daily --universe sp500_index --no-email
     strategy: launchpad
     universe: sp500_index
     email: false
-    active: true
+    status: active
 
   - name: digest-daily
     cron: "35 17 * * 1-5"
     command: quant-digest daily
     email: true
-    active: true
+    status: active
 
-  - name: breakout-sector-commodity-etfs-weekly
-    cron: "30 16 * * 5"
-    command: quant-daily --universe sector_commodity_etfs --no-email
-    active: true
-
-  - name: swing-sector-commodity-etfs-weekly
-    cron: "35 16 * * 5"
-    command: quant-swing --universe sector_commodity_etfs --no-email
-    active: true
-
-  - name: swing-sp500-index-weekly
-    cron: "45 17 * * 5"
-    command: quant-swing --universe sp500_index --no-email
-    strategy: swing
-    universe: sp500_index
-    email: false
-    active: true
-
-  - name: sp500-index-refresh-quarterly
+  - name: universe-refresh-sp500-quarterly
     cron: "30 0 1-7 1,4,7,10 6"
     command: quant-universe refresh sp500_index
-    active: true
-
-  - name: breakout-full-coverage-weekly
-    cron: "0 1 * * 6"
-    command: quant-scan-all --cache --report both
-    active: true
+    status: active
 
   - name: launchpad-full-coverage-weekly
     cron: "30 1 * * 6"
     command: quant-launchpad-all --cache --report both
-    active: true
-
-  - name: swing-full-coverage-weekly
-    cron: "0 4 * * 6"
-    command: quant-swing-all --no-email
-    active: true
-
-  - name: lynch-full-coverage-weekly
-    cron: "0 5 * * 6"
-    command: quant-lynch-all --no-email
-    active: true
+    strategy: launchpad
+    email: false
+    status: active
 
   - name: ml-label-swing-sp500-index
     cron: "0 6 * * 6"
     command: quant-ml label --strategy swing --universe sp500_index --since <90d>
-    active: true
+    strategy: swing
+    status: active
 
   - name: analytics-weekly
     cron: "50 7 * * 6"
     command: quant-analytics weekly
-    active: true
+    status: active
 
   - name: digest-weekly
     cron: "0 8 * * 6"
     command: quant-digest weekly
     email: true
-    active: true
+    status: active
+
+  # --- commented out in docker/crontab (restore by uncommenting) ---
+  - name: breakout-sp500-index-daily
+    cron: "0 17 * * 1-5"
+    command: quant-daily --universe sp500_index --no-email
+    strategy: breakout
+    status: disabled
+
+  - name: breakout-sector-commodity-etfs-weekly
+    cron: "30 16 * * 5"
+    command: quant-daily --universe sector_commodity_etfs --no-email
+    status: disabled
+
+  - name: swing-sector-commodity-etfs-weekly
+    cron: "35 16 * * 5"
+    command: quant-swing --universe sector_commodity_etfs --no-email
+    status: disabled
+
+  - name: swing-sp500-index-weekly
+    cron: "45 17 * * 5"
+    command: quant-swing --universe sp500_index --no-email
+    strategy: swing
+    status: disabled
+
+  - name: breakout-full-coverage-weekly
+    cron: "0 1 * * 6"
+    command: quant-scan-all --cache --report both
+    status: disabled
+
+  - name: swing-full-coverage-weekly
+    cron: "0 4 * * 6"
+    command: quant-swing-all --no-email
+    status: disabled
+
+  - name: lynch-full-coverage-weekly
+    cron: "0 5 * * 6"
+    command: quant-lynch-all --no-email
+    status: disabled

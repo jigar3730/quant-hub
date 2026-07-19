@@ -18,6 +18,7 @@ SCORE_LABELS = {
 }
 
 LAUNCHPAD_SCORE_LABELS = {
+    "macd_zero_line": "MACD Zero-Line",
     "squeeze_intensity": "Squeeze Intensity",
     "tightness_percentile": "Candle Tightness",
     "volume_vacuum_depth": "Volume Vacuum",
@@ -38,6 +39,7 @@ TECHNICAL_KEYS = (
 )
 
 LAUNCHPAD_TECHNICAL_KEYS = (
+    "macd_zero_line",
     "squeeze_intensity",
     "tightness_percentile",
     "volume_vacuum_depth",

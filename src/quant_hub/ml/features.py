@@ -13,6 +13,36 @@ def _categories_str(categories: list | None) -> str | None:
     return ",".join(sorted(str(c) for c in categories))
 
 
+def _score_from_block(scores: dict, name: str) -> float | None:
+    block = scores.get(name)
+    if isinstance(block, dict) and "score" in block:
+        try:
+            return float(block["score"])
+        except (TypeError, ValueError):
+            return None
+    flat = scores.get(f"{name}_score")
+    if flat is None:
+        return None
+    try:
+        return float(flat)
+    except (TypeError, ValueError):
+        return None
+
+
+def _raw_from_block(scores: dict, name: str, key: str) -> float | None:
+    """Pull a numeric field from scores[name].raw (Launchpad factor detail payload)."""
+    block = scores.get(name)
+    if not isinstance(block, dict):
+        return None
+    raw = block.get("raw")
+    if not isinstance(raw, dict) or key not in raw:
+        return None
+    try:
+        return float(raw[key])
+    except (TypeError, ValueError):
+        return None
+
+
 def extract_features(
     *,
     strategy_id: str,
@@ -70,6 +100,40 @@ def extract_features(
         row["rs_ratio"] = setup.get("rs_ratio")
         row["rs_percentile"] = setup.get("rs_percentile")
         row["vol_ratio"] = setup.get("vol_ratio")
+
+    elif strategy_id == "launchpad":
+        # Spec feature names ← live Launchpad payload fields (scores.*.raw / summary).
+        scores = detail.get("scores") or {}
+        row["final_score"] = (
+            summary.get("final_adjusted_score")
+            if summary.get("final_adjusted_score") is not None
+            else detail.get("final_score")
+        )
+        row["volatility_compression_ratio"] = _raw_from_block(
+            scores, "squeeze_intensity", "squeeze_ratio"
+        )
+        row["relative_strength_rank"] = _raw_from_block(
+            scores, "tightness_percentile", "tightness_rank_pct"
+        )
+        row["volume_rs_score"] = _raw_from_block(scores, "volume_vacuum_depth", "rvol")
+        # Launchpad tracks distance to support/EMA50 (closest analog to resistance distance).
+        row["resistance_distance_pct"] = _raw_from_block(
+            scores, "trend_proximity_match", "pct_distance"
+        )
+        row["market_regime_multiplier"] = (
+            run.get("regime_multiplier")
+            if run.get("regime_multiplier") is not None
+            else summary.get("regime_multiplier")
+        )
+        row["eligible"] = 1.0 if detail.get("eligible") else 0.0
+        # Retain factor scores for export diagnostics (not in LAUNCHPAD_FEATURE_COLUMNS).
+        row["normalized_score"] = summary.get("normalized_score")
+        row["raw_score"] = summary.get("raw_score")
+        row["score_squeeze_intensity"] = _score_from_block(scores, "squeeze_intensity")
+        row["score_tightness_percentile"] = _score_from_block(scores, "tightness_percentile")
+        row["score_volume_vacuum_depth"] = _score_from_block(scores, "volume_vacuum_depth")
+        row["score_trend_proximity_match"] = _score_from_block(scores, "trend_proximity_match")
+        row["score_macd_zero_line"] = _score_from_block(scores, "macd_zero_line")
 
     elif strategy_id == "lynch":
         metrics = detail.get("metrics") or {}

@@ -121,6 +121,7 @@ def compute_forward_outcome(
         )
 
     if len(future) < horizon_days:
+        # Horizon extends past available history (includes "today" / end of cache) → null label.
         return OutcomeRow(
             horizon_days=horizon_days,
             anchor_date=anchor_date,

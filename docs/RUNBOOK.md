@@ -242,45 +242,47 @@ Container timezone: `TZ=America/New_York` — cron expressions below are **Easte
 
 **Email model:** Scans run with `--no-email`. Consolidated digests via `quant-digest` — see [Digest Policy](DIGEST_POLICY.md).
 
+**Active now (see `docker/crontab` — commented lines are disabled):**
+
 | Job | Cron | When | Command | Email |
 |-----|------|------|---------|-------|
 | **Launchpad daily** | `10 17 * * 1-5` | Mon–Fri **5:10 PM ET** | `quant-launchpad-daily --universe sp500_index --no-email` | No |
-| **Launchpad full coverage** | `30 1 * * 6` | Sat **1:30 AM ET** | `quant-launchpad-all --cache --report both` | No |
-| **Breakout daily** | `0 17 * * 1-5` | Mon–Fri **5:00 PM ET** | `quant-daily --universe sp500_index --no-email` | No |
 | **Daily digest** | `35 17 * * 1-5` | Mon–Fri **5:35 PM ET** | `quant-digest daily` | **Yes** |
+| **SPY holdings refresh** | `30 0 1-7 1,4,7,10 6` | First Sat of quarter **12:30 AM ET** | `quant-universe refresh sp500_index` | No |
+| **Launchpad full coverage** | `30 1 * * 6` | Sat **1:30 AM ET** | `quant-launchpad-all --cache --report both` | No |
+| **ML labels (swing)** | `0 6 * * 6` | Sat **6:00 AM ET** | `quant-ml label --strategy swing --universe sp500_index --since <90d>` | No |
+| **Weekly analytics** | `50 7 * * 6` | Sat **7:50 AM ET** | `quant-analytics weekly` | No |
+| **Weekly digest** | `0 8 * * 6` | Sat **8:00 AM ET** | `quant-digest weekly` | **Yes** |
+
+Commented out in crontab (restore by uncommenting): breakout daily, ETF jobs, swing Friday/Saturday, breakout-all, Lynch-all.
+
+**Launchpad + ML tuning:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [ML Ops](ML_OPS.md).
+
+Full historical schedule reference (when all lines are enabled):
+
+| Job | Cron | When | Command | Email |
+|-----|------|------|---------|-------|
+| **Breakout daily** | `0 17 * * 1-5` | Mon–Fri **5:00 PM ET** | `quant-daily --universe sp500_index --no-email` | No |
 | **ETF breakout** | `30 16 * * 5` | Fri **4:30 PM ET** | `quant-daily --universe sector_commodity_etfs --no-email` | No |
 | **ETF swing** | `35 16 * * 5` | Fri **4:35 PM ET** | `quant-swing --universe sector_commodity_etfs --no-email` | No |
 | **Swing weekly** | `45 17 * * 5` | Fri **5:45 PM ET** | `quant-swing --universe sp500_index --no-email` | No |
-| **SPY holdings refresh** | `30 0 1-7 1,4,7,10 6` | First Sat of quarter **12:30 AM ET** | `quant-universe refresh sp500_index` | No |
 | **Breakout full coverage** | `0 1 * * 6` | Sat **1:00 AM ET** | `quant-scan-all --cache --report both` | No |
 | **Swing full coverage** | `0 4 * * 6` | Sat **4:00 AM ET** | `quant-swing-all --no-email` | No |
 | **Lynch full coverage** | `0 5 * * 6` | Sat **5:00 AM ET** | `quant-lynch-all --no-email` | No |
-| **ML labels** | `0 6 * * 6` | Sat **6:00 AM ET** | `quant-ml label --since <90d>` | No |
-| **Weekly analytics** | `50 7 * * 6` | Sat **7:50 AM ET** | `quant-analytics weekly` | No |
-| **Weekly digest** | `0 8 * * 6` | Sat **8:00 AM ET** | `quant-digest weekly` | **Yes** |
-| **Weekly retry** | `0 9 * * 6` | Sat **9:00 AM ET** | `quant-digest weekly` (idempotent) | If needed |
 
-**ML phase note:** When swing ML work is in progress, `docker/crontab` may run only swing sp500 + scoped ML labels. The table above reflects the **full** schedule; see [ML Ops](ML_OPS.md) for the active ML-phase cron.
-
-Crontab entries (stdout/stderr → `/app/logs/cron.log`):
+Crontab entries currently installed (stdout/stderr → `/app/logs/cron.log`) — verify with `cat /etc/cron.d/quant-hub` after rebuild:
 
 ```
-0 17 * * 1-5 root . /etc/environment; quant-daily --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
+10 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
 35 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
-30 16 * * 5 root . /etc/environment; quant-daily --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
-35 16 * * 5 root . /etc/environment; quant-swing --universe sector_commodity_etfs --no-email >> /app/logs/cron.log 2>&1
-45 17 * * 5 root . /etc/environment; quant-swing --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
 30 0 1-7 1,4,7,10 6 root . /etc/environment; quant-universe refresh sp500_index >> /app/logs/cron.log 2>&1
-0 1 * * 6 root . /etc/environment; quant-scan-all --cache --report both >> /app/logs/cron.log 2>&1
-0 4 * * 6 root . /etc/environment; quant-swing-all --no-email >> /app/logs/cron.log 2>&1
-0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
-0 6 * * 6 root . /etc/environment; quant-ml label --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
+30 1 * * 6 root . /etc/environment; quant-launchpad-all --cache --report both >> /app/logs/cron.log 2>&1
+0 6 * * 6 root . /etc/environment; quant-ml label --strategy swing --universe sp500_index --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
 50 7 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1
 0 8 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
-0 9 * * 6 root . /etc/environment; quant-digest weekly >> /app/logs/cron.log 2>&1
 ```
 
-**Why this order?** ETF scans Friday PM; sp500 breakout Mon–Fri 5 PM + daily digest 5:35 PM; Friday sp500 swing feeds weekly digest; Saturday overnight runs full coverage (breakout → swing → Lynch on all universes); quarterly SPY refresh at 12:30 AM before the 1 AM breakout sweep; weekly digest after analytics at 8 AM.
+**Why this order?** Launchpad weekday scan after the close; Saturday Launchpad-all overnight; digests remain for email ops but are less useful while breakout/swing cron is disabled. For mega_runners ML tuning, prefer manual commands in [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md).
 
 #### Saturday full coverage (all universes)
 

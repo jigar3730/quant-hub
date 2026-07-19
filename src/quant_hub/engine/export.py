@@ -46,7 +46,7 @@ def _sort_keys_for_strategy(strategy_id: str) -> list[str]:
     if strategy_id == "breakout":
         return ["final_adjusted_score", "rs_market_score", "accumulation_score"]
     if strategy_id == "launchpad":
-        return ["final_adjusted_score", "macd_zero_line_score", "ma_tightness_score"]
+        return ["final_adjusted_score", "macd_zero_line_score", "squeeze_intensity_score"]
     if strategy_id == "swing":
         return ["final_adjusted_score", "relative_strength_score", "pullback_score"]
     return ["final_adjusted_score"]

@@ -12,6 +12,17 @@ from quant_hub.config import (
     LAUNCHPAD_MACD_ZERO_CROSS_LOOKBACK,
     LAUNCHPAD_MIN_AVG_VOLUME,
     LAUNCHPAD_MIN_HISTORY_DAYS,
+    LAUNCHPAD_NEAR_SUPPORT_FULL_POINTS,
+    LAUNCHPAD_NEAR_SUPPORT_OK_ATR_MULT,
+    LAUNCHPAD_NEAR_SUPPORT_OK_PCT,
+    LAUNCHPAD_NEAR_SUPPORT_PARTIAL_POINTS,
+    LAUNCHPAD_NEAR_SUPPORT_TIGHT_ATR_MULT,
+    LAUNCHPAD_NEAR_SUPPORT_TIGHT_PCT,
+    LAUNCHPAD_PROXIMITY_ATR_MULT,
+    LAUNCHPAD_PROXIMITY_ATR_WINDOW,
+    LAUNCHPAD_PROXIMITY_EMA50_PCT,
+    LAUNCHPAD_RS_SCORE_POINTS,
+    LAUNCHPAD_SUPPORT_SHELF_PCT,
     LAUNCHPAD_SWING_DEDUPE_MIN_GAP,
     LAUNCHPAD_SWING_HISTORY_DAYS,
     LAUNCHPAD_VCP_RATIO_OK,
@@ -36,11 +47,114 @@ FILTER_LABELS = {
     "insufficient_history": f"Fewer than {LAUNCHPAD_MIN_HISTORY_DAYS} trading days of history",
     "no_price_data": "No price data available",
     "price_below_10": "Current close below $10.00",
-    "volume_below_min": "30-day average volume below 500,000 shares",
+    "volume_below_min": (
+        f"30-day average volume below {LAUNCHPAD_MIN_AVG_VOLUME:,} shares"
+    ),
     "macro_trend_not_aligned": "Price not above the 200-day EMA",
-    "structural_proximity": "Price not within 2.5% of the rising 50-day EMA or 2.0% of a support shelf",
+    "structural_proximity": (
+        f"Price not within {LAUNCHPAD_PROXIMITY_EMA50_PCT:.0%} of EMA50, "
+        f"{LAUNCHPAD_PROXIMITY_ATR_MULT:.1f}×ATR of EMA50, or "
+        f"{LAUNCHPAD_SUPPORT_SHELF_PCT:.0%} of a support shelf"
+    ),
     "eligible": "Passed all eligibility filters",
 }
+
+
+def _atr_value(df: pd.DataFrame, window: int = LAUNCHPAD_PROXIMITY_ATR_WINDOW) -> float | None:
+    if df is None or len(df) < window + 1:
+        return None
+    series = atr(df, window)
+    val = series.iloc[-1]
+    if pd.isna(val) or float(val) <= 0:
+        return None
+    return float(val)
+
+
+def _distance_to_ema50_ok(
+    *,
+    price: float,
+    ema50: float,
+    atr_val: float | None,
+    pct_band: float,
+    atr_mult: float,
+) -> tuple[bool, dict]:
+    """True when price is within pct_band OR atr_mult×ATR of EMA50."""
+    if ema50 <= 0:
+        return False, {"pct_distance": None, "atr_distance": None, "band_pct": pct_band}
+    pct_distance = abs(price - ema50) / ema50
+    atr_distance = abs(price - ema50) / atr_val if atr_val and atr_val > 0 else None
+    ok = pct_distance <= pct_band or (
+        atr_distance is not None and atr_distance <= atr_mult
+    )
+    return ok, {
+        "pct_distance": round(pct_distance, 4),
+        "atr_distance": round(atr_distance, 4) if atr_distance is not None else None,
+        "band_pct": pct_band,
+        "atr_mult": atr_mult,
+        "atr": round(atr_val, 4) if atr_val is not None else None,
+    }
+
+
+def _near_support_shelf(
+    close: pd.Series,
+    *,
+    tolerance: float = LAUNCHPAD_SUPPORT_SHELF_PCT,
+) -> bool:
+    if len(close) < 2:
+        return False
+    recent = close.tail(60)
+    if recent.empty:
+        return False
+    support = float(recent.min())
+    if support <= 0:
+        return False
+    price = float(close.iloc[-1])
+    return abs(price - support) / support <= tolerance
+
+
+def _near_support_score(
+    *,
+    price: float,
+    ema50: float | None,
+    atr_val: float | None,
+    close: pd.Series,
+) -> tuple[float, dict]:
+    """Graded near-support points (0 / partial / full)."""
+    details: dict = {
+        "near_support": False,
+        "near_support_grade": "none",
+        "shelf_support": False,
+    }
+    if ema50 is None or ema50 <= 0:
+        return 0.0, details
+
+    tight_ok, tight_meta = _distance_to_ema50_ok(
+        price=price,
+        ema50=ema50,
+        atr_val=atr_val,
+        pct_band=LAUNCHPAD_NEAR_SUPPORT_TIGHT_PCT,
+        atr_mult=LAUNCHPAD_NEAR_SUPPORT_TIGHT_ATR_MULT,
+    )
+    ok_band, ok_meta = _distance_to_ema50_ok(
+        price=price,
+        ema50=ema50,
+        atr_val=atr_val,
+        pct_band=LAUNCHPAD_NEAR_SUPPORT_OK_PCT,
+        atr_mult=LAUNCHPAD_NEAR_SUPPORT_OK_ATR_MULT,
+    )
+    shelf = _near_support_shelf(close)
+    details.update(ok_meta)
+    details["shelf_support"] = shelf
+
+    if tight_ok or shelf:
+        details["near_support"] = True
+        details["near_support_grade"] = "tight" if tight_ok else "shelf"
+        return LAUNCHPAD_NEAR_SUPPORT_FULL_POINTS, details
+    if ok_band:
+        details["near_support"] = True
+        details["near_support_grade"] = "ok"
+        return LAUNCHPAD_NEAR_SUPPORT_PARTIAL_POINTS, details
+    return 0.0, details
 
 
 def launchpad_eligibility_detail(df: pd.DataFrame) -> dict:
@@ -84,13 +198,13 @@ def launchpad_eligibility_detail(df: pd.DataFrame) -> dict:
     )
 
     avg_vol_30d = float(df["Volume"].tail(30).mean())
-    liquidity_ok = avg_vol_30d >= 500_000
+    liquidity_ok = avg_vol_30d >= LAUNCHPAD_MIN_AVG_VOLUME
     checks.append(
         {
             "rule": "volume_minimum",
             "passed": liquidity_ok,
             "value": int(avg_vol_30d),
-            "threshold": ">= 500,000 shares (30d avg)",
+            "threshold": f">= {LAUNCHPAD_MIN_AVG_VOLUME:,} shares (30d avg)",
         }
     )
     if not liquidity_ok:
@@ -103,7 +217,10 @@ def launchpad_eligibility_detail(df: pd.DataFrame) -> dict:
         {
             "rule": "macro_trend_alignment",
             "passed": macro_ok,
-            "value": {"price": round(price, 2), "ema200": round(ema200_val, 2) if ema200_val is not None else None},
+            "value": {
+                "price": round(price, 2),
+                "ema200": round(ema200_val, 2) if ema200_val is not None else None,
+            },
             "threshold": "price > 200-day EMA",
         }
     )
@@ -112,11 +229,21 @@ def launchpad_eligibility_detail(df: pd.DataFrame) -> dict:
 
     ema50 = ema(close, 50)
     ema50_val = float(ema50.iloc[-1]) if not pd.isna(ema50.iloc[-1]) else None
+    atr_val = _atr_value(df)
     support_ok = False
+    proximity_meta: dict = {}
     if ema50_val is not None:
-        support_ok = abs(price - ema50_val) / ema50_val <= 0.025
+        support_ok, proximity_meta = _distance_to_ema50_ok(
+            price=price,
+            ema50=ema50_val,
+            atr_val=atr_val,
+            pct_band=LAUNCHPAD_PROXIMITY_EMA50_PCT,
+            atr_mult=LAUNCHPAD_PROXIMITY_ATR_MULT,
+        )
     if not support_ok:
         support_ok = _near_support_shelf(close)
+        if support_ok:
+            proximity_meta["shelf_support"] = True
     checks.append(
         {
             "rule": "structural_proximity",
@@ -124,8 +251,13 @@ def launchpad_eligibility_detail(df: pd.DataFrame) -> dict:
             "value": {
                 "price": round(price, 2),
                 "ema50": round(ema50_val, 2) if ema50_val is not None else None,
+                **proximity_meta,
             },
-            "threshold": "within +/-2.5% of 50-day EMA or +/-2.0% of support shelf",
+            "threshold": (
+                f"within +/-{LAUNCHPAD_PROXIMITY_EMA50_PCT:.0%} of EMA50, "
+                f"{LAUNCHPAD_PROXIMITY_ATR_MULT:.1f}×ATR, or "
+                f"+/-{LAUNCHPAD_SUPPORT_SHELF_PCT:.0%} of support shelf"
+            ),
         }
     )
     if not support_ok:
@@ -278,7 +410,11 @@ def score_volume_vacuum_depth(df: pd.DataFrame) -> tuple[float, dict]:
 
 
 def score_trend_proximity_match(price_df: pd.DataFrame, spy_df: pd.DataFrame) -> tuple[float, dict]:
-    """Trend + structural proximity score (max 15 pts)."""
+    """Trend + structural proximity score (max 15 pts) with partial credit.
+
+    - Relative strength vs SPY (price/EMA50 ratio): 0 or 8 pts
+    - Near support (EMA50 / ATR band / shelf): 0 / 4 / 7 pts
+    """
     if price_df is None or spy_df is None or price_df.empty or spy_df.empty:
         return 0.0, {}
 
@@ -294,27 +430,43 @@ def score_trend_proximity_match(price_df: pd.DataFrame, spy_df: pd.DataFrame) ->
     spy_close_val = float(spy_close.iloc[-1]) if not pd.isna(spy_close.iloc[-1]) else None
     spy_ema50_val = float(spy_ema50.iloc[-1]) if not pd.isna(spy_ema50.iloc[-1]) else None
     spy_ema200_val = float(spy_ema200.iloc[-1]) if not pd.isna(spy_ema200.iloc[-1]) else None
+    atr_val = _atr_value(price_df)
+
+    # Relative strength vs SPY: compare price/EMA50 ratios, never absolute dollar levels.
     relative_strength_positive = (
         price_ema50_val is not None
+        and price_ema50_val > 0
+        and spy_close_val is not None
         and spy_ema50_val is not None
-        and price_ema50_val > spy_ema50_val
+        and spy_ema50_val > 0
+        and (price / price_ema50_val) > (spy_close_val / spy_ema50_val)
     )
-    near_support = False
-    if price_ema50_val is not None:
-        near_support = abs(price - price_ema50_val) / price_ema50_val <= 0.015
+    rs_score = LAUNCHPAD_RS_SCORE_POINTS if relative_strength_positive else 0.0
+    near_score, near_details = _near_support_score(
+        price=price,
+        ema50=price_ema50_val,
+        atr_val=atr_val,
+        close=price_close,
+    )
+    score = rs_score + near_score
     details = {
         "relative_strength_positive": relative_strength_positive,
-        "near_support": near_support,
+        "rs_score": rs_score,
+        "near_support_score": near_score,
+        "near_support": near_details.get("near_support", False),
+        "near_support_grade": near_details.get("near_support_grade"),
+        "pct_distance": near_details.get("pct_distance"),
+        "atr_distance": near_details.get("atr_distance"),
+        "shelf_support": near_details.get("shelf_support", False),
         "price": round(price, 2),
         "spy_close": round(spy_close_val, 2) if spy_close_val is not None else None,
         "price_ema50": round(price_ema50_val, 2) if price_ema50_val is not None else None,
         "spy_ema50": round(spy_ema50_val, 2) if spy_ema50_val is not None else None,
         "price_ema200": round(price_ema200_val, 2) if price_ema200_val is not None else None,
         "spy_ema200": round(spy_ema200_val, 2) if spy_ema200_val is not None else None,
+        "atr": near_details.get("atr"),
     }
-    if relative_strength_positive and near_support:
-        return 15.0, details
-    return 0.0, details
+    return score, details
 
 
 def _dedupe_swing_lows(
@@ -436,19 +588,6 @@ def score_swing_low_vcp(
     return 0.0, details
 
 
-def _near_support_shelf(close: pd.Series, *, tolerance: float = 0.02) -> bool:
-    if len(close) < 2:
-        return False
-    recent = close.tail(60)
-    if recent.empty:
-        return False
-    support = float(recent.min())
-    if support <= 0:
-        return False
-    price = float(close.iloc[-1])
-    return abs(price - support) / support <= tolerance
-
-
 def _fail(checks: list[dict], reason: str) -> dict:
     return {"passed": False, "fail_reason": reason, "checks": checks}
 
@@ -464,8 +603,3 @@ def score_atr_contraction(df: pd.DataFrame) -> tuple[float, dict]:
 
 def score_volume_dry_up(df: pd.DataFrame) -> tuple[float, dict]:
     return score_volume_vacuum_depth(df)
-
-
-def score_swing_low_vcp(df: pd.DataFrame, *, history_days: int = LAUNCHPAD_SWING_HISTORY_DAYS) -> tuple[float, dict]:
-    _ = history_days
-    return score_trend_proximity_match(df, df)

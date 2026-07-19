@@ -7,12 +7,12 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: quant
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: quant_hub
     volumes:
       - /mnt/fast/quant-data/postgres:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     # --- PERFORMANCE & METRICS TUNING ---
     command: >
       postgres 
@@ -40,7 +40,7 @@ services:
       - .env
     environment:
       TZ: America/New_York
-      DATABASE_URL: postgresql://quant:${POSTGRES_PASSWORD:-quant}@postgres:5432/quant_hub
+      DATABASE_URL: postgresql://quant:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/quant_hub
     volumes:
       - /mnt/fast/quant-data/data:/app/data
       - /mnt/fast/quant-data/logs:/app/logs
