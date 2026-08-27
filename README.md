@@ -32,10 +32,11 @@ Dashboard: `http://<host>:5002` (`quant-view` inside the container).
 | `quant-launchpad-all` | Launchpad across stock-mode universes |
 | `quant-lynch` / `quant-lynch-all` | Lynch fundamental screen |
 | `quant-backfill launchpad` | Point-in-time Saturday backfill for ML |
-| `quant-ml` | warm-cache / label / export / train / evaluate |
+| `quant-ml` | warm-cache / label / export / train / evaluate / models |
 | `quant-digest` | Daily Launchpad + weekly Lynch emails |
-| `quant-hub` | status, init-db, report, history |
+| `quant-hub` | status, init-db, cleanup, report, ticker history/show |
 | `quant-universe` | list / show / refresh universes |
+| `quant-analytics` | weekly digest analytics payload |
 | `quant-view` | Streamlit dashboard |
 
 ## Docs
@@ -49,6 +50,12 @@ Dashboard: `http://<host>:5002` (`quant-view` inside the container).
 | [Runbook](docs/RUNBOOK.md) | Ops / cron / recover |
 | [User Manual](docs/USER_MANUAL.md) | Dashboard and daily workflow |
 | [ML Ops](docs/ML_OPS.md) | Label / train / evaluate |
+| [Analytics Guide](docs/ANALYTICS_GUIDE.md) | Weekly analytics payload |
+| [Data Model](docs/DATA_MODEL.md) | PostgreSQL and JSONB model |
+| [ML Foundation](docs/ML_FOUNDATION.md) | ML design and safeguards |
+| [Junior Developer Database Guide](docs/JUNIOR_DEV_DATABASE_GUIDE.md) | Database workflows |
+| [Run Team Quickstart](docs/RUN_TEAM_QUICKSTART.md) | Team operating checklist |
+| [Architecture Gaps](docs/ARCHITECTURE_GAPS.md) | Current risks and remediation |
 
 ## Layout
 

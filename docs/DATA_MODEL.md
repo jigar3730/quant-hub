@@ -2,7 +2,7 @@
 
 **Scope:** Launchpad, Lynch, and Launchpad ML
 **Schema source:** `src/quant_hub/infrastructure/postgres/schema.sql`
-**Last updated:** 2026-07-19
+**Last updated:** 2026-08-27
 
 ## Data flow
 
@@ -34,7 +34,7 @@ Run-level summary:
 | `universe_size` | Symbols considered |
 | `tier1_count`, `tier2_count`, `tier3_count`, `filtered_count` | Product-specific aggregate counts |
 | `actionable_count` | Launchpad Tier 1/2 or Lynch passed count |
-| `regime_label`, `regime_multiplier` | Launchpad market context; Lynch may use neutral/default context |
+| `regime_label`, `regime_multiplier` | Launchpad market context; Lynch persists `fundamental` and `1.0` |
 | `metadata` | JSONB provenance, filters, category counts, and quality summaries |
 
 ### `ticker_results`

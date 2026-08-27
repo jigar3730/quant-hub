@@ -2,7 +2,7 @@
 
 **Scope:** Launchpad-first ML operations
 **Detailed procedure:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)
-**Last updated:** 2026-07-19
+**Last updated:** 2026-08-27
 
 ## What runs
 
@@ -22,11 +22,11 @@ Start with `mega_runners`:
 
 ```bash
 docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
-docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2021-07-29
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
 docker exec quant-hub quant-ml warm-cache --universe mega_runners
-docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since 2021-07-29
-docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
-docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
+docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
+docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
 docker exec quant-hub quant-ml evaluate --model-id <id> --walk-forward
 ```
 

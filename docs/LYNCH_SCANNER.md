@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Audience:** Analysts and operators who want to understand how Lynch fundamentals are pulled, calculated, and stored  
-**Last updated:** 2026-06-28
+**Last updated:** 2026-08-27
 
 Related docs: [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Digest Policy](DIGEST_POLICY.md)
 
@@ -264,7 +264,7 @@ The dashboard loads scans via `ScanRepository.load_report()`, which rebuilds the
 | CSV (flattened columns) | `data/output/lynch/{universe_id}/scan_results.csv` |
 | JSON (full report) | `data/output/lynch/{universe_id}/report.json` |
 | Markdown summary | `data/output/lynch/{universe_id}/summary.md` |
-| Legacy (sp500 only) | `data/output/lynch_scan_report.json`, etc. |
+| Scope | One directory per strategy and universe; the current service does not write the former root-level Lynch exports |
 
 CSV is a **flattened** subset via `_csv_row()` in `runner.py` — not the full checks/metrics JSON.
 

@@ -2,7 +2,7 @@
 
 **Scope:** Launchpad only
 **Detailed operator workflow:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)
-**Last updated:** 2026-07-19
+**Last updated:** 2026-08-27
 
 ## Purpose
 
@@ -53,11 +53,11 @@ These are non-negotiable:
 ## Operations
 
 ```bash
-docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2021-07-29
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
 docker exec quant-hub quant-ml warm-cache --universe mega_runners
-docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since 2021-07-29
-docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
-docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
+docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
+docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
 ```
 
 The Saturday scheduled label job covers recent Launchpad `sp500_index` history. Consult `docker/crontab` for the exact schedule.

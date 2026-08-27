@@ -2,7 +2,7 @@
 
 **Product scope:** Launchpad technical scanning + ML and Lynch fundamentals
 **Install path:** `/opt/stacks/quant-hub`  
-**Last updated:** 2026-07-19
+**Last updated:** 2026-08-27
 
 ## System overview
 
@@ -55,7 +55,7 @@ docker exec quant-hub cat /etc/cron.d/quant-hub
 | First Sat of Jan/Apr/Jul/Oct, 12:30 AM | `quant-universe refresh sp500_index` |
 | Saturday 1:30 AM | `quant-launchpad-all --cache --report both` |
 | Saturday 5:00 AM | `quant-lynch-all --no-email` |
-| Saturday 6:00 AM | `quant-ml label --strategy launchpad --universe sp500_index --since <90d>` |
+| Saturday 6:00 AM | `quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +%F)` |
 | Saturday 7:50 AM | `quant-analytics weekly` |
 | Saturday 8:00 AM | `quant-digest weekly` |
 
@@ -103,10 +103,10 @@ Launchpad and Lynch batch commands operate on stock universes. ETF-mode universe
 Launchpad is the only ML workflow. Its runbook is [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md). The essential progression is:
 
 ```bash
-docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2021-07-29
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
 docker exec quant-hub quant-ml warm-cache --universe mega_runners
-docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since 2021-07-29
-docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
+docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
 ```
 
 Back up Postgres before broad backfills. Never truncate `scan_runs` on the ML database; labels cascade with their parent runs.

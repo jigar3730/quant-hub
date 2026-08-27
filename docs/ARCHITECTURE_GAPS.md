@@ -2,7 +2,7 @@
 
 **Baseline:** Launchpad technical scanner + ML and Lynch fundamentals
 **Status:** Living risk register
-**Last updated:** 2026-07-19
+**Last updated:** 2026-08-27
 
 ## Current architecture
 
@@ -22,7 +22,7 @@ Implemented controls include parameterized SQL, same-day upsert idempotency, Pos
 | ID | Gap | Evidence | Recommended remediation |
 |---|---|---|---|
 | C1 | Dashboard has no built-in authentication and is published on host port 5002 | Compose/entrypoint/dashboard | Put it behind authenticated reverse proxy or VPN; do not expose it publicly |
-| C2 | Postgres has a host port and a weak compose password fallback | Compose and default DSN | Require strong secrets; remove fallback; bind DB to internal network where possible |
+| C2 | Postgres is published on a host port | Compose | Bind DB to the internal network where possible; retain host access only when required |
 | H1 | Scheduled failures are primarily log-only | Cron redirects to `cron.log`; app container lacks healthcheck | Alert on stale/failing runs, make schema init fail clearly, add application healthcheck |
 | H2 | Backups are documented but not automated or restore-tested | Runbook manual `pg_dump` | Schedule backups, off-host copy, retention, and restore drills |
 | H3 | No versioned schema migration system | Idempotent bootstrap SQL | Adopt numbered migrations and a schema-version record |

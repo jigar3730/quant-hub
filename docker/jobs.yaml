@@ -1,5 +1,5 @@
 # Reference schedule — authoritative source is docker/crontab (installed into the container).
-# Last synced: 2026-07-19 (Launchpad + Lynch only)
+# Last synced: 2026-08-27 (Launchpad, Lynch, ML, analytics, and digests)
 
 jobs:
   - name: launchpad-sp500-index-daily
@@ -37,7 +37,7 @@ jobs:
 
   - name: ml-label-launchpad-sp500-index
     cron: "0 6 * * 6"
-    command: quant-ml label --strategy launchpad --universe sp500_index --since <90d>
+    command: "quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +%F)"
     strategy: launchpad
     status: active
 

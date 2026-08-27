@@ -1,7 +1,7 @@
 # Launchpad + Mega Runners — Operator Manual
 
 **Audience:** Operators tuning Launchpad on a small universe before scaling  
-**Last updated:** 2026-07-19  
+**Last updated:** 2026-08-27
 **Related:** [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [ML Ops](ML_OPS.md) · [ML Foundation](ML_FOUNDATION.md) · [Runbook](RUNBOOK.md)
 
 ---
@@ -79,7 +79,7 @@ Dashboard: open `http://<host>:5002` → Launchpad → universe `mega_runners`.
 
 ## 4. Backfill historical Saturdays
 
-Launchpad backfill replays **point-in-time Saturday** scans on **~5y daily** OHLCV (truncated to each scan date). Earliest reliable date is printed by coverage (~`2021-07-29` with the 5y cache + 200-bar minimum).
+Launchpad backfill replays **point-in-time Saturday** scans on **~5y daily** OHLCV (truncated to each scan date). The earliest supported date depends on the current date and cache settings. Run coverage first; it prints the current `earliest_supported` date.
 
 ### Preview coverage
 
@@ -87,7 +87,7 @@ Launchpad backfill replays **point-in-time Saturday** scans on **~5y daily** OHL
 docker exec quant-hub quant-backfill coverage \
   --strategy launchpad \
   --universe mega_runners \
-  --since 2021-07-29
+  --since YYYY-MM-DD
 ```
 
 ### Run backfill
@@ -95,7 +95,7 @@ docker exec quant-hub quant-backfill coverage \
 ```bash
 docker exec quant-hub quant-backfill launchpad \
   --universe mega_runners \
-  --since 2021-07-29
+  --since YYYY-MM-DD
 ```
 
 Useful flags:
@@ -135,7 +135,7 @@ Horizons default to **5, 10, 20, 63** trading days. Binary label = forward retur
 docker exec quant-hub quant-ml label \
   --strategy launchpad \
   --universe mega_runners \
-  --since 2021-07-29
+  --since YYYY-MM-DD
 ```
 
 Check:
@@ -151,7 +151,7 @@ docker exec quant-hub quant-ml status
 docker exec quant-hub quant-ml export-features \
   --strategy launchpad \
   --universe mega_runners \
-  --since 2021-07-29 \
+  --since YYYY-MM-DD \
   --horizon 20
 ```
 
@@ -184,7 +184,7 @@ Training keeps **Tier 1 / 2 / 3** only when `setups_only` is on (default). Filte
 docker exec quant-hub quant-ml train \
   --strategy launchpad \
   --universe mega_runners \
-  --since 2021-07-29 \
+  --since YYYY-MM-DD \
   --horizon 20
 ```
 
@@ -255,15 +255,15 @@ Then re-run backfill with `--no-resume` only for the dates you need to refresh (
 Scale command pattern (same pipeline):
 
 ```bash
-docker exec quant-hub quant-backfill launchpad --universe sp500_index --since 2021-07-29
+docker exec quant-hub quant-backfill launchpad --universe sp500_index --since YYYY-MM-DD
 docker exec quant-hub quant-ml warm-cache --universe sp500_index
-docker exec quant-hub quant-ml label --strategy launchpad --universe sp500_index --since 2021-07-29
-docker exec quant-hub quant-ml train --strategy launchpad --universe sp500_index --since 2021-07-29 --horizon 20
+docker exec quant-hub quant-ml label --strategy launchpad --universe sp500_index --since YYYY-MM-DD
+docker exec quant-hub quant-ml train --strategy launchpad --universe sp500_index --since YYYY-MM-DD --horizon 20
 ```
 
 ---
 
-## 8. Current schedule (Launchpad + Lynch)
+## 8. Current schedule
 
 Authoritative file: `docker/crontab` (container TZ = America/New_York).
 
@@ -274,7 +274,7 @@ Authoritative file: `docker/crontab` (container TZ = America/New_York).
 | Sat **12:30 AM** (quarterly) | `quant-universe refresh sp500_index` |
 | Sat **1:30 AM** | `quant-launchpad-all --cache --report both` |
 | Sat **5:00 AM** | `quant-lynch-all --no-email` |
-| Sat **6:00 AM** | `quant-ml label --strategy launchpad --universe sp500_index --since <90d>` |
+| Sat **6:00 AM** | `quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +%F)` |
 | Sat **7:50 / 8:00 AM** | analytics + weekly Lynch digest |
 
 For tuning, run Launchpad manually on `mega_runners` (see §3–§7). After editing crontab: `docker compose up -d --build quant-hub`.
@@ -292,15 +292,15 @@ cp /opt/stacks/quant-hub/data/universes/mega_runners.txt /mnt/fast/quant-data/da
 docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
 
 # 2) Backfill
-docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2021-07-29
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
 
 # 3) ML data
 docker exec quant-hub quant-ml warm-cache --universe mega_runners
-docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since 2021-07-29
-docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
+docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
 
 # 4) Train
-docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since 2021-07-29 --horizon 20
+docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
 docker exec quant-hub quant-ml models --strategy launchpad --universe mega_runners
 ```
 

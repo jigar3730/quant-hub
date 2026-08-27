@@ -3,7 +3,7 @@
 **Strategy ID:** `launchpad`  
 **Product:** Quality technical scanner
 **Related:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Digest Policy](DIGEST_POLICY.md)
-**Last updated:** 2026-07-19
+**Last updated:** 2026-08-27
 
 ## Purpose
 
@@ -22,7 +22,7 @@ Launchpad is a stock-only product. ETF-mode universes are skipped by the all-uni
 docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
 docker exec quant-hub quant-launchpad-daily --universe sp500_index --no-email
 docker exec quant-hub quant-launchpad-all --cache --report both
-docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2021-07-29
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
 ```
 
 ## Eligibility
