@@ -16,8 +16,13 @@ from quant_hub.regime.market import MarketRegime, compute_market_regime, regime_
 
 
 def ticker_df(prices: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
+    from quant_hub.data.quality import drop_incomplete_ohlcv_bars
+
     sub = prices[prices["ticker"] == ticker].copy()
     if sub.empty:
+        return None
+    sub = drop_incomplete_ohlcv_bars(sub)
+    if sub is None or sub.empty:
         return None
     return sub.sort_values("Date").reset_index(drop=True)
 

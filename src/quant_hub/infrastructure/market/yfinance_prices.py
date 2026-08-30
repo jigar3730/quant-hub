@@ -25,6 +25,26 @@ def _normalize_date_column(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _finalize_ohlcv(sub: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
+    """Normalize columns and drop incomplete bars (e.g. Volume-only Yahoo rows)."""
+    from quant_hub.data.quality import drop_incomplete_ohlcv_bars
+
+    sub = sub.dropna(how="all")
+    if sub.empty:
+        return None
+    sub = sub.reset_index()
+    sub = _normalize_date_column(sub)
+    if "Adj Close" in sub.columns and "Close" not in sub.columns:
+        sub = sub.rename(columns={"Adj Close": "Close"})
+    elif "Adj Close" in sub.columns:
+        sub = sub.drop(columns=["Adj Close"])
+    sub = drop_incomplete_ohlcv_bars(sub)
+    if sub is None or sub.empty:
+        return None
+    sub["ticker"] = ticker
+    return sub
+
+
 def _download_chunk(tickers: list[str], start: str) -> pd.DataFrame:
     raw = yf.download(
         tickers,
@@ -40,24 +60,18 @@ def _download_chunk(tickers: list[str], start: str) -> pd.DataFrame:
             if ticker not in raw.columns.get_level_values(0):
                 logger.warning("No price data for %s", ticker)
                 continue
-            sub = raw[ticker].dropna(how="all")
-            if sub.empty:
-                continue
-            sub = sub.reset_index()
-            sub = _normalize_date_column(sub)
-            sub["ticker"] = ticker
-            frames.append(sub)
+            sub = _finalize_ohlcv(raw[ticker], ticker)
+            if sub is not None:
+                frames.append(sub)
     elif not raw.empty:
-        sub = raw.reset_index()
-        sub = _normalize_date_column(sub)
-        sub["ticker"] = tickers[0]
-        frames.append(sub)
+        sub = _finalize_ohlcv(raw, tickers[0])
+        if sub is not None:
+            frames.append(sub)
 
     if not frames:
         return pd.DataFrame(columns=["Date", *OHLCV_COLUMNS, "ticker"])
 
     df = pd.concat(frames, ignore_index=True)
-    df = df.rename(columns={"Adj Close": "Close"})
     return df[["Date", *OHLCV_COLUMNS, "ticker"]]
 
 

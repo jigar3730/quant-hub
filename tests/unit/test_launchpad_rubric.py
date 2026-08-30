@@ -95,6 +95,18 @@ def test_eligibility_fails_low_liquidity():
     assert detail["fail_reason"] == "volume_below_min"
 
 
+def test_eligibility_fails_nan_last_close_not_macro():
+    """Incomplete Yahoo bars must not be mislabeled as macro_trend_not_aligned."""
+    df = _eligible_uptrend_df()
+    df.loc[df.index[-1], ["Open", "High", "Low", "Close"]] = np.nan
+    detail = launchpad_eligibility_detail(df)
+    assert detail["passed"] is False
+    assert detail["fail_reason"] == "invalid_price"
+    price_check = next(c for c in detail["checks"] if c["rule"] == "price_minimum")
+    assert price_check["passed"] is False
+    assert price_check["value"] is None
+
+
 def test_squeeze_intensity_rewards_compression():
     close = np.linspace(100, 110, 60)
     high = close + 1.5

@@ -6,12 +6,14 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from quant_hub.config import MAX_REASONABLE_GROWTH, PRICE_SPIKE_RATIO
 
 __all__ = [
     "OHLCVValidation",
+    "drop_incomplete_ohlcv_bars",
     "growth_to_percent",
     "has_price_spike",
     "lynch_metrics_quality_summary",
@@ -19,6 +21,7 @@ __all__ = [
     "normalize_debt_to_equity",
     "normalize_dividend_yield",
     "normalize_rate_decimal",
+    "ohlcv_has_incomplete_last_bar",
     "ohlcv_is_stale",
     "price_spike_ratio",
     "sanitize_growth_rate",
@@ -98,16 +101,42 @@ def growth_to_percent(growth: float | None) -> float | None:
     return g
 
 
-def max_bar_date(df: pd.DataFrame | None) -> date | None:
-    if df is None or df.empty or "Date" not in df.columns:
+def drop_incomplete_ohlcv_bars(df: pd.DataFrame | None) -> pd.DataFrame | None:
+    """Drop rows with missing/non-finite Close (e.g. partial Yahoo session bars)."""
+    if df is None:
         return None
-    ts = pd.to_datetime(df["Date"]).max()
+    if df.empty or "Close" not in df.columns:
+        return df
+    close = pd.to_numeric(df["Close"], errors="coerce")
+    mask = close.notna() & np.isfinite(close.to_numpy(dtype=float, copy=False))
+    if mask.all():
+        return df
+    return df.loc[mask].copy()
+
+
+def ohlcv_has_incomplete_last_bar(df: pd.DataFrame | None) -> bool:
+    """True when the newest row is missing a usable Close."""
+    if df is None or df.empty or "Close" not in df.columns:
+        return True
+    close = pd.to_numeric(df["Close"].iloc[-1], errors="coerce")
+    return bool(pd.isna(close) or not np.isfinite(float(close)))
+
+
+def max_bar_date(df: pd.DataFrame | None) -> date | None:
+    """Latest session date with a finite Close (ignores incomplete trailing bars)."""
+    cleaned = drop_incomplete_ohlcv_bars(df)
+    if cleaned is None or cleaned.empty or "Date" not in cleaned.columns:
+        return None
+    ts = pd.to_datetime(cleaned["Date"]).max()
     if pd.isna(ts):
         return None
     return ts.date()
 
 
 def ohlcv_is_stale(df: pd.DataFrame | None, *, max_age_days: int) -> bool:
+    # Incomplete trailing bars (Volume-only Yahoo rows) must force a refresh.
+    if ohlcv_has_incomplete_last_bar(df):
+        return True
     as_of = max_bar_date(df)
     if as_of is None:
         return True

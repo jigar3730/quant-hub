@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from quant_hub.config import (
@@ -46,6 +47,7 @@ from quant_hub.indicators import (
 FILTER_LABELS = {
     "insufficient_history": f"Fewer than {LAUNCHPAD_MIN_HISTORY_DAYS} trading days of history",
     "no_price_data": "No price data available",
+    "invalid_price": "Latest close is missing or non-finite",
     "price_below_10": "Current close below $10.00",
     "volume_below_min": (
         f"30-day average volume below {LAUNCHPAD_MIN_AVG_VOLUME:,} shares"
@@ -177,7 +179,20 @@ def launchpad_eligibility_detail(df: pd.DataFrame) -> dict:
         return _fail(checks, "insufficient_history")
 
     close = df["Close"]
-    price = float(close.iloc[-1])
+    raw_price = close.iloc[-1]
+    # NaN < 10 is False in IEEE float, so a missing close previously skipped the
+    # price gate and then failed macro_trend_not_aligned with price=null.
+    if pd.isna(raw_price) or not np.isfinite(float(raw_price)):
+        checks.append(
+            {
+                "rule": "price_minimum",
+                "passed": False,
+                "value": None,
+                "threshold": "finite close >= 10.00",
+            }
+        )
+        return _fail(checks, "invalid_price")
+    price = float(raw_price)
     if price < 10.0:
         checks.append(
             {

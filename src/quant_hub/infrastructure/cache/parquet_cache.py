@@ -39,14 +39,23 @@ class ParquetCache:
         if datetime.now() - mtime >= self.ttl:
             return False
         if max_bar_age_days is not None:
-            from quant_hub.data.quality import ohlcv_is_stale
+            from quant_hub.data.quality import ohlcv_has_incomplete_last_bar, ohlcv_is_stale
 
-            df = self.read(ticker)
-            if ohlcv_is_stale(df, max_age_days=max_bar_age_days):
+            # Inspect the on-disk frame before sanitizing so incomplete trailing
+            # Yahoo bars force a refresh even though read() drops them.
+            try:
+                raw = pd.read_parquet(path)
+            except Exception:
+                return False
+            if ohlcv_has_incomplete_last_bar(raw):
+                return False
+            if ohlcv_is_stale(raw, max_age_days=max_bar_age_days):
                 return False
         return True
 
     def read(self, ticker: str) -> pd.DataFrame | None:
+        from quant_hub.data.quality import drop_incomplete_ohlcv_bars
+
         path = self.path_for(ticker)
         if not path.exists():
             return None
@@ -54,6 +63,9 @@ class ParquetCache:
             df = pd.read_parquet(path)
             if "Date" in df.columns:
                 df["Date"] = pd.to_datetime(df["Date"])
+            df = drop_incomplete_ohlcv_bars(df)
+            if df is None or df.empty:
+                return None
             df["ticker"] = ticker.upper()
             return df
         except Exception:
@@ -61,9 +73,15 @@ class ParquetCache:
             return None
 
     def write(self, ticker: str, df: pd.DataFrame) -> None:
+        from quant_hub.data.quality import drop_incomplete_ohlcv_bars
+
         path = self.path_for(ticker)
         path.parent.mkdir(parents=True, exist_ok=True)
-        out = df.copy()
+        out = drop_incomplete_ohlcv_bars(df)
+        if out is None or out.empty:
+            logger.warning("Skipping cache write for %s: no complete OHLCV bars", ticker)
+            return
+        out = out.copy()
         if "ticker" not in out.columns:
             out["ticker"] = ticker.upper()
 
