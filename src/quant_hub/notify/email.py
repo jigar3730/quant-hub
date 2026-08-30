@@ -172,8 +172,8 @@ def build_lynch_email(
 
     rows_html = ""
     for t in candidates[:20]:
-        ticker = t["ticker"]
-        tv_link = f"https://www.tradingview.com/chart/?symbol={ticker}"
+        ticker = t["ticker"].upper()
+        finviz_link = f"https://finviz.com/quote.ashx?t={ticker}"
         name = t.get("company_name") or ""
         badges = _lynch_category_badges(t.get("categories") or [])
         score = t.get("lynch_score", 0)
@@ -187,7 +187,7 @@ def build_lynch_email(
         rows_html += f"""
         <tr style="border-bottom:1px solid #e2e8f0">
           <td style="padding:10px 8px">
-            <a href="{tv_link}" style="font-weight:bold;font-size:15px">{ticker}</a>
+            <a href="{finviz_link}" style="font-weight:bold;font-size:15px">{ticker}</a>doc
             <div style="font-size:12px;color:#64748b">{name}</div>
             {summary_cell}
           </td>

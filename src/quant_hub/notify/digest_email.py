@@ -32,14 +32,15 @@ def _esc(value: Any) -> str:
     return "—" if value is None else html.escape(str(value))
 
 
-def _tv_link(ticker: str, *, bold: bool = True) -> str:
-    symbol = html.escape(ticker)
+def _finviz_link(ticker: str, *, bold: bool = True) -> str:
+    """Generates an HTML anchor tag pointing to Finviz for a given ticker symbol."""
+    symbol = html.escape(ticker.upper())
     weight = "font-weight:bold;font-size:16px;" if bold else ""
     return (
-        f'<a href="https://www.tradingview.com/chart/?symbol={symbol}" '
+        f'<a href="https://finviz.com/quote.ashx?t={symbol}" '
+        f'target="_blank" '
         f'style="{weight}color:#2563eb;text-decoration:none">{symbol}</a>'
     )
-
 
 def _summary(lines: list[str]) -> str:
     items = "".join(f"<li style='margin-bottom:6px'>{_esc(line)}</li>" for line in lines)
@@ -60,7 +61,7 @@ def _launchpad_card(row: dict[str, Any], *, badge_style: str) -> str:
     sector_line = f'<div style="{_STYLES["meta"]}">Sector ETF: {_esc(sector)}</div>' if sector else ""
     return f"""
     <div style="{_STYLES["card"]}">
-      <div>{_tv_link(row["ticker"])}
+      <div>{_finviz_link(row["ticker"])}
         <span style="{badge_style};margin-left:8px">{_esc(row.get("tier_label") or row.get("tier"))}</span>
         <span style="float:right;font-weight:bold;font-size:15px">{format_score(row.get("final_score"))}</span>
       </div>
@@ -125,7 +126,7 @@ def _lynch_card(row: dict[str, Any]) -> str:
     company = f'<div style="{_STYLES["meta"]}">{_esc(row["company_name"])}</div>' if row.get("company_name") else ""
     return f"""
     <div style="{_STYLES["card"]}">
-      <div>{_tv_link(row["ticker"])}
+      <div>{_finviz_link(row["ticker"])}
         <span style="{_STYLES["lynch"]};margin-left:8px">{_esc(row.get("category_label"))}</span>
         <span style="float:right;font-weight:bold">{format_score(row.get("lynch_score"))}</span>
       </div>
@@ -139,7 +140,7 @@ def _overlap_card(row: dict[str, Any]) -> str:
     launchpad, lynch = row["launchpad"], row["lynch"]
     return f"""
     <div style="{_STYLES["card"]};border-left:4px solid #16a34a">
-      <div>{_tv_link(row["ticker"])}
+      <div>{_finviz_link(row["ticker"])}
         <span style="{_STYLES["tier1"]};margin-left:8px">Launchpad + Lynch</span>
       </div>
       <div style="{_STYLES["meta"]}">Launchpad {format_score(launchpad.get("final_score"))} · Lynch {format_score(lynch.get("lynch_score"))} · {_esc(lynch.get("category_label"))}</div>
