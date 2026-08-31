@@ -36,7 +36,7 @@ class DigestService:
     def _already_sent(self, job_name: str) -> bool:
         return self.job_repo.job_succeeded(job_name)
 
-    def _check_launchpad_ready(self, scan_date: date) -> None:
+    def _check_launchpad_ready(self, scan_date: date, *, force: bool = False) -> None:
         run = self.scan_repo.get_latest_run(
             strategy_id=P.LAUNCHPAD_STRATEGY,
             universe_id=P.DAILY_LAUNCHPAD_UNIVERSE,
@@ -47,14 +47,25 @@ class DigestService:
                 f"Launchpad scan not ready for {P.DAILY_LAUNCHPAD_UNIVERSE} on {scan_date}"
             )
         scan_time = run.get("scan_time")
-        if scan_time:
-            if scan_time.tzinfo is None:
-                scan_time = scan_time.replace(tzinfo=UTC)
-            age = datetime.now(tz=UTC) - scan_time
-            if age > timedelta(hours=P.DAILY_SCAN_MAX_AGE_HOURS):
-                raise RuntimeError(
-                    f"Launchpad scan on {scan_date} is stale ({age.total_seconds() / 3600:.1f}h old)"
-                )
+        if not scan_time:
+            return
+        if scan_time.tzinfo is None:
+            scan_time = scan_time.replace(tzinfo=UTC)
+        age = datetime.now(tz=UTC) - scan_time
+        if age <= timedelta(hours=P.DAILY_SCAN_MAX_AGE_HOURS):
+            return
+        age_h = age.total_seconds() / 3600
+        if force:
+            logger.warning(
+                "Launchpad scan on %s is stale (%.1fh old); --force bypasses max age of %sh",
+                scan_date,
+                age_h,
+                P.DAILY_SCAN_MAX_AGE_HOURS,
+            )
+            return
+        raise RuntimeError(
+            f"Launchpad scan on {scan_date} is stale ({age_h:.1f}h old)"
+        )
 
     def _check_weekly_ready(self, lynch_date: date) -> None:
         lynch = self.scan_repo.get_latest_run(
@@ -100,7 +111,7 @@ class DigestService:
 
         job_id = self.job_repo.start_job(job_name, tickers_requested=0)
         try:
-            self._check_launchpad_ready(scan_date)
+            self._check_launchpad_ready(scan_date, force=force)
             payload = build_daily_payload(self.scan_repo, scan_date=scan_date)
 
             if not payload.get("tier1") and not payload.get("tier2") and not P.DAILY_SEND_WHEN_EMPTY:

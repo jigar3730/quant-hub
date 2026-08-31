@@ -19,12 +19,20 @@ def main(argv: list[str] | None = None) -> int:
     daily = sub.add_parser("daily", help="Daily Launchpad digest (Mon–Fri)")
     daily.add_argument("--date", type=date.fromisoformat, help="Scan date (default: today)")
     daily.add_argument("--no-email", action="store_true", help="Build only, do not send")
-    daily.add_argument("--force", action="store_true", help="Send even if already sent today")
+    daily.add_argument(
+        "--force",
+        action="store_true",
+        help="Resend even if already sent; also bypass Launchpad scan age check",
+    )
 
     weekly = sub.add_parser("weekly", help="Weekly Lynch digest with Launchpad overlap (Sat)")
     weekly.add_argument("--date", type=date.fromisoformat, help="Lynch scan date (default: today)")
     weekly.add_argument("--no-email", action="store_true", help="Build only, do not send")
-    weekly.add_argument("--force", action="store_true", help="Send even if already sent this week")
+    weekly.add_argument(
+        "--force",
+        action="store_true",
+        help="Resend even if already sent this week",
+    )
     weekly.add_argument(
         "--rebuild-analytics",
         action="store_true",
