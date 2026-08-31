@@ -80,6 +80,18 @@ def build_ticker_report(
         else LAUNCHPAD_FILTER_LABELS.get(elig["fail_reason"], elig["fail_reason"])
     )
 
+    score_detail = launchpad_score_components_detail(
+        stock_df=stock_df,
+        scores=scores or {},
+        spy_df=spy_df,
+    )
+    summary = {
+        "raw_score": row.get("raw_score", 0) or 0,
+        "normalized_score": round(row.get("normalized_score", 0) or 0, 2),
+        "regime_multiplier": row.get("regime_multiplier", 1.0),
+        "final_adjusted_score": round(row.get("final_adjusted_score", 0) or 0, 2),
+    }
+
     if not elig["passed"]:
         return {
             "ticker": ticker,
@@ -87,20 +99,11 @@ def build_ticker_report(
             "eligible": False,
             "tier": "filtered",
             "tier_reason": elig["summary"],
+            "sector_etf": sector_etf,
             "eligibility": elig,
-            "scores": None,
-            "summary": {
-                "raw_score": 0,
-                "normalized_score": 0,
-                "final_adjusted_score": 0,
-            },
+            "scores": score_detail,
+            "summary": summary,
         }
-
-    score_detail = launchpad_score_components_detail(
-        stock_df=stock_df,
-        scores=scores or {},
-        spy_df=spy_df,
-    )
 
     return {
         "ticker": ticker,
@@ -111,12 +114,7 @@ def build_ticker_report(
         "sector_etf": sector_etf,
         "eligibility": elig,
         "scores": score_detail,
-        "summary": {
-            "raw_score": row.get("raw_score"),
-            "normalized_score": round(row.get("normalized_score", 0), 2),
-            "regime_multiplier": row.get("regime_multiplier"),
-            "final_adjusted_score": round(row.get("final_adjusted_score", 0), 2),
-        },
+        "summary": summary,
     }
 
 

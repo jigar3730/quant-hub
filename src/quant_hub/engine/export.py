@@ -57,4 +57,4 @@ def _score_columns_for_strategy(strategy_id: str) -> list[str]:
 
 
 def ticker_results_to_legacy_scores(tickers: list[TickerResult]) -> dict[str, dict[str, float]]:
-    return {t.ticker: t.to_legacy_scores_dict() for t in tickers if t.eligible}
+    return {t.ticker: t.to_legacy_scores_dict() for t in tickers if t.factors}

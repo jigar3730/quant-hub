@@ -106,7 +106,9 @@ def _render_markdown(report: dict) -> list[str]:
         lines.append("## Excluded Tickers")
         lines.append("")
         for t in sorted(excluded, key=lambda x: x["ticker"]):
-            lines.append(f"- **{t['ticker']}**: {t['tier_reason']}")
+            score = (t.get("summary") or {}).get("final_adjusted_score")
+            score_bit = f" (score {score})" if score is not None else ""
+            lines.append(f"- **{t['ticker']}**{score_bit}: {t['tier_reason']}")
             failed = next(
                 (c for c in t["eligibility"].get("checks", []) if not c.get("passed")),
                 None,

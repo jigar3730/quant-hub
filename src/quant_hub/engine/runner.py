@@ -53,7 +53,7 @@ class StrategyEngine:
         )
 
         filter_results: dict[str, FilterResult] = {}
-        eligible_tickers: list[str] = []
+        scorable_tickers: list[str] = []
         ticker_results: dict[str, TickerResult] = {}
 
         for ticker in ctx.universe:
@@ -68,39 +68,32 @@ class StrategyEngine:
                 )
                 continue
 
+            if ctx.extras.get("eligibility_mode") == "etf":
+                sector_etf = "SPY"
+            else:
+                sector_etf = resolve_sector_etf(ticker)
+            ctx.sector_etfs[ticker] = sector_etf
+
             fr = self._evaluate_filters(ctx, ticker)
             filter_results[ticker] = fr
-            if fr.passed:
-                if ctx.extras.get("eligibility_mode") == "etf":
-                    sector_etf = "SPY"
-                else:
-                    sector_etf = resolve_sector_etf(ticker)
-                ctx.sector_etfs[ticker] = sector_etf
-                eligible_tickers.append(ticker)
-                ticker_results[ticker] = TickerResult(
-                    ticker=ticker,
-                    eligible=True,
-                    filter_reason="eligible",
-                    metadata={"sector_etf": sector_etf},
-                )
-            else:
-                ticker_results[ticker] = TickerResult(
-                    ticker=ticker,
-                    eligible=False,
-                    filter_reason=fr.reason,
-                    metadata={"sector_etf": ctx.sector_etfs.get(ticker)},
-                )
+            scorable_tickers.append(ticker)
+            ticker_results[ticker] = TickerResult(
+                ticker=ticker,
+                eligible=fr.passed,
+                filter_reason=fr.reason if not fr.passed else "eligible",
+                metadata={"sector_etf": sector_etf},
+            )
 
         universe_factors: dict[str, dict[str, object]] = {}
         for binding in self.spec.factor_bindings:
             factor = binding.factor
             if factor.pass_kind != "universe":
                 continue
-            computed = factor.compute_universe(ctx, eligible_tickers)
+            computed = factor.compute_universe(ctx, scorable_tickers)
             for ticker, result in computed.items():
                 universe_factors.setdefault(ticker, {})[binding.name] = result
 
-        for ticker in eligible_tickers:
+        for ticker in scorable_tickers:
             tr = ticker_results[ticker]
             for name, fr in universe_factors.get(ticker, {}).items():
                 tr.factors[name] = fr  # type: ignore[assignment]
@@ -129,15 +122,13 @@ class StrategyEngine:
         finalized: list[TickerResult] = []
         for ticker in ctx.universe:
             tr = ticker_results[ticker]
-            if tr.eligible:
+            if tr.factors:
                 for penalty in self.spec.penalties:
                     amount = penalty.apply(ctx, tr)
                     if amount:
                         tr.penalties[penalty.name] = amount
                 tr = self.spec.aggregate(tr, ctx.regime)
-                tr.tier = self.spec.assign_tier(tr)
-            else:
-                tr.tier = "filtered"
+            tr.tier = self.spec.assign_tier(tr)
             finalized.append(tr)
 
         return ScanResult(

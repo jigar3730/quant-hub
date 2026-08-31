@@ -333,7 +333,7 @@ def _render_score_cards(
 def render_component_cards(ticker_data: dict) -> None:
     scores = ticker_data.get("scores") or {}
     if not scores:
-        st.warning("No scoring data — stock did not pass eligibility filters.")
+        st.warning("No scoring data — no price history to score this ticker.")
         return
     _render_score_cards(
         ticker_data,
@@ -460,7 +460,7 @@ def render_technical_panel(ticker_data: dict, ticker: str) -> None:
     scores = ticker_data.get("scores") or {}
     technical_keys = LAUNCHPAD_TECHNICAL_KEYS
     if not any(scores.get(k) for k in technical_keys):
-        st.info("Technical scores unavailable — ticker did not pass eligibility filters.")
+        st.info("Technical scores unavailable — no price history to score this ticker.")
         return
 
     technical_df = scores_to_dataframe(ticker_data)
