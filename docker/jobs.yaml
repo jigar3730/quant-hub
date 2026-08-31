@@ -1,12 +1,20 @@
 # Reference schedule — authoritative source is docker/crontab (installed into the container).
-# Last synced: 2026-08-27 (Launchpad, Lynch, ML, analytics, and digests)
+# Last synced: 2026-08-31 (most_actives + large_cap_growth only)
 
 jobs:
-  - name: launchpad-sp500-index-daily
+  - name: launchpad-most-actives-daily
     cron: "10 17 * * 1-5"
-    command: quant-launchpad-daily --universe sp500_index --no-email
+    command: quant-launchpad-daily --universe most_actives --no-email
     strategy: launchpad
-    universe: sp500_index
+    universe: most_actives
+    email: false
+    status: active
+
+  - name: launchpad-large-cap-growth-daily
+    cron: "15 17 * * 1-5"
+    command: quant-launchpad-daily --universe large_cap_growth --no-email
+    strategy: launchpad
+    universe: large_cap_growth
     email: false
     status: active
 
@@ -16,28 +24,29 @@ jobs:
     email: true
     status: active
 
-  - name: universe-refresh-sp500-quarterly
-    cron: "30 0 1-7 1,4,7,10 6"
-    command: quant-universe refresh sp500_index
-    status: active
-
-  - name: launchpad-full-coverage-weekly
+  - name: launchpad-coverage-weekly
     cron: "30 1 * * 6"
-    command: quant-launchpad-all --cache --report both
+    command: quant-launchpad-all --universes most_actives large_cap_growth --cache --report both
     strategy: launchpad
     email: false
     status: active
 
-  - name: lynch-full-coverage-weekly
+  - name: lynch-coverage-weekly
     cron: "0 5 * * 6"
-    command: quant-lynch-all --no-email
+    command: quant-lynch-all --universes most_actives large_cap_growth --no-email
     strategy: lynch
     email: false
     status: active
 
-  - name: ml-label-launchpad-sp500-index
+  - name: ml-label-launchpad-most-actives
     cron: "0 6 * * 6"
-    command: "quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +%F)"
+    command: "quant-ml label --strategy launchpad --universe most_actives --since $(date -d '90 days ago' +%F)"
+    strategy: launchpad
+    status: active
+
+  - name: ml-label-launchpad-large-cap-growth
+    cron: "10 6 * * 6"
+    command: "quant-ml label --strategy launchpad --universe large_cap_growth --since $(date -d '90 days ago' +%F)"
     strategy: launchpad
     status: active
 

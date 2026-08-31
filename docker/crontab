@@ -1,23 +1,25 @@
 # Quant Hub cron — America/New_York (container TZ)
 # Product focus: Launchpad (quality scanner) + Lynch (fundamentals).
+# Scheduled scans are limited to most_actives and large_cap_growth.
 # Scans use --no-email; digests send email via quant-digest.
 # SMTP_* and EMAIL_* must be in .env (exported to /etc/environment on start).
 
 # ===== Mon–Fri: Launchpad daily + digest =====
-# 05:10 PM ET — sp500_index launchpad scan
-10 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe sp500_index --no-email >> /app/logs/cron.log 2>&1
-# 05:35 PM ET — daily Launchpad digest email
+# 05:10 PM ET — most_actives launchpad scan
+10 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe most_actives --no-email >> /app/logs/cron.log 2>&1
+# 05:15 PM ET — large_cap_growth launchpad scan
+15 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe large_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 05:35 PM ET — daily Launchpad digest email (most_actives)
 35 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
 
 # ===== Saturday: coverage + Lynch + ML + weekly digest =====
-# 12:30 AM ET — refresh sp500_index holdings (first Sat of Jan/Apr/Jul/Oct)
-30 0 1-7 1,4,7,10 6 root . /etc/environment; quant-universe refresh sp500_index >> /app/logs/cron.log 2>&1
-# 1:30 AM ET — launchpad all stock universes
-30 1 * * 6 root . /etc/environment; quant-launchpad-all --cache --report both >> /app/logs/cron.log 2>&1
-# 5:00 AM ET — Lynch all stock universes
-0 5 * * 6 root . /etc/environment; quant-lynch-all --no-email >> /app/logs/cron.log 2>&1
-# 6:00 AM ET — ML forward-return labels (launchpad sp500, last 90d)
-0 6 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
+# 1:30 AM ET — launchpad most_actives + large_cap_growth
+30 1 * * 6 root . /etc/environment; quant-launchpad-all --universes most_actives large_cap_growth --cache --report both >> /app/logs/cron.log 2>&1
+# 5:00 AM ET — Lynch most_actives + large_cap_growth
+0 5 * * 6 root . /etc/environment; quant-lynch-all --universes most_actives large_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 6:00 AM ET — ML forward-return labels (last 90d)
+0 6 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe most_actives --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
+10 6 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe large_cap_growth --since $(date -d '90 days ago' +\%F) >> /app/logs/cron.log 2>&1
 # 7:50 AM ET — build weekly analytics payload
 50 7 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1
 # 8:00 AM ET — weekly Lynch (+ Launchpad overlap) digest email

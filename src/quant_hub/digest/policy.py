@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from quant_hub.config import PRIMARY_INDEX_UNIVERSE
-
-# Universes and strategies
-DAILY_LAUNCHPAD_UNIVERSE = PRIMARY_INDEX_UNIVERSE
-WEEKLY_LYNCH_UNIVERSE = PRIMARY_INDEX_UNIVERSE
-WEEKLY_LAUNCHPAD_UNIVERSE = PRIMARY_INDEX_UNIVERSE
+# Universes and strategies (must match scheduled cron scans)
+SCHEDULED_UNIVERSES = ("most_actives", "large_cap_growth")
+DAILY_LAUNCHPAD_UNIVERSE = "most_actives"
+WEEKLY_LYNCH_UNIVERSE = "most_actives"
+WEEKLY_LAUNCHPAD_UNIVERSE = "most_actives"
 LAUNCHPAD_STRATEGY = "launchpad"
 LYNCH_STRATEGY = "lynch"
 

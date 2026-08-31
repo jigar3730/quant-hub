@@ -9,10 +9,11 @@ def test_primary_index_universe_constant():
     assert PRIMARY_INDEX_UNIVERSE == "sp500_index"
 
 
-def test_digest_policy_uses_primary_index():
-    assert P.DAILY_LAUNCHPAD_UNIVERSE == PRIMARY_INDEX_UNIVERSE
-    assert P.WEEKLY_LYNCH_UNIVERSE == PRIMARY_INDEX_UNIVERSE
-    assert P.WEEKLY_LAUNCHPAD_UNIVERSE == PRIMARY_INDEX_UNIVERSE
+def test_digest_policy_uses_scheduled_universes():
+    assert P.DAILY_LAUNCHPAD_UNIVERSE == "most_actives"
+    assert P.WEEKLY_LYNCH_UNIVERSE == "most_actives"
+    assert P.WEEKLY_LAUNCHPAD_UNIVERSE == "most_actives"
+    assert set(P.SCHEDULED_UNIVERSES) == {"most_actives", "large_cap_growth"}
 
 
 def test_sp500_not_in_universe_registry():
