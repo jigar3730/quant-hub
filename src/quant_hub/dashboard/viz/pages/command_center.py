@@ -16,7 +16,7 @@ from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
 from quant_hub.dashboard.viz.table_helpers import (
     merge_column_config,
     table_column_order,
-    with_yahoo_ticker_links,
+    with_ticker_links,
 )
 from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.digest.command_center import (
@@ -162,7 +162,7 @@ def _render_overlap(payload: dict, *, scan_date: date) -> None:
                 or "—",
             }
         )
-    df = with_yahoo_ticker_links(pd.DataFrame(rows))
+    df = with_ticker_links(pd.DataFrame(rows))
     base_cols = [c for c in df.columns if c != "ticker_link"]
     selection = st.dataframe(
         df,
@@ -242,7 +242,7 @@ def _render_delta_table(df: pd.DataFrame, empty_msg: str) -> None:
     if df.empty:
         st.caption(empty_msg)
         return
-    linked = with_yahoo_ticker_links(df)
+    linked = with_ticker_links(df)
     base_cols = [c for c in linked.columns if c != "ticker_link"]
     st.dataframe(
         linked,

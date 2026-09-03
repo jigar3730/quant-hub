@@ -15,7 +15,7 @@ from quant_hub.dashboard.viz.labels import format_report_label, tier_friendly
 from quant_hub.dashboard.viz.table_helpers import (
     merge_column_config,
     table_column_order,
-    with_yahoo_ticker_links,
+    with_ticker_links,
 )
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
@@ -82,7 +82,7 @@ def render_near_miss_panel(df: pd.DataFrame, *, max_rows: int = 12) -> None:
             "tier_reason": "Why not actionable",
         }
     )
-    display = with_yahoo_ticker_links(display)
+    display = with_ticker_links(display)
     base_cols = [column for column in display.columns if column != "ticker_link"]
     st.dataframe(
         display,

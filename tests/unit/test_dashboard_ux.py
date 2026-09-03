@@ -6,25 +6,25 @@ import pandas as pd
 
 from quant_hub.dashboard.viz.labels import format_report_label, tier_friendly
 from quant_hub.dashboard.viz.launchpad_filters import launchpad_scatter_dataframe
-from quant_hub.dashboard.viz.navigation import ticker_link_html, yahoo_finance_url
-from quant_hub.dashboard.viz.table_helpers import table_column_order, with_yahoo_ticker_links
+from quant_hub.dashboard.viz.navigation import finviz_quote_url, ticker_link_html
+from quant_hub.dashboard.viz.table_helpers import table_column_order, with_ticker_links
 from quant_hub.dashboard.viz.ux_helpers import near_miss_dataframe
 
 
-def test_yahoo_finance_url():
-    assert yahoo_finance_url("aapl") == "https://finance.yahoo.com/quote/AAPL"
+def test_finviz_quote_url():
+    assert finviz_quote_url("aapl") == "https://finviz.com/quote.ashx?t=AAPL"
 
 
 def test_ticker_link_html_external():
     html = ticker_link_html("MSFT")
-    assert "finance.yahoo.com/quote/MSFT" in html
+    assert "finviz.com/quote.ashx?t=MSFT" in html
     assert 'target="_blank"' in html
 
 
-def test_with_yahoo_ticker_links():
+def test_with_ticker_links():
     df = pd.DataFrame({"ticker": ["AAPL"], "final_score": [80.0]})
-    linked = with_yahoo_ticker_links(df)
-    assert linked.iloc[0]["ticker_link"] == "https://finance.yahoo.com/quote/AAPL#AAPL"
+    linked = with_ticker_links(df)
+    assert linked.iloc[0]["ticker_link"] == "https://finviz.com/quote.ashx?t=AAPL#AAPL"
     assert linked.iloc[0]["ticker"] == "AAPL"
 
 

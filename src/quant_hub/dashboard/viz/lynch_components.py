@@ -19,7 +19,7 @@ from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
 from quant_hub.dashboard.viz.table_helpers import (
     merge_column_config,
     table_column_order,
-    with_yahoo_ticker_links,
+    with_ticker_links,
 )
 from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.dashboard.viz.ux_helpers import render_lynch_takeaway
@@ -127,7 +127,7 @@ def _lynch_table_columns() -> dict:
 
 
 def _render_lynch_table(table_df: pd.DataFrame) -> None:
-    display_df = with_yahoo_ticker_links(table_df)
+    display_df = with_ticker_links(table_df)
     base_cols = [column for column in display_df.columns if column != "ticker_link"]
     st.dataframe(
         display_df,

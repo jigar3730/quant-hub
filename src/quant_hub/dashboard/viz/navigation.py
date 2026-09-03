@@ -50,20 +50,20 @@ def navigate_to_scan(
     st.rerun()
 
 
-def yahoo_finance_url(ticker: str) -> str:
-    """Yahoo Finance quote URL for a US ticker symbol."""
-    return f"https://finance.yahoo.com/quote/{ticker.strip().upper()}"
+def finviz_quote_url(ticker: str) -> str:
+    """Finviz quote URL for a US ticker symbol."""
+    return f"https://finviz.com/quote.ashx?t={ticker.strip().upper()}"
 
 
 def ticker_link_html(ticker: str, *, internal: bool = False) -> str:
-    """HTML link for a ticker symbol (Yahoo Finance by default)."""
+    """HTML link for a ticker symbol (Finviz by default)."""
     symbol = ticker.strip().upper()
     if internal:
         href = f"?ticker={symbol}"
         target = "_self"
         rel = ""
     else:
-        href = yahoo_finance_url(symbol)
+        href = finviz_quote_url(symbol)
         target = "_blank"
         rel = ' rel="noopener noreferrer"'
     return (

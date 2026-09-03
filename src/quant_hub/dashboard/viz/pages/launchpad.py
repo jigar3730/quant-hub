@@ -39,7 +39,7 @@ from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
 from quant_hub.dashboard.viz.table_helpers import (
     merge_column_config,
     table_column_order,
-    with_yahoo_ticker_links,
+    with_ticker_links,
 )
 from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
 from quant_hub.dashboard.viz.universe_panel import (
@@ -145,7 +145,7 @@ def render_all_tickers_tab(
     table_df = apply_universe_controls(full_df)
 
     display_cols = universe_display_columns(table_df)
-    shown_df = with_yahoo_ticker_links(table_df[display_cols].copy())
+    shown_df = with_ticker_links(table_df[display_cols].copy())
 
     st.dataframe(
         shown_df,
@@ -235,7 +235,7 @@ def render_watchlist_tab(*, df: pd.DataFrame, tickers: list[dict], filters: Laun
             expanded=row["tier"] == "Tier 1",
         ):
             st.markdown(
-                f"Yahoo Finance: {ticker_link_html(symbol)} {tier_badge_html(row['tier'])}",
+                f"Finviz: {ticker_link_html(symbol)} {tier_badge_html(row['tier'])}",
                 unsafe_allow_html=True,
             )
             st.caption(ticker_data.get("tier_reason", ""))
@@ -283,7 +283,7 @@ def render_compare_tab(*, df: pd.DataFrame, tickers: list[dict], filters: Launch
             row[label] = scores.get(key, {}).get("score", 0)
         compare_rows.append(row)
 
-    compare_df = with_yahoo_ticker_links(pd.DataFrame(compare_rows))
+    compare_df = with_ticker_links(pd.DataFrame(compare_rows))
     base_cols = [column for column in compare_df.columns if column != "ticker_link"]
     st.dataframe(
         compare_df,
