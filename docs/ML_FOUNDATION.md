@@ -60,7 +60,7 @@ docker exec quant-hub quant-ml export-features --strategy launchpad --universe m
 docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
 ```
 
-The Saturday scheduled label job covers recent Launchpad `sp500_index` history. Consult `docker/crontab` for the exact schedule.
+The Saturday scheduled label job covers recent Launchpad history for the universes listed in `docker/crontab` (currently four weekday scan universes, last 90 days). Consult that file for the exact schedule.
 
 ## Retention
 

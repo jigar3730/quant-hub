@@ -1,8 +1,9 @@
 # Launchpad ML Operations
 
-**Scope:** Launchpad-first ML operations
-**Detailed procedure:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)
-**Last updated:** 2026-08-27
+**Scope:** Launchpad-first ML operations  
+**Full run-team document:** [ML Operations](ML_OPERATIONS.md) (architecture, data flow, troubleshooting, rollback)  
+**Detailed procedure:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)  
+**Last updated:** 2026-09-05
 
 ## What runs
 
@@ -34,7 +35,7 @@ Use the full guide before scaling to `sp500_index`: [Launchpad ML Guide](LAUNCHP
 
 ## Scheduled work
 
-Cron labels recent Launchpad `sp500_index` scans at 6:00 AM ET every Saturday. The actual command and date range are defined by `docker/crontab`; do not duplicate or alter its schedule based on this guide.
+Saturday morning cron **labels** (does not train) recent Launchpad scans for `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (`--since` 90 days). The exact times and commands are in `docker/crontab`; do not copy schedules from older docs.
 
 ## Verification
 

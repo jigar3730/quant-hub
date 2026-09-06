@@ -49,7 +49,8 @@ Dashboard: `http://<host>:5002` (`quant-view` inside the container).
 | [Digest Policy](docs/DIGEST_POLICY.md) | Email content rules |
 | [Runbook](docs/RUNBOOK.md) | Ops / cron / recover |
 | [User Manual](docs/USER_MANUAL.md) | Dashboard and daily workflow |
-| [ML Ops](docs/ML_OPS.md) | Label / train / evaluate |
+| [ML Operations](docs/ML_OPERATIONS.md) | Full ML/MLOps runbook |
+| [ML Ops](docs/ML_OPS.md) | Label / train / evaluate (short) |
 | [Analytics Guide](docs/ANALYTICS_GUIDE.md) | Weekly analytics payload |
 | [Data Model](docs/DATA_MODEL.md) | PostgreSQL and JSONB model |
 | [ML Foundation](docs/ML_FOUNDATION.md) | ML design and safeguards |
