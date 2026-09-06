@@ -184,5 +184,15 @@ def test_ticker_history_actionable_filter():
     assert lynch_row["institutional_pct"] == 35.0
 
     assert repo.ticker_history_count(ticker, actionable_only=True, exclude_fixtures=False) == 2
+
+    # Ticker Lookup default: every appearance, including the filtered Lynch row.
+    all_rows = repo.ticker_history(ticker, actionable_only=False, exclude_fixtures=False)
+    assert len(all_rows) == 3
+    assert repo.ticker_history_count(ticker, actionable_only=False, exclude_fixtures=False) == 3
+    filtered_lynch = next(
+        r for r in all_rows if r["strategy_id"] == "lynch" and r["tier"] == "filtered"
+    )
+    assert filtered_lynch["eligible"] is False
+
     repo.delete_fixture_runs()
 

@@ -142,7 +142,9 @@ def history_display_columns(rows: list[dict[str, Any]]) -> list[str]:
         "strategy_label",
         "universe_id",
         "tier_label",
+        "eligible",
         "final_score",
+        "filter_reason",
         "regime_label",
     ]
     strategies = {r.get("strategy_id") for r in rows}

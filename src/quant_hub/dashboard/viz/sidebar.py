@@ -33,20 +33,34 @@ STRATEGY_LABELS = {
 }
 
 
+def _commit_global_lookup() -> None:
+    """Promote the typed ticker into the global history lookup.
+
+    Shared by the text input's Enter (``on_change``) and the search button so
+    both paths update session state. Does not call ``st.rerun`` so it is safe to
+    use as a widget callback; Streamlit reruns automatically after ``on_change``.
+    """
+    lookup = st.session_state.get("global_ticker_lookup", "").strip().upper()
+    if not lookup:
+        return
+    set_detail_ticker(lookup)
+    st.session_state[SHOW_GLOBAL_HISTORY_KEY] = True
+    st.session_state[f"history_{HISTORY_PAGE_OFFSET_KEY}"] = 0
+
+
 def _render_global_ticker_lookup() -> None:
     """Omnibar: cross-scan ticker history lookup."""
     st.sidebar.markdown("**Ticker lookup**")
-    lookup = st.sidebar.text_input(
+    st.sidebar.text_input(
         "Lookup ticker history",
         value="",
         key="global_ticker_lookup",
         placeholder="e.g. NVDA",
-    ).strip().upper()
+        on_change=_commit_global_lookup,
+    )
     if st.sidebar.button("Search history", key="global_ticker_lookup_btn"):
-        if lookup:
-            set_detail_ticker(lookup)
-            st.session_state[SHOW_GLOBAL_HISTORY_KEY] = True
-            st.session_state[f"history_{HISTORY_PAGE_OFFSET_KEY}"] = 0
+        if st.session_state.get("global_ticker_lookup", "").strip():
+            _commit_global_lookup()
             st.rerun()
         else:
             st.sidebar.caption("Enter a ticker symbol.")
