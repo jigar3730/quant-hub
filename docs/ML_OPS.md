@@ -22,13 +22,13 @@ Launchpad ML uses historical point-in-time Launchpad scans to produce forward-re
 Start with `mega_runners`:
 
 ```bash
-docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
-docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
-docker exec quant-hub quant-ml warm-cache --universe mega_runners
-docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
-docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
-docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
-docker exec quant-hub quant-ml evaluate --model-id <id> --walk-forward
+docker exec quant-hub-dev quant-launchpad --universe mega_runners --cache --report both
+docker exec quant-hub-dev quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub-dev quant-ml warm-cache --universe mega_runners
+docker exec quant-hub-dev quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub-dev quant-ml export-features --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
+docker exec quant-hub-dev quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
+docker exec quant-hub-dev quant-ml evaluate --model-id <id> --walk-forward
 ```
 
 Use the full guide before scaling to `sp500_index`: [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md).
@@ -40,8 +40,8 @@ Saturday morning cron **labels** (does not train) recent Launchpad scans for `mo
 ## Verification
 
 ```bash
-docker exec quant-hub quant-ml status
-docker exec quant-hub quant-ml models --strategy launchpad
+docker exec quant-hub-dev quant-ml status
+docker exec quant-hub-dev quant-ml models --strategy launchpad
 ```
 
 ```sql
