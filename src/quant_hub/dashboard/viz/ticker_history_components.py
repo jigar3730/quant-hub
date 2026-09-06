@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 import pandas as pd
@@ -13,9 +14,10 @@ from quant_hub.dashboard.viz.navigation import (
     ticker_link_html,
 )
 from quant_hub.dashboard.viz.table_helpers import merge_column_config, table_column_order
-from quant_hub.history.duckdb_store import get_ticker_history, get_ticker_history_count
 from quant_hub.history.ticker_projection import history_display_columns
 from quant_hub.infrastructure.postgres.repository import ScanRepository
+
+logger = logging.getLogger(__name__)
 
 HISTORY_PAGE_SIZE = 50
 
@@ -41,7 +43,11 @@ def render_ticker_history_panel(
     key_prefix: str = "history",
     show_header: bool = True,
 ) -> None:
-    """Paginated actionable appearances across all strategies and universes."""
+    """Paginated scan appearances across all strategies and universes.
+
+    Defaults to every persisted appearance (including filtered/ineligible rows).
+    Toggle *Actionable only* to narrow to Launchpad Tier 1/Tier 2 and Lynch passed.
+    """
     symbol = ticker.strip().upper()
     if not symbol:
         return
@@ -49,28 +55,78 @@ def render_ticker_history_panel(
     offset_key = f"{key_prefix}_{HISTORY_PAGE_OFFSET_KEY}"
     if offset_key not in st.session_state:
         st.session_state[offset_key] = 0
+
+    def _reset_offset() -> None:
+        st.session_state[offset_key] = 0
+
+    actionable_only = st.checkbox(
+        "Actionable only (Launchpad Tier 1/Tier 2 and Lynch passed)",
+        value=False,
+        key=f"{key_prefix}_actionable_only",
+        on_change=_reset_offset,
+    )
     offset = int(st.session_state[offset_key])
 
-    total = get_ticker_history_count(symbol, actionable_only=True, exclude_fixtures=True)
-    rows = get_ticker_history(
-        symbol,
-        actionable_only=True,
-        exclude_fixtures=True,
-        limit=HISTORY_PAGE_SIZE,
-        offset=offset,
-    )
-
-    if show_header:
-        st.markdown(f"### {ticker_link_html(symbol)} — actionable scan history", unsafe_allow_html=True)
-    st.caption(
-        "Actionable appearances only (Launchpad Tier 1/Tier 2 and Lynch passed)."
-    )
-
-    if total == 0:
-        st.info(f"No actionable appearances found for **{symbol}** in persisted scan history.")
+    try:
+        with st.spinner(f"Loading scan history for {symbol}…"):
+            total = repo.ticker_history_count(
+                symbol,
+                actionable_only=actionable_only,
+                exclude_fixtures=True,
+            )
+            rows = repo.ticker_history(
+                symbol,
+                actionable_only=actionable_only,
+                exclude_fixtures=True,
+                limit=HISTORY_PAGE_SIZE,
+                offset=offset,
+            )
+            actionable_total = (
+                total
+                if actionable_only
+                else repo.ticker_history_count(
+                    symbol, actionable_only=True, exclude_fixtures=True
+                )
+            )
+    except Exception:  # noqa: BLE001 - surface DB failures instead of a false empty state
+        logger.exception("Failed to load ticker history for %s", symbol)
+        st.error(
+            f"Could not load scan history for **{symbol}**. The database may be "
+            "unavailable — check the connection and try again."
+        )
         return
 
-    st.caption(f"Showing {offset + 1}–{min(offset + len(rows), total)} of {total} appearances")
+    if show_header:
+        label = "actionable scan history" if actionable_only else "scan history"
+        st.markdown(
+            f"### {ticker_link_html(symbol)} — {label}",
+            unsafe_allow_html=True,
+        )
+
+    if total == 0:
+        if actionable_only:
+            st.info(
+                f"No actionable appearances found for **{symbol}**. Uncheck "
+                "**Actionable only** to see every scan this ticker appeared in."
+            )
+        else:
+            st.info(
+                f"No scan appearances found for **{symbol}** in persisted scan history."
+            )
+        return
+
+    strategies = sorted({r.get("strategy_label") for r in rows if r.get("strategy_label")})
+    strat_note = f" across {', '.join(strategies)}" if strategies else ""
+    if actionable_only:
+        st.caption(
+            f"Showing {offset + 1}–{min(offset + len(rows), total)} of {total} "
+            f"actionable appearance(s){strat_note}"
+        )
+    else:
+        st.caption(
+            f"Showing {offset + 1}–{min(offset + len(rows), total)} of {total} "
+            f"appearance(s){strat_note} ({actionable_total} actionable)"
+        )
 
     display_cols = history_display_columns(rows)
     table_df = pd.DataFrame(rows)
@@ -84,7 +140,9 @@ def render_ticker_history_panel(
             "strategy_label": st.column_config.TextColumn("Strategy"),
             "universe_id": st.column_config.TextColumn("Universe"),
             "tier_label": st.column_config.TextColumn("Status"),
+            "eligible": st.column_config.CheckboxColumn("Eligible"),
             "final_score": st.column_config.NumberColumn("Score", format="%.1f"),
+            "filter_reason": st.column_config.TextColumn("Filter reason"),
             "regime_label": st.column_config.TextColumn("Regime"),
             "normalized_score": st.column_config.NumberColumn("Norm", format="%.1f"),
             "lynch_score": st.column_config.NumberColumn("Lynch", format="%.0f"),
@@ -122,5 +180,3 @@ def render_ticker_history_panel(
                     date.fromisoformat(str(row["scan_date"])),
                     detail_ticker=symbol,
                 )
-
-    _ = repo  # reserved for future signal_outcomes join

@@ -9,7 +9,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-ENV_NAME="${1:?Usage: $0 {dev|stage|prod} [compose args...]}"
+ENV_NAME="${1:-}"
+if [[ -z "$ENV_NAME" ]]; then
+  echo "Usage: $0 {dev|stage|prod} [compose args...]" >&2
+  exit 1
+fi
 shift
 
 case "$ENV_NAME" in
