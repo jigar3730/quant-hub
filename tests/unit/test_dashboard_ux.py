@@ -6,9 +6,25 @@ import pandas as pd
 
 from quant_hub.dashboard.viz.labels import format_report_label, tier_friendly
 from quant_hub.dashboard.viz.launchpad_filters import launchpad_scatter_dataframe
-from quant_hub.dashboard.viz.navigation import finviz_quote_url, ticker_link_html
+from quant_hub.dashboard.viz.navigation import (
+    finviz_quote_url,
+    ticker_link_html,
+    ticker_picker_options,
+)
 from quant_hub.dashboard.viz.table_helpers import table_column_order, with_ticker_links
 from quant_hub.dashboard.viz.ux_helpers import near_miss_dataframe
+
+
+def test_ticker_picker_options_keeps_lookup_outside_universe():
+    options, index = ticker_picker_options(["AAPL", "MSFT", "NVDA"], "PLTR")
+    assert options[0] == ""
+    assert index == 0
+    assert "PLTR" not in options
+
+
+def test_ticker_picker_options_selects_in_universe_ticker():
+    options, index = ticker_picker_options(["AAPL", "MSFT", "NVDA"], "MSFT")
+    assert options[index] == "MSFT"
 
 
 def test_finviz_quote_url():

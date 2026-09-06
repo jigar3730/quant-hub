@@ -172,12 +172,13 @@ tab_map = dict(zip(tab_names, tabs, strict=True))
 
 with tab_map["Overview"]:
     render_launchpad_overview_tab(
-        report_path=report_label,
         summary=summary,
         regime=regime,
-        df=df,
         tickers=tickers,
-        filters=filters,
+        repo=repo,
+        strategy_id=strategy_id,
+        universe_id=universe_id,
+        scan_date=scan_date_str,
     )
 
 with tab_map["Full Universe"]:

@@ -273,8 +273,9 @@ def _render_ticker_360(repo: ScanRepository, payload: dict, detail_ticker: str |
         index=default_index,
         key="command_center_ticker_360",
     )
-    if active:
+    if active and active != detail_ticker:
         set_detail_ticker(active)
+    if active:
         render_ticker_history_panel(repo, active, key_prefix="command_center", show_header=False)
 
 

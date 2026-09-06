@@ -18,7 +18,7 @@ services:
       - .env.dev
     environment:
       APP_ENV: dev
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: WARNING
     volumes:
       - ./src:/app/src
       - ./data/universes.json:/app/data/universes.json
