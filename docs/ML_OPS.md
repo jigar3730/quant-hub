@@ -1,7 +1,7 @@
 # Launchpad ML Operations
 
 **Scope:** Launchpad-first ML operations  
-**Full run-team document:** [ML Operations](ML_OPERATIONS.md) (architecture, data flow, troubleshooting, rollback)  
+**Learning path:** [ML Operations Course](ML_OPERATIONS.md) — seven modules that teach the concepts behind these commands  
 **Detailed procedure:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)  
 **Last updated:** 2026-09-05
 
