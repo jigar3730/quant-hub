@@ -1,9 +1,12 @@
 # Launchpad ML Operations
 
 **Scope:** Launchpad-first ML operations  
+**Stack install:** [SETUP_GUIDE.md](SETUP_GUIDE.md) — `./scripts/run_env.sh {dev|stage|prod}`  
+**Containers:** prod `quant-hub` / `quant-hub-db`; dev `quant-hub-dev` / `quant-hub-db-dev`  
+**Schedule:** `docker/crontab` is the source of truth (no weekday `sp500_index` 5:10 PM job).  
 **Learning path:** [ML Operations Course](ML_OPERATIONS.md) — seven modules that teach the concepts behind these commands  
 **Detailed procedure:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)  
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-06
 
 ## What runs
 
@@ -22,13 +25,14 @@ Launchpad ML uses historical point-in-time Launchpad scans to produce forward-re
 Start with `mega_runners`:
 
 ```bash
-docker exec quant-hub-dev quant-launchpad --universe mega_runners --cache --report both
-docker exec quant-hub-dev quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
-docker exec quant-hub-dev quant-ml warm-cache --universe mega_runners
-docker exec quant-hub-dev quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
-docker exec quant-hub-dev quant-ml export-features --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
-docker exec quant-hub-dev quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
-docker exec quant-hub-dev quant-ml evaluate --model-id <id> --walk-forward
+# Prod container: quant-hub. Dev: docker exec quant-hub-dev ...
+docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub quant-ml warm-cache --universe mega_runners
+docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since YYYY-MM-DD
+docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
+docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since YYYY-MM-DD --horizon 20
+docker exec quant-hub quant-ml evaluate --model-id <id> --walk-forward
 ```
 
 Use the full guide before scaling to `sp500_index`: [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md).
@@ -40,8 +44,9 @@ Saturday morning cron **labels** (does not train) recent Launchpad scans for `mo
 ## Verification
 
 ```bash
-docker exec quant-hub-dev quant-ml status
-docker exec quant-hub-dev quant-ml models --strategy launchpad
+./scripts/run_env.sh prod ps
+docker exec quant-hub quant-ml status          # dev: quant-hub-dev
+docker exec quant-hub quant-ml models --strategy launchpad
 ```
 
 ```sql
@@ -61,7 +66,7 @@ Only use `label_status = 'ok'` rows in training or result analysis.
 | `insufficient_future_bars` | Expected for recent scans; wait for bars or use a shorter horizon |
 | `no_price` | Run `quant-ml warm-cache`, then label again |
 | Empty training set | Confirm historical Launchpad runs, Tier 1–3 setup rows, and completed labels |
-| Export absent | Check `/mnt/fast/quant-data/data/ml/features/launchpad/` |
+| Export absent | Prod: `/mnt/fast/quant-data/data/ml/features/launchpad/` (dev uses the Docker data volume, not that path) |
 | Metrics unstable | Increase sample size before making threshold changes; small `mega_runners` data validates plumbing, not production edge |
 
 ## Guardrails

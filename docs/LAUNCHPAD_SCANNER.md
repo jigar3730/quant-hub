@@ -2,8 +2,8 @@
 
 **Strategy ID:** `launchpad`  
 **Product:** Quality technical scanner
-**Related:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Digest Policy](DIGEST_POLICY.md)
-**Last updated:** 2026-08-27
+**Related:** [Setup Guide](SETUP_GUIDE.md) · [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Digest Policy](DIGEST_POLICY.md)
+**Last updated:** 2026-09-06
 
 ## Purpose
 
@@ -19,8 +19,10 @@ Launchpad is a stock-only product. ETF-mode universes are skipped by the all-uni
 ## Commands
 
 ```bash
+# Confirm the stack: ./scripts/run_env.sh prod ps   (dev: ./scripts/run_env.sh dev ps)
+# Prod container: quant-hub. Dev: quant-hub-dev. Weekday cron universes: docker/crontab.
 docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
-docker exec quant-hub quant-launchpad-daily --universe sp500_index --no-email
+docker exec quant-hub quant-launchpad-daily --universe most_actives --no-email
 docker exec quant-hub quant-launchpad-all --cache --report both
 docker exec quant-hub quant-backfill launchpad --universe mega_runners --since YYYY-MM-DD
 ```
@@ -52,7 +54,7 @@ Tier 1 and Tier 2 are actionable. Score thresholds and factor implementation liv
 
 ## Schedule and persistence
 
-The authoritative schedule is `docker/crontab`: weekday `sp500_index` at 5:10 PM ET and Saturday stock-universe coverage at 1:30 AM ET. A same-day rerun replaces the run identified by `(scan_date, launchpad, universe_id)`.
+The authoritative schedule is `docker/crontab` (America/New_York). Do not copy weekday `sp500_index` 5:10 PM tables from older manuals. A same-day rerun replaces the run identified by `(scan_date, launchpad, universe_id)`.
 
 `ticker_results.detail` stores eligibility, score factors, tier rationale, and `summary.final_adjusted_score`. Launchpad does not apply a market-regime multiplier (`regime_mode="none"`).
 

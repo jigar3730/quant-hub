@@ -2,13 +2,15 @@
 
 **Product scope:** Launchpad technical scanning + ML and Lynch fundamentals
 **Install path:** `/opt/stacks/quant-hub`  
-**Last updated:** 2026-08-27
+**Last updated:** 2026-09-06
+
+**First-time install:** [SETUP_GUIDE.md](SETUP_GUIDE.md). Status and deploy: `./scripts/run_env.sh {dev|stage|prod}`. Do not `cp .env.example .env` or run bare `docker compose up` / `ps`. Port 5002 and `/mnt/fast/quant-data` are **prod**.
 
 ## System overview
 
-`quant-hub` runs the Streamlit dashboard, cron, and product CLIs. `quant-hub-db` is PostgreSQL 16 and is the system of record. The dashboard is exposed on host port 5002 and Postgres on 5433.
+`quant-hub` (prod container name) runs the Streamlit dashboard, cron, and product CLIs. `quant-hub-db` is PostgreSQL 16 and is the system of record. Dev uses `quant-hub-dev` / `quant-hub-db-dev`. The prod dashboard is `127.0.0.1:5002` and Postgres `127.0.0.1:5433`.
 
-Persistent host paths:
+Persistent host paths (**prod** only — dev uses Docker volumes; stage uses `/mnt/fast/quant-data-stage/`):
 
 | Path | Purpose |
 |---|---|
@@ -22,61 +24,55 @@ All timestamps in `docker/crontab` are America/New_York. `docker/crontab` is the
 
 ```bash
 cd /opt/stacks/quant-hub
-cp .env.example .env
-docker compose up -d --build
-docker compose ps
-docker exec quant-hub quant-hub init-db
+cp .env.prod.example .env.prod   # or .env.dev.example → .env.dev for practice
+# Edit POSTGRES_PASSWORD in both the password line and DATABASE_URL
+./scripts/run_env.sh prod up --build -d
+./scripts/run_env.sh prod ps
 docker exec quant-hub quant-hub status
 ```
 
-Set a strong `POSTGRES_PASSWORD` and a matching `DATABASE_URL`. Configure `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and `EMAIL_TO` for digests. Do not commit `.env`.
+Dev: `./scripts/run_env.sh dev up --build -d` then `docker exec quant-hub-dev quant-hub status`.
+
+Set a strong `POSTGRES_PASSWORD` and a matching `DATABASE_URL`. Configure `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and `EMAIL_TO` for digests. Do not commit `.env.prod` or `.env.dev`.
 
 Test current products:
 
 ```bash
-docker exec quant-hub quant-launchpad --universe sp500_index --cache --report both
-docker exec quant-hub quant-lynch --universe sp500_index --no-email
+# Prod: quant-hub. Dev: quant-hub-dev. Cron universes: docker/crontab (not a 5:10 PM sp500_index slot).
+docker exec quant-hub quant-launchpad --universe most_actives --cache --report both
+docker exec quant-hub quant-lynch --universe most_actives --no-email
 ```
 
-Open `http://<host>:5002` and verify Command Center, Digest, Launchpad, and Lynch load.
+Open the **prod** dashboard at `http://127.0.0.1:5002` (dev also uses 5002 on a separate stack — do not run both at once). Verify Command Center, Digest, Launchpad, and Lynch load.
 
 ## Current schedule
 
-Do not infer schedules from old documentation. Verify the installed cron file after deployments:
+`docker/crontab` is the source of truth. Do not copy weekday `sp500_index` times from older manuals. Verify after deploy:
 
 ```bash
 docker exec quant-hub cat /etc/cron.d/quant-hub
 ```
 
-| When (ET) | Command |
-|---|---|
-| Mon–Fri 5:10 PM | `quant-launchpad-daily --universe sp500_index --no-email` |
-| Mon–Fri 5:35 PM | `quant-digest daily` |
-| First Sat of Jan/Apr/Jul/Oct, 12:30 AM | `quant-universe refresh sp500_index` |
-| Saturday 1:30 AM | `quant-launchpad-all --cache --report both` |
-| Saturday 5:00 AM | `quant-lynch-all --no-email` |
-| Saturday 6:00 AM | `quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +%F)` |
-| Saturday 7:50 AM | `quant-analytics weekly` |
-| Saturday 8:00 AM | `quant-digest weekly` |
+Weekday (ET): Launchpad on `most_actives`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth` (5:10–5:25 PM), then `quant-digest daily` at 5:40 PM. Saturday: Launchpad-all, staggered Lynch-all, ML labels, analytics, weekly digest.
 
 Scheduled scans persist results without email. Digest commands send mail. The weekly digest uses Launchpad ∩ Lynch overlap as the combined signal.
 
 ## Daily operations
 
 ```bash
-docker compose ps
+./scripts/run_env.sh prod ps
 docker exec quant-hub quant-hub status
 tail -100 /mnt/fast/quant-data/logs/cron.log
-docker exec quant-hub quant-hub report --strategy launchpad --universe sp500_index
-docker exec quant-hub quant-hub report --strategy lynch --universe sp500_index
+docker exec quant-hub quant-hub report --strategy launchpad --universe most_actives
+docker exec quant-hub quant-hub report --strategy lynch --universe most_actives
 ```
 
-Current manual recovery commands:
+Current manual recovery commands (match `docker/crontab`; prod container `quant-hub`):
 
 ```bash
-docker exec quant-hub quant-launchpad-daily --universe sp500_index --no-email
+docker exec quant-hub quant-launchpad-daily --universe most_actives --no-email
 docker exec quant-hub quant-launchpad-all --cache --report both
-docker exec quant-hub quant-lynch --universe sp500_index --no-email
+docker exec quant-hub quant-lynch --universe most_actives --no-email
 docker exec quant-hub quant-lynch-all --no-email
 docker exec quant-hub quant-analytics weekly
 docker exec quant-hub quant-digest weekly --rebuild-analytics
@@ -115,7 +111,7 @@ Back up Postgres before broad backfills. Never truncate `scan_runs` on the ML da
 
 | Symptom | Checks | Recovery |
 |---|---|---|
-| Database unreachable | `docker compose ps`; `docker compose logs quant-hub-db --tail 50` | Start the DB; validate `.env` and host/container DSNs |
+| Database unreachable | `./scripts/run_env.sh prod ps`; `./scripts/run_env.sh prod logs postgres --tail 50` | Start with `run_env.sh`; validate `.env.prod` (dev: `.env.dev` / `quant-hub-db-dev`) |
 | Dashboard has no scan | `quant-hub status`; selected product/universe/date | Run `quant-launchpad` or `quant-lynch` for the needed universe |
 | Cron missed a run | `ps aux \| grep cron`; `cron.log`; installed crontab | Restart `quant-hub`, then run the exact missed command manually |
 | Slow scan or Yahoo errors | `scan.log` and `cron.log` for 429/404 | Use `--cache`, avoid overlapping manual runs, retry later |
@@ -123,7 +119,7 @@ Back up Postgres before broad backfills. Never truncate `scan_runs` on the ML da
 | Weekly digest lacks overlap | Confirm Saturday Launchpad and Lynch runs; execute `quant-analytics weekly` | Rebuild analytics, then `quant-digest weekly --rebuild-analytics` |
 | Labels incomplete | `quant-ml status` | Warm cache and rerun labels; recent runs need future bars |
 
-Inspect jobs directly:
+Inspect jobs directly (prod names; dev: `quant-hub-db-dev` / `quant_hub_dev`):
 
 ```bash
 docker exec quant-hub-db psql -U quant -d quant_hub -c \
@@ -131,6 +127,8 @@ docker exec quant-hub-db psql -U quant -d quant_hub -c \
 ```
 
 ## Backups and maintenance
+
+`/mnt/fast/quant-data` is the **prod** data root. Dev does not use this path.
 
 ```bash
 mkdir -p /mnt/fast/quant-data/backups
@@ -142,15 +140,15 @@ After code, dependency, Dockerfile, or crontab changes:
 
 ```bash
 cd /opt/stacks/quant-hub
-docker compose up -d --build quant-hub
+./scripts/run_env.sh prod up --build -d
 docker exec quant-hub quant-hub init-db
 docker exec quant-hub quant-hub status
 ```
 
-After `.env` changes, recreate rather than merely restart:
+After `.env.prod` changes, recreate rather than merely restart:
 
 ```bash
-docker compose up -d --force-recreate quant-hub
+./scripts/run_env.sh prod up -d --force-recreate
 ```
 
 ## Security baseline
@@ -158,6 +156,6 @@ docker compose up -d --force-recreate quant-hub
 - Keep dashboard and Postgres on a trusted network; the dashboard has no built-in authentication.
 - Firewall or remove host access to Postgres if host-side tools do not require it.
 - Use strong database and SMTP credentials.
-- Do not expose `.env`, cron environment files, backups, or exports.
+- Do not expose `.env.prod`, `.env.dev`, cron environment files, backups, or exports.
 
 See [Architecture Gaps](ARCHITECTURE_GAPS.md) for tracked platform and security gaps.

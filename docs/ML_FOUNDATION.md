@@ -1,8 +1,11 @@
 # Launchpad ML Foundation
 
 **Scope:** Launchpad only
+**Stack install:** [SETUP_GUIDE.md](SETUP_GUIDE.md)  
 **Detailed operator workflow:** [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md)
-**Last updated:** 2026-08-27
+**Last updated:** 2026-09-06
+
+Start the stack with `./scripts/run_env.sh {dev|stage|prod}`. See [SETUP_GUIDE.md](SETUP_GUIDE.md). **`docker/crontab` is the schedule source of truth.**
 
 ## Purpose
 

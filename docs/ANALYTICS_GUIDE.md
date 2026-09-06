@@ -1,11 +1,11 @@
 # Quant Hub Analytics Guide
 
 **Scope:** Launchpad technical persistence, Lynch fundamentals, and Launchpad ∩ Lynch overlap
-**Last updated:** 2026-07-19
+**Last updated:** 2026-09-06
 
-Postgres is the analysis source of truth. Each product run is unique by `(scan_date, strategy_id, universe_id)`; a same-day rerun replaces it.
+Install: [SETUP_GUIDE.md](SETUP_GUIDE.md) via `./scripts/run_env.sh {dev|stage|prod}`. Postgres is the analysis source of truth. Each product run is unique by `(scan_date, strategy_id, universe_id)`; a same-day rerun replaces it.
 
-Connect with:
+Connect with (prod names; dev: `quant-hub-db-dev` / `quant_hub_dev`):
 
 ```bash
 docker exec -it quant-hub-db psql -U quant -d quant_hub
@@ -13,12 +13,12 @@ docker exec -it quant-hub-db psql -U quant -d quant_hub
 
 ## What accumulates
 
+`docker/crontab` is the schedule source of truth. Do not assume a weekday-only `sp500_index` 5:10 PM run.
+
 | Cadence | Data |
 |---|---|
-| Mon–Fri | Launchpad `sp500_index` run, then daily digest |
-| Saturday 1:30 AM | Launchpad across stock universes |
-| Saturday 5:00 AM | Lynch across stock universes |
-| Saturday 7:50 AM | Weekly analytics payload for the digest |
+| Mon–Fri | Launchpad on the crontab universes, then daily digest |
+| Saturday | Launchpad-all, Lynch-all, labels, then weekly analytics + digest |
 
 `scan_runs` holds aggregates and `ticker_results` holds one full JSONB result per ticker. Use `signal_outcomes` only for Launchpad ML label analysis.
 

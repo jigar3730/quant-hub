@@ -2,7 +2,7 @@
 
 **Baseline:** Launchpad technical scanner + ML and Lynch fundamentals
 **Status:** Living risk register
-**Last updated:** 2026-08-27
+**Last updated:** 2026-09-06
 
 ## Current architecture
 
@@ -13,7 +13,7 @@ cron + Streamlit dashboard + Launchpad/Lynch CLIs
                      └── PostgreSQL → dashboard, digests, ML labels/models
 ```
 
-The single `quant-hub` container hosts cron, dashboard, and product CLIs. `quant-hub-db` stores scan results, labels, model registry, and job audit records. Scheduled flow is weekday Launchpad, Saturday Launchpad coverage, Lynch coverage, Launchpad labeling, analytics, and digests. `docker/crontab` is authoritative.
+Each environment runs one app container and one Postgres container (`quant-hub` / `quant-hub-db` in **prod**; `quant-hub-dev` / `quant-hub-db-dev` in **dev**). Start them with `./scripts/run_env.sh`, not bare `docker compose up`. Scheduled flow is weekday Launchpad, Saturday coverage, Lynch, labeling, analytics, and digests. **`docker/crontab` is authoritative** — there is no weekday-only `sp500_index` 5:10 PM job. Port 5002 and `/mnt/fast/quant-data` are prod, not universal.
 
 Implemented controls include parameterized SQL, same-day upsert idempotency, Postgres health checking, product-specific ticker history, cache support, point-in-time Launchpad backfill, forward labels, and job audit records.
 

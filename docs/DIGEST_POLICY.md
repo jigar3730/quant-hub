@@ -1,9 +1,11 @@
 # Quant Hub Digest Policy
 
 **Product scope:** Launchpad + Lynch
-**Last updated:** 2026-07-19
+**Last updated:** 2026-09-06
 
-Related: [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Runbook](RUNBOOK.md)
+Related: [Setup Guide](SETUP_GUIDE.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Launchpad ML Guide](LAUNCHPAD_ML_GUIDE.md) · [Runbook](RUNBOOK.md)
+
+Recreate after SMTP edits: `./scripts/run_env.sh prod up -d --force-recreate` (dev: `./scripts/run_env.sh dev`).
 
 ## Overview
 
@@ -11,12 +13,14 @@ Quant Hub sends two consolidated emails. Product scans persist to Postgres with 
 
 | Digest | When (ET) | Command | Primary data |
 |---|---|---|---|
-| Daily | Mon–Fri 5:35 PM | `quant-digest daily` | Launchpad on `sp500_index` |
-| Weekly | Saturday 8:00 AM | `quant-digest weekly` | Lynch plus Launchpad ∩ Lynch overlap |
+| Daily | See `docker/crontab` (currently Mon–Fri 5:40 PM) | `quant-digest daily` | Weekday Launchpad universes in crontab |
+| Weekly | See `docker/crontab` (currently Saturday 8:30 AM) | `quant-digest weekly` | Lynch plus Launchpad ∩ Lynch overlap |
+
+`docker/crontab` is the single source of truth for clock times. There is no weekday-only `sp500_index` 5:10 PM job.
 
 ## Daily Launchpad digest
 
-The daily digest follows the 5:10 PM ET `quant-launchpad-daily --universe sp500_index --no-email` run.
+The daily digest runs after the weekday Launchpad scans listed in `docker/crontab` (growth universes, not a single `sp500_index` 5:10 PM slot).
 
 | Section | Rule |
 |---|---|
@@ -58,8 +62,10 @@ docker exec quant-hub quant-digest daily --no-email
 
 ## Configuration
 
-SMTP requires `.env` values `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and comma-separated `EMAIL_TO`. After editing `.env`, recreate the app container:
+SMTP requires values in `.env.prod` (or `.env.dev` / `.env.stage`): `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, and comma-separated `EMAIL_TO`. After editing, recreate the app container:
 
 ```bash
-docker compose up -d --force-recreate quant-hub
+./scripts/run_env.sh prod up -d --force-recreate
 ```
+
+See [SETUP_GUIDE.md](SETUP_GUIDE.md).

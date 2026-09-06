@@ -2,7 +2,9 @@
 
 **Scope:** Launchpad, Lynch, and Launchpad ML
 **Schema source:** `src/quant_hub/infrastructure/postgres/schema.sql`
-**Last updated:** 2026-08-27
+**Last updated:** 2026-09-06
+
+Install: [SETUP_GUIDE.md](SETUP_GUIDE.md). Prod DB container `quant-hub-db` / database `quant_hub`. Dev: `quant-hub-db-dev` / `quant_hub_dev`. Paths under `/mnt/fast/quant-data` are **prod**.
 
 ## Data flow
 
@@ -108,11 +110,11 @@ Key fields include `pe_ratio`, `peg_ratio`, earnings growth, debt/equity, net ca
 | Layer | Location |
 |---|---|
 | Universe registry | `data/universes.json` |
-| Live Docker data | `/mnt/fast/quant-data/data/` |
-| Price cache | `/mnt/fast/quant-data/data/cache/prices/` |
-| ML features/models | `/mnt/fast/quant-data/data/ml/` |
-| Product exports | `/mnt/fast/quant-data/data/output/{launchpad,lynch}/` |
-| Logs | `/mnt/fast/quant-data/logs/` |
+| Live Docker data (**prod**) | `/mnt/fast/quant-data/data/` — not used by **dev** |
+| Price cache (prod) | `/mnt/fast/quant-data/data/cache/prices/` |
+| ML features/models (prod) | `/mnt/fast/quant-data/data/ml/` |
+| Product exports (prod) | `/mnt/fast/quant-data/data/output/{launchpad,lynch}/` |
+| Logs (prod) | `/mnt/fast/quant-data/logs/` |
 
 Postgres is richer and canonical; exports are flattened convenience artifacts.
 

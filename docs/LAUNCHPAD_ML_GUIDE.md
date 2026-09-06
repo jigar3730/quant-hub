@@ -2,7 +2,9 @@
 
 **Audience:** Operators tuning Launchpad on a small universe before scaling  
 **Last updated:** 2026-08-27
-**Related:** [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [ML Ops](ML_OPS.md) · [ML Foundation](ML_FOUNDATION.md) · [Runbook](RUNBOOK.md)
+**Related:** [Setup Guide](SETUP_GUIDE.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [ML Ops](ML_OPS.md) · [ML Foundation](ML_FOUNDATION.md) · [Runbook](RUNBOOK.md)
+
+Start the stack with `./scripts/run_env.sh {dev|stage|prod}`. Prod containers: `quant-hub` / `quant-hub-db`. Dev: `quant-hub-dev` / `quant-hub-db-dev`. `/mnt/fast/quant-data` is **prod**. **`docker/crontab` is the schedule source of truth.**
 
 ---
 
@@ -24,7 +26,7 @@ When the pipeline and signal quality look solid, expand the same commands to `sp
 
 | Check | Command / path |
 |-------|----------------|
-| Stack up | `docker compose ps` — `quant-hub` + `quant-hub-db` healthy |
+| Stack up | [SETUP_GUIDE.md](SETUP_GUIDE.md); `./scripts/run_env.sh prod ps` — `quant-hub` + `quant-hub-db` healthy (dev: `quant-hub-dev`) |
 | Schema | `docker exec quant-hub quant-hub init-db` |
 | DB empty or ready | `docker exec quant-hub quant-hub status` |
 | Universe on **live volume** | Host: `/mnt/fast/quant-data/data/universes/` (not only the git `data/` tree) |
@@ -240,7 +242,7 @@ Train / evaluate
 Most Launchpad thresholds live in `src/quant_hub/config.py` (`LAUNCHPAD_*`) and scoring in `src/quant_hub/scoring/launchpad.py`. After code changes:
 
 ```bash
-cd /opt/stacks/quant-hub && docker compose up -d --build quant-hub
+cd /opt/stacks/quant-hub && ./scripts/run_env.sh prod up --build -d
 ```
 
 Then re-run backfill with `--no-resume` only for the dates you need to refresh (expensive) — or live-scan recent weeks and label those.
@@ -265,19 +267,11 @@ docker exec quant-hub quant-ml train --strategy launchpad --universe sp500_index
 
 ## 8. Current schedule
 
-Authoritative file: `docker/crontab` (container TZ = America/New_York).
+**`docker/crontab` is the single source of truth** (container TZ = America/New_York). Do not use weekday `sp500_index` 5:10 PM tables from older docs.
 
-| When (ET) | Job |
-|-----------|-----|
-| Mon–Fri **5:10 PM** | `quant-launchpad-daily --universe sp500_index --no-email` |
-| Mon–Fri **5:35 PM** | `quant-digest daily` (Launchpad tiers) |
-| Sat **12:30 AM** (quarterly) | `quant-universe refresh sp500_index` |
-| Sat **1:30 AM** | `quant-launchpad-all --cache --report both` |
-| Sat **5:00 AM** | `quant-lynch-all --no-email` |
-| Sat **6:00 AM** | `quant-ml label --strategy launchpad --universe sp500_index --since $(date -d '90 days ago' +%F)` |
-| Sat **7:50 / 8:00 AM** | analytics + weekly Lynch digest |
+Weekday cron currently scans `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth`, then sends the daily digest. Saturday: Launchpad-all, Lynch-all, ML labels, analytics, weekly digest. Read the crontab file after every deploy.
 
-For tuning, run Launchpad manually on `mega_runners` (see §3–§7). After editing crontab: `docker compose up -d --build quant-hub`.
+For tuning, run Launchpad manually on `mega_runners` (see §3–§7). After editing crontab: `./scripts/run_env.sh prod up --build -d`. Dev uses `./scripts/run_env.sh dev` and container `quant-hub-dev`. Paths under `/mnt/fast/quant-data` are **prod**.
 
 ---
 
@@ -314,4 +308,4 @@ docker exec quant-hub quant-ml models --strategy launchpad --universe mega_runne
 | Labels all `insufficient_future_bars` | Run `quant-ml warm-cache` first; recent scan dates need more future bars |
 | Empty training set | Need backfill + labels; ensure Tier 1–3 rows exist (`setups_only`) |
 | Export path missing | Check `/mnt/fast/quant-data/data/ml/features/` on the host volume |
-| Code changes not visible in container | Rebuild: `docker compose up -d --build quant-hub` (or mount `PYTHONPATH` for one-offs) |
+| Code changes not visible in container | Rebuild: `./scripts/run_env.sh prod up --build -d` (dev bind-mounts `./src`) |

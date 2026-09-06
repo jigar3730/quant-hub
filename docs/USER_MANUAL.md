@@ -2,7 +2,7 @@
 
 **Product:** Launchpad (quality technical scanner + ML) and Lynch (fundamental screen)
 **Audience:** Analysts, traders, and operators
-**Last updated:** 2026-07-19
+**Last updated:** 2026-09-06
 
 ## What Quant Hub does
 
@@ -17,14 +17,14 @@ The primary combined research signal is **Launchpad ∩ Lynch overlap**: a ticke
 
 ## Getting started
 
-Open the dashboard at `http://<host>:5002`. It reads Postgres; file exports are convenience copies only.
+Install and start the stack with [SETUP_GUIDE.md](SETUP_GUIDE.md) (`./scripts/run_env.sh {dev|stage|prod}`). Then open the dashboard: **prod** and **dev** both default to `http://127.0.0.1:5002` on different stacks — do not run them together. Stage is port **5003**. `/mnt/fast/quant-data` is prod only. It reads Postgres; file exports are convenience copies only.
 
 Before investigating an empty page, confirm the stack and recent runs:
 
 ```bash
 cd /opt/stacks/quant-hub
-docker compose ps
-docker exec quant-hub quant-hub status
+./scripts/run_env.sh prod ps    # or: ./scripts/run_env.sh dev ps
+docker exec quant-hub quant-hub status   # dev: quant-hub-dev
 ```
 
 ## Dashboard pages
@@ -67,15 +67,15 @@ Lynch has **Candidates**, **Overview**, **All Tickers**, and **Ticker Detail** t
 
 ## Commands
 
-Run production commands inside the container:
+Run commands inside the **prod** container `quant-hub`. For the practice stack use `quant-hub-dev` (see [SETUP_GUIDE.md](SETUP_GUIDE.md)). Port 5002 and `/mnt/fast/quant-data` are prod, not every environment.
 
 ```bash
 docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
-docker exec quant-hub quant-launchpad-daily --universe sp500_index --no-email
+docker exec quant-hub quant-launchpad-daily --universe most_actives --no-email
 docker exec quant-hub quant-launchpad-all --cache --report both
-docker exec quant-hub quant-lynch --universe sp500_index --no-email
+docker exec quant-hub quant-lynch --universe most_actives --no-email
 docker exec quant-hub quant-lynch-all --no-email
-docker exec quant-hub quant-hub report --strategy launchpad --universe sp500_index
+docker exec quant-hub quant-hub report --strategy launchpad --universe most_actives
 docker exec quant-hub quant-hub ticker history NVDA --json
 ```
 
@@ -87,7 +87,7 @@ Same-day reruns replace the persisted snapshot for `(scan_date, strategy_id, uni
 
 The authoritative registry is `data/universes.json`. Current IDs are `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sp500_index`, and `mega_runners`.
 
-`sp500_index` is the weekday default and is refreshed from SPY holdings quarterly. `mega_runners` is a small curated universe for Launchpad ML tuning.
+Weekday cron universes are listed in `docker/crontab` (currently the four growth lists, not a single `sp500_index` 5:10 PM job). `sp500_index` remains a named universe you can scan or refresh manually. `mega_runners` is a small curated list for Launchpad ML tuning.
 
 On production, the container reads the bind-mounted live data at `/mnt/fast/quant-data/data/`. Copy repository changes there before running a scan.
 
@@ -95,8 +95,8 @@ On production, the container reads the bind-mounted live data at `/mnt/fast/quan
 
 | Digest | Schedule (ET) | Content |
 |---|---|---|
-| Daily | Mon–Fri 5:35 PM | Launchpad Tier 1, Tier 2 when the regime permits, changes, and persistence |
-| Weekly | Saturday 8:00 AM | Lynch candidates, with Launchpad ∩ Lynch as the intended combined signal |
+| Daily | Mon–Fri 5:40 PM ET | Launchpad Tier 1, Tier 2 when the regime permits, changes, and persistence |
+| Weekly | Saturday 8:30 AM ET | Lynch candidates, with Launchpad ∩ Lynch as the intended combined signal |
 
 Manual commands:
 
@@ -110,17 +110,7 @@ See [Digest Policy](DIGEST_POLICY.md) for selection and idempotency rules.
 
 ## Schedule
 
-`docker/crontab` is authoritative; its timezone is America/New_York.
-
-| When | Job |
-|---|---|
-| Mon–Fri 5:10 PM | Launchpad on `sp500_index` |
-| Mon–Fri 5:35 PM | Daily Launchpad digest |
-| First Saturday of Jan/Apr/Jul/Oct, 12:30 AM | Refresh `sp500_index` |
-| Saturday 1:30 AM | Launchpad all stock universes |
-| Saturday 5:00 AM | Lynch all stock universes |
-| Saturday 6:00 AM | Launchpad labels for recent `sp500_index` runs |
-| Saturday 7:50 / 8:00 AM | Weekly analytics and weekly digest |
+`docker/crontab` is authoritative (America/New_York). Weekday Launchpad runs `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (5:10–5:25 PM), then the daily digest at 5:40 PM. Saturday coverage, Lynch, labels, analytics, and the weekly digest follow the crontab — do not copy older `sp500_index` 5:10 PM tables.
 
 ## Launchpad ML
 
@@ -150,4 +140,4 @@ No.
 
 ## Related docs
 
-[Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Digest Policy](DIGEST_POLICY.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Data Model](DATA_MODEL.md) · [Runbook](RUNBOOK.md)
+[Setup Guide](SETUP_GUIDE.md) · [Launchpad Scanner](LAUNCHPAD_SCANNER.md) · [Lynch Scanner](LYNCH_SCANNER.md) · [Digest Policy](DIGEST_POLICY.md) · [Analytics Guide](ANALYTICS_GUIDE.md) · [Data Model](DATA_MODEL.md) · [Runbook](RUNBOOK.md)

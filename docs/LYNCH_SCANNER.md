@@ -40,7 +40,7 @@ Universe tickers
 
 **Entry point:** `quant-lynch` / `quant-lynch-all` → `LynchScanService.run()` → `LynchScannerRunner.run()` in `src/quant_hub/lynch/runner.py`.
 
-**Schedule:** Saturday **5:00 AM ET** — `quant-lynch-all --no-email` on all stock universes (`lynch_enabled: true`; ETFs skipped). Weekly digest still highlights **`sp500_index`** Lynch results.
+**Schedule:** `docker/crontab` is the source of truth (staggered Saturday `quant-lynch-all` windows). Do not copy a single Saturday 5:00 AM table from older manuals. ETFs are skipped (`lynch_enabled`).
 
 Each scan processes every ticker in the selected universe. Results for the same `(scan_date, lynch, universe_id)` replace the previous run (upsert).
 

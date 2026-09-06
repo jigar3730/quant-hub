@@ -21,26 +21,6 @@ Each module follows the same shape, so you always know where you are:
 
 Work the modules in order. Module 7 (operations) only makes sense once you understand what the pipeline produces.
 
-### Your sandbox (this `dev` branch)
-
-This course runs against the **isolated development stack**, not production. That is a core ML hygiene habit, not a nicety: experiments write labels, models, and caches. Mixing those with the live scanner would contaminate both your learning and the production record.
-
-On this branch, `docker-compose.yml` already points at the sandbox you created:
-
-| Role | Production (leave it alone) | **This course** |
-|---|---|---|
-| App container | `quant-hub` | **`quant-hub-dev`** |
-| Database container | `quant-hub-db` | **`quant-hub-db-dev`** |
-| Dashboard | port **5002** | port **5003** |
-| Postgres on the host | `127.0.0.1:5433` | `127.0.0.1:5434` |
-| Data volume | `/mnt/fast/quant-data/data/` | `/mnt/fast/quant-data/data-dev/` |
-| Logs | `/mnt/fast/quant-data/logs/` | `/mnt/fast/quant-data/logs-dev/` |
-| Postgres files | `/mnt/fast/quant-data/postgres/` | `/mnt/fast/quant-data/postgres-dev/` |
-
-Every `docker exec` in this document uses `quant-hub-dev`. If a command fails with "No such container", you are either on the wrong host or talking to production by habit.
-
-The sandbox database starts **empty**. Cron still starts inside the container (same image as production), so keep SMTP unset in the sandbox `.env` unless you *want* test emails. You will copy universe files onto `data-dev` yourself — the git tree is not what the container reads.
-
 ### The one thing to understand before anything else
 
 > **This system does not use machine learning to make its live decisions.**
@@ -133,21 +113,18 @@ ML_LABEL_CACHE_TTL_HOURS = 8760        # 1 year
 
 `FEATURE_SCHEMA_VERSION` is worth pausing on. It's stamped into every exported row and every registry entry. When you change what a feature *means*, you bump this string — otherwise, six months later, nobody can tell whether two models were trained on comparable data. This is versioning applied to data, and it is a habit worth stealing for your own projects.
 
-**Where things live.** The container mounts a host volume, so the git checkout is *not* what runs. On **this branch** that volume is the sandbox:
+**Where things live.** The container mounts a host volume, so the git checkout is *not* what runs:
 
-| Container | Host (sandbox) |
+| Container | Host |
 |---|---|
-| `/app/data/cache/prices/1d/5y/` | `/mnt/fast/quant-data/data-dev/cache/prices/1d/5y/` |
-| `/app/data/ml/features/` | `/mnt/fast/quant-data/data-dev/ml/features/` |
-| `/app/data/ml/models/` | `/mnt/fast/quant-data/data-dev/ml/models/` |
-| `/app/logs/ml.log` | `/mnt/fast/quant-data/logs-dev/ml.log` |
+| `/app/data/cache/prices/1d/5y/` | `/mnt/fast/quant-data/data/cache/prices/1d/5y/` |
+| `/app/data/ml/features/` | `/mnt/fast/quant-data/data/ml/features/` |
+| `/app/data/ml/models/` | `/mnt/fast/quant-data/data/ml/models/` |
+| `/app/logs/ml.log` | `/mnt/fast/quant-data/logs/ml.log` |
 
-This trips up nearly everyone once: you edit a universe file in `/opt/stacks/quant-hub/data/`, the container never sees it, and you get `Unknown universe`. Copy onto the **sandbox** volume:
+**Prod** mounts `/mnt/fast/quant-data`. **Dev** uses Docker volumes plus bind-mounted repo universe files. Port 5002 + `/mnt/fast/quant-data` is not the practice stack. First-time install: [SETUP_GUIDE.md](SETUP_GUIDE.md). Do not `cp .env.example .env` or run bare `docker compose up`.
 
-```bash
-cp /opt/stacks/quant-hub/data/universes.json /mnt/fast/quant-data/data-dev/universes.json
-cp -r /opt/stacks/quant-hub/data/universes /mnt/fast/quant-data/data-dev/
-```
+On **prod**, this trips up nearly everyone once: you edit a universe file in `/opt/stacks/quant-hub/data/`, the container never sees it, and you get `Unknown universe`. Copy to the volume, or use the **dev** bind-mount.
 
 **The ML code itself** is small enough to read in an afternoon — that's intentional, and it's why this is a good place to learn:
 
@@ -166,53 +143,37 @@ src/quant_hub/cli/ml.py                     # the quant-ml command
 
 ## 1.3 Do it — confirm your environment before you learn anything else
 
-Every command below runs inside the **sandbox** container `quant-hub-dev`. Run them one at a time and read the output.
+Every command below runs inside the container. Run them one at a time and read the output.
 
-**Step 1 — is the sandbox alive?**
+**Step 1 — is the stack alive?**
 
 ```bash
-docker compose ps
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep quant-hub
+./scripts/run_env.sh prod ps
+# practice: ./scripts/run_env.sh dev ps
 ```
 
-You want **`quant-hub-dev`** and **`quant-hub-db-dev`** both up, with the database healthy. Confirm ports **5003** (dashboard) and **5434** (Postgres). If you see `quant-hub` on **5002** instead, you are looking at production — do not run this course there.
+You want the app and Postgres containers up, with the database healthy. First-time Docker setup: [SETUP_GUIDE.md](SETUP_GUIDE.md). ML work touches Postgres constantly; if the DB is down, every later command fails with `Database unreachable` and you'll waste time debugging the wrong layer.
 
-ML work touches Postgres constantly; if the DB is down, every later command fails with `Database unreachable` and you'll waste time debugging the wrong layer.
-
-**Step 2 — seed the empty data volume**
-
-A new sandbox has no universe files until you copy them. This is the same lesson as "the git tree is not the runtime":
+**Step 2 — can the ML tooling reach the database?**
 
 ```bash
-mkdir -p /mnt/fast/quant-data/data-dev /mnt/fast/quant-data/logs-dev
-cp /opt/stacks/quant-hub/data/universes.json /mnt/fast/quant-data/data-dev/universes.json
-cp -r /opt/stacks/quant-hub/data/universes /mnt/fast/quant-data/data-dev/
-docker exec quant-hub-dev quant-universe show mega_runners
+docker exec quant-hub quant-ml status
 ```
 
-If `show` prints the ticker list, the container can see your files. Dashboard: `http://<host>:5003`.
+`quant-ml status` counts rows in `signal_outcomes` grouped by label status. Right now, treat it purely as a connectivity check — the numbers will mean something after Module 4. Note it counts **globally**, across every strategy and universe, so it's a smoke test rather than a precise health metric.
 
-**Step 3 — can the ML tooling reach the database?**
-
-```bash
-docker exec quant-hub-dev quant-ml status
-```
-
-On a brand-new database this prints zeros (or `signal_outcomes: 0`). That is success: connectivity works, and you have not mixed in production labels. The numbers will mean something after Module 4.
-
-**Step 4 — is LightGBM actually installed?**
+**Step 3 — is LightGBM actually installed?**
 
 ```bash
-docker exec quant-hub-dev python -c "import lightgbm, sklearn; print(lightgbm.__version__, sklearn.__version__)"
+docker exec quant-hub python -c "import lightgbm, sklearn; print(lightgbm.__version__, sklearn.__version__)"
 ```
 
 Worth checking explicitly: LightGBM is imported *lazily*, inside `train_lightgbm_classifier`, not at module import. So a missing `[ml]` extra doesn't fail at startup — it fails minutes into a training run, after you've already waited.
 
 ## 1.4 Checkpoint
 
-- Why do we train in `quant-hub-dev` instead of the production `quant-hub` container?
 - Why does the training command fail late rather than immediately if LightGBM is missing?
-- If you edit `data/universes/mega_runners.txt` in the git tree, will `quant-hub-dev` see it?
+- If you edit `data/universes/mega_runners.txt` in the git tree, will the container see it?
 - What does `FEATURE_SCHEMA_VERSION` protect you from?
 
 ---
@@ -253,7 +214,7 @@ If both miss, the row is marked `no_price` rather than being silently dropped. R
 ## 2.3 Do it — warm the cache
 
 ```bash
-docker exec quant-hub-dev quant-ml warm-cache --universe mega_runners
+docker exec quant-hub quant-ml warm-cache --universe mega_runners
 ```
 
 **What this does, piece by piece:**
@@ -265,7 +226,7 @@ docker exec quant-hub-dev quant-ml warm-cache --universe mega_runners
 If you need to force a refetch past the cache TTL:
 
 ```bash
-docker exec quant-hub-dev quant-ml warm-cache --universe mega_runners --force-refresh
+docker exec quant-hub quant-ml warm-cache --universe mega_runners --force-refresh
 ```
 
 Use `--force-refresh` sparingly. It bypasses the cache entirely and hits Yahoo for every ticker, which is exactly how you get rate-limited.
@@ -280,7 +241,7 @@ You'll get a line like `tickers=9 rows=11340`. Two quick sanity checks:
 Verify on disk:
 
 ```bash
-docker exec quant-hub-dev ls -la /app/data/cache/prices/1d/5y/ | head -20
+docker exec quant-hub ls -la /app/data/cache/prices/1d/5y/ | head -20
 ```
 
 ## 2.5 Checkpoint
@@ -356,13 +317,13 @@ A unit test that fails when someone adds an outcome column to the feature list i
 You need historical scans first. If they don't exist yet, create point-in-time ones:
 
 ```bash
-docker exec quant-hub-dev quant-backfill coverage --strategy launchpad --universe mega_runners --since 2024-01-01
+docker exec quant-hub quant-backfill coverage --strategy launchpad --universe mega_runners --since 2024-01-01
 ```
 
 `coverage` is a **preview**. It plans Saturday scan dates, compares them to what's already in Postgres, and prints planned/existing/missing counts plus the earliest date your cache can support. Always run it before a real backfill — it costs seconds and prevents a long job that turns out to be misaimed.
 
 ```bash
-docker exec quant-hub-dev quant-backfill launchpad --universe mega_runners --since 2024-01-01
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2024-01-01
 ```
 
 This replays historical Saturdays. The critical mechanic: for each date, daily prices are **truncated to that date** (`truncate_daily_to_date`) before scoring, so a 2024 scan cannot see 2025 prices. That's how the project manufactures honest training history. Useful flags: `--dry-run` (score without writing), `--no-resume` (recompute dates already stored), `--until` (stop early).
@@ -370,7 +331,7 @@ This replays historical Saturdays. The critical mechanic: for each date, daily p
 Now export:
 
 ```bash
-docker exec quant-hub-dev quant-ml export-features \
+docker exec quant-hub quant-ml export-features \
   --strategy launchpad \
   --universe mega_runners \
   --since 2024-01-01 \
@@ -388,7 +349,7 @@ Files land at `/app/data/ml/features/launchpad/mega_runners/features_*_h20.parqu
 Inspect the actual data — do this every time you change anything:
 
 ```bash
-docker exec quant-hub-dev python -c "
+docker exec quant-hub python -c "
 import pandas as pd, glob
 f = sorted(glob.glob('/app/data/ml/features/launchpad/mega_runners/*_h20.parquet'))[-1]
 df = pd.read_parquet(f)
@@ -445,7 +406,7 @@ Step 2 is the one that matters most. `df[df["Date"] > anchor_date]` — strictly
 ## 4.3 Do it — compute labels
 
 ```bash
-docker exec quant-hub-dev quant-ml label \
+docker exec quant-hub quant-ml label \
   --strategy launchpad \
   --universe mega_runners \
   --since 2024-01-01
@@ -562,7 +523,7 @@ That registry row is the "what exactly did I run?" record. Without it, models in
 ## 5.3 Do it — train
 
 ```bash
-docker exec quant-hub-dev quant-ml train \
+docker exec quant-hub quant-ml train \
   --strategy launchpad \
   --universe mega_runners \
   --since 2024-01-01 \
@@ -596,7 +557,7 @@ Read it in this order:
 To see why rows disappeared, check the drop counters in the log:
 
 ```bash
-docker exec quant-hub-dev grep "Training set built" /app/logs/ml.log | tail -5
+docker exec quant-hub grep "Training set built" /app/logs/ml.log | tail -5
 ```
 
 ```text
@@ -658,7 +619,7 @@ It does **not** score your saved `model.txt`. Each fold trains a fresh model. So
 **The saved artifact:**
 
 ```bash
-docker exec quant-hub-dev quant-ml evaluate --model-id 3
+docker exec quant-hub quant-ml evaluate --model-id 3
 ```
 
 This loads `model.txt` and `features.json`, rebuilds the same dataset, and scores rows on or after the recorded `eval_split_date`. Results merge into `ml_models.metrics.evaluation`, so the registry accumulates history rather than overwriting it.
@@ -666,7 +627,7 @@ This loads `model.txt` and `features.json`, rebuilds the same dataset, and score
 **The process:**
 
 ```bash
-docker exec quant-hub-dev quant-ml evaluate \
+docker exec quant-hub quant-ml evaluate \
   --model-id 3 \
   --walk-forward \
   --train-weeks 52 \
@@ -725,7 +686,7 @@ This project is deliberately modest here, and studying an honest, partial implem
 | Sat 07:00–07:36 | `quant-ml label --strategy launchpad --universe <each> --since $(date -d '90 days ago' +%Y-%m-%d)` |
 
 ```bash
-docker exec quant-hub-dev cat /etc/cron.d/quant-hub
+docker exec quant-hub cat /etc/cron.d/quant-hub
 ```
 
 The weekday scans create signals; Saturday labeling harvests outcomes that have matured. The rolling 90-day window is well-chosen: long enough for 63-day horizons to complete, short enough to stay cheap.
@@ -737,13 +698,13 @@ The weekday scans create signals; Saturday labeling harvests outcomes that have 
 The full manual cycle, which is Modules 2–6 in sequence:
 
 ```bash
-docker exec quant-hub-dev quant-backfill coverage --strategy launchpad --universe mega_runners --since 2024-01-01
-docker exec quant-hub-dev quant-backfill launchpad --universe mega_runners --since 2024-01-01
-docker exec quant-hub-dev quant-ml warm-cache --universe mega_runners
-docker exec quant-hub-dev quant-ml label --strategy launchpad --universe mega_runners --since 2024-01-01
-docker exec quant-hub-dev quant-ml export-features --strategy launchpad --universe mega_runners --since 2024-01-01 --horizon 20
-docker exec quant-hub-dev quant-ml train --strategy launchpad --universe mega_runners --since 2024-01-01 --horizon 20 --name run_$(date +%Y%m%d)
-docker exec quant-hub-dev quant-ml evaluate --model-id <id> --walk-forward
+docker exec quant-hub quant-backfill coverage --strategy launchpad --universe mega_runners --since 2024-01-01
+docker exec quant-hub quant-backfill launchpad --universe mega_runners --since 2024-01-01
+docker exec quant-hub quant-ml warm-cache --universe mega_runners
+docker exec quant-hub quant-ml label --strategy launchpad --universe mega_runners --since 2024-01-01
+docker exec quant-hub quant-ml export-features --strategy launchpad --universe mega_runners --since 2024-01-01 --horizon 20
+docker exec quant-hub quant-ml train --strategy launchpad --universe mega_runners --since 2024-01-01 --horizon 20 --name run_$(date +%Y%m%d)
+docker exec quant-hub quant-ml evaluate --model-id <id> --walk-forward
 ```
 
 ## 7.3 Monitoring — what exists, and what honestly doesn't
@@ -752,15 +713,15 @@ docker exec quant-hub-dev quant-ml evaluate --model-id <id> --walk-forward
 
 | Source | Shows |
 |---|---|
-| `/mnt/fast/quant-data/logs-dev/ml.log` | Every `quant-ml` run |
-| `/mnt/fast/quant-data/logs-dev/cron.log` | Scheduled jobs |
-| `/mnt/fast/quant-data/logs-dev/backfill.log` | Historical scans |
+| `/mnt/fast/quant-data/logs/ml.log` | Every `quant-ml` run |
+| `/mnt/fast/quant-data/logs/cron.log` | Scheduled jobs |
+| `/mnt/fast/quant-data/logs/backfill.log` | Historical scans |
 | `quant-ml status` | Global label-status counts |
 | `quant-ml models` | Registry with holdout AUC |
 | SQL on `signal_outcomes` / `ml_models` | Everything, precisely |
 
 ```bash
-docker exec quant-hub-dev quant-ml models --strategy launchpad --limit 20
+docker exec quant-hub quant-ml models --strategy launchpad --limit 20
 ```
 
 ```sql
@@ -785,8 +746,8 @@ The mitigating factor is real: with no live inference, drift can't hurt users. I
 **A practical weekly check** (two minutes):
 
 ```bash
-docker exec quant-hub-dev grep "quant-ml label" /app/logs/cron.log | tail -8
-docker exec quant-hub-dev quant-ml status
+docker exec quant-hub grep "quant-ml label" /app/logs/cron.log | tail -8
+docker exec quant-hub quant-ml status
 ```
 
 You're confirming the four Saturday jobs ran and that `no_price` isn't climbing.
@@ -797,15 +758,15 @@ When something breaks, work bottom-up: **database → cache → scans → labels
 
 | Symptom | First check | Fix |
 |---|---|---|
-| `Database unreachable` | `docker compose ps` | Fix `DATABASE_URL`; restart DB |
-| `Unknown universe 'X'` | Files on the **sandbox volume**, not git | Copy to `/mnt/fast/quant-data/data-dev/` |
+| `Database unreachable` | `./scripts/run_env.sh prod ps` | Fix `DATABASE_URL` in `.env.prod`; recreate |
+| `Unknown universe 'X'` | Files on the **volume**, not git | Copy to `/mnt/fast/quant-data/data/` |
 | Labels all `insufficient_future_bars` | Are dates recent? | Normal if so; else warm cache |
 | Many `no_price` | `ls` the 5y cache | `warm-cache --force-refresh`, relabel |
 | Empty training set | `grep "Training set built"` in `ml.log` | Read the drop counters |
 | Train exits 1, `model_id=None` | Same log line | Usually no `ok` labels or all tiers filtered |
 | Walk-forward returns nothing | Count distinct scan dates | Lower `--train-weeks`/`--test-weeks` |
 | Unique violation on `ml_models.name` | Trained twice today, no `--name` | Pass `--name` |
-| Code change has no effect | Image is stale | `docker compose up -d --build quant-hub` |
+| Code change has no effect | Image is stale | `./scripts/run_env.sh prod up --build -d` |
 | Dashboard shows no ML | — | **Expected.** No live inference. |
 
 **Fallback behavior, stated plainly:** when the ML pipeline is broken, the product keeps working, because Launchpad is rule-based. There is no ML circuit breaker because there is nothing to break. If Yahoo is down, scans degrade to `no_price_data` and labels to `no_price` — and you should **not** delete `scan_runs` to force a retry. Those runs are your training history, and deletion cascades to labels.
@@ -817,13 +778,13 @@ Since nothing serves models, "rollback" means restoring the research baseline an
 **Step 1 — find the model you want:**
 
 ```bash
-docker exec quant-hub-dev quant-ml models --strategy launchpad --universe mega_runners
+docker exec quant-hub quant-ml models --strategy launchpad --universe mega_runners
 ```
 
 **Step 2 — confirm the artifact exists:**
 
 ```bash
-docker exec quant-hub-dev ls -la /app/data/ml/models/<older_name>/
+docker exec quant-hub ls -la /app/data/ml/models/<older_name>/
 ```
 
 You need both `model.txt` and `features.json`. Without the sidecar, `load_model_artifact` can't know the column order, and column order matters.
@@ -831,7 +792,7 @@ You need both `model.txt` and `features.json`. Without the sidecar, `load_model_
 **Step 3 — verify it still evaluates:**
 
 ```bash
-docker exec quant-hub-dev quant-ml evaluate --artifact-path /app/data/ml/models/<older_name>
+docker exec quant-hub quant-ml evaluate --artifact-path /app/data/ml/models/<older_name>
 ```
 
 Never mark a model as the baseline without confirming it loads and scores.
@@ -843,7 +804,7 @@ UPDATE ml_models SET status = 'archived' WHERE id = <new_bad_id>;
 UPDATE ml_models SET status = 'active'   WHERE id = <old_good_id>;
 ```
 
-**Step 5 — if files were overwritten**, restore from backup of `/mnt/fast/quant-data/data-dev/ml/models/`. There is no artifact versioning beyond unique names — which is exactly why Module 5 insists on `--name`.
+**Step 5 — if files were overwritten**, restore from backup of `/mnt/fast/quant-data/data/ml/models/`. There is no artifact versioning beyond unique names — which is exactly why Module 5 insists on `--name`.
 
 **Note:** rolling back *scanner rules* is different. Those are code, so it's a git revert plus rebuild. Historical `ticker_results` keep whatever the engine produced at the time, which is correct — you don't want history rewritten under you.
 
@@ -858,9 +819,10 @@ UPDATE ml_models SET status = 'active'   WHERE id = <old_good_id>;
 | Quarterly | Retrain on the largest universe you have; compare walk-forward to the previous model |
 
 ```bash
-docker exec quant-hub-db-dev pg_dump -U quant quant_hub \
+# Prod names and path. Dev: quant-hub-db-dev / quant_hub_dev (no /mnt/fast/quant-data).
+docker exec quant-hub-db pg_dump -U quant quant_hub \
   -t scan_runs -t ticker_results -t signal_outcomes -t ml_models \
-  > /mnt/fast/quant-data/backups/ml-dev_$(date +%F).sql
+  > /mnt/fast/quant-data/backups/ml_$(date +%F).sql
 ```
 
 Restore drills are **not** automated ([Architecture Gaps](ARCHITECTURE_GAPS.md), H2). An untested backup is a hypothesis.
@@ -988,5 +950,5 @@ Older docs in this repo state that Saturday labeling covers `sp500_index` at 6:0
 The habit to build: **verify the running configuration, not the documentation** — including this document.
 
 ```bash
-docker exec quant-hub-dev cat /etc/cron.d/quant-hub
+docker exec quant-hub cat /etc/cron.d/quant-hub
 ```

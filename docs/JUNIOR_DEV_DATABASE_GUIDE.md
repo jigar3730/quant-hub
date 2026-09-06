@@ -1,7 +1,9 @@
 # Quant Hub Junior Developer Database Guide
 
 **Scope:** Launchpad and Lynch only
-**Last updated:** 2026-07-19
+**Last updated:** 2026-09-06
+
+Stack install: [SETUP_GUIDE.md](SETUP_GUIDE.md). Prod database container is `quant-hub-db` / database `quant_hub`. Dev is `quant-hub-db-dev` / `quant_hub_dev`. Do not use `cp .env.example .env` or bare `docker compose up`. `/mnt/fast/quant-data` is prod only.
 
 ## Mental model
 
@@ -22,9 +24,13 @@ Only these product strategy IDs are valid for current scan data:
 ## Connect and inspect
 
 ```bash
+# Prod
 docker exec -it quant-hub-db psql -U quant -d quant_hub
 docker exec quant-hub quant-hub status
-docker exec quant-hub quant-hub report --strategy launchpad --universe sp500_index
+
+# Dev
+docker exec -it quant-hub-db-dev psql -U quant -d quant_hub_dev
+docker exec quant-hub-dev quant-hub status
 ```
 
 ## Tables
