@@ -1,0 +1,31 @@
+# Isolated staging: prod-like Postgres tuning, separate host volumes, no source mount.
+# Create host dirs first:
+#   sudo mkdir -p /mnt/fast/quant-data-stage/{postgres,data,logs}
+services:
+  postgres:
+    container_name: quant-hub-db-stage
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=512MB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
+      -c effective_cache_size=1GB
+    volumes:
+      - /mnt/fast/quant-data-stage/postgres:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+
+  quant-hub:
+    container_name: quant-hub-stage
+    env_file:
+      - .env.stage
+    environment:
+      APP_ENV: stage
+      LOG_LEVEL: INFO
+    volumes:
+      - /mnt/fast/quant-data-stage/data:/app/data
+      - /mnt/fast/quant-data-stage/logs:/app/logs
+    ports:
+      - "${DASHBOARD_PORT:-5003}:5000"
+    restart: unless-stopped

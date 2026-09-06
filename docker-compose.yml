@@ -1,28 +1,17 @@
+# Shared services. Always pair with docker-compose.{dev,stage,prod}.yml
+# and --env-file .env.<env> (see scripts/run_env.sh or the Makefile).
 version: "3.8"
 
 services:
   postgres:
     image: postgres:16
-    container_name: quant-hub-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: quant
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: quant_hub
-    volumes:
-      - /mnt/fast/quant-data/postgres:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5433:5432"
-    # --- PERFORMANCE & METRICS TUNING ---
-    command: >
-      postgres 
-      -c shared_preload_libraries=pg_stat_statements
-      -c shared_buffers=1GB
-      -c work_mem=32MB
-      -c maintenance_work_mem=256MB
-      -c effective_cache_size=3GB
+      POSTGRES_USER: ${POSTGRES_USER:-quant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the env file}
+      POSTGRES_DB: ${POSTGRES_DB:-quant_hub}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U quant -d quant_hub"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-quant} -d ${POSTGRES_DB:-quant_hub}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,18 +20,14 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: quant-hub
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
-      TZ: America/New_York
-      DATABASE_URL: postgresql://quant:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/quant_hub
-    volumes:
-      - /mnt/fast/quant-data/data:/app/data
-      - /mnt/fast/quant-data/logs:/app/logs
+      TZ: ${TZ:-America/New_York}
+      APP_ENV: ${APP_ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-quant}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-quant_hub}
     ports:
-      - "5002:5000"
+      - "${DASHBOARD_PORT:-5002}:5000"

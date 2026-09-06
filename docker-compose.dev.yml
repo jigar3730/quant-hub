@@ -1,0 +1,34 @@
+# Local hot-reload: bind-mount source, local Postgres volume, debug ports.
+services:
+  postgres:
+    container_name: quant-hub-db-dev
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c shared_buffers=128MB
+      -c work_mem=8MB
+    volumes:
+      - quant-hub-pg-dev:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+
+  quant-hub:
+    container_name: quant-hub-dev
+    env_file:
+      - .env.dev
+    environment:
+      APP_ENV: dev
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./src:/app/src
+      - ./data/universes.json:/app/data/universes.json
+      - ./data/universes:/app/data/universes
+      - quant-hub-data-dev:/app/data
+      - quant-hub-logs-dev:/app/logs
+    ports:
+      - "${DASHBOARD_PORT:-5002}:5000"
+
+volumes:
+  quant-hub-pg-dev:
+  quant-hub-data-dev:
+  quant-hub-logs-dev:

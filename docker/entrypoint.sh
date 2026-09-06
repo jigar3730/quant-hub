@@ -4,7 +4,7 @@ set -e
 mkdir -p /app/logs
 touch /app/logs/cron.log /app/logs/dashboard.log
 
-printenv | grep -E '^(SMTP_|EMAIL_|TZ=|PATH=|PYTHONPATH=|DATABASE_URL|POSTGRES_)' > /etc/environment 2>/dev/null || true
+printenv | grep -E '^(SMTP_|EMAIL_|TZ=|PATH=|PYTHONPATH=|DATABASE_URL|POSTGRES_|LOG_LEVEL=|APP_ENV=)' > /etc/environment 2>/dev/null || true
 
 # Apply schema on startup (idempotent)
 quant-hub init-db --quiet >> /app/logs/cron.log 2>&1 || true
