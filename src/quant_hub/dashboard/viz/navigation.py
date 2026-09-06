@@ -12,6 +12,14 @@ NAV_UNIVERSE_KEY = "_nav_universe"
 NAV_SCAN_DATE_KEY = "_nav_scan_date"
 SHOW_GLOBAL_HISTORY_KEY = "show_global_history"
 HISTORY_PAGE_OFFSET_KEY = "ticker_history_offset"
+# Widget keys that cache a ticker pick. Lookup must clear these so a stale
+# selectbox value (e.g. AAPL at index 0) cannot overwrite ?ticker= on rerun.
+DETAIL_PICKER_KEYS = (
+    "launchpad_detail_tab_pick",
+    "command_center_ticker_360",
+    "sidebar_ticker_pick",
+    "lynch_detail_pick",
+)
 
 
 def apply_pending_navigation() -> date | None:
@@ -87,6 +95,31 @@ def sync_detail_ticker() -> str | None:
         st.session_state[DETAIL_TICKER_KEY] = query_ticker.strip().upper()
 
     return st.session_state.get(DETAIL_TICKER_KEY)
+
+
+def ticker_picker_options(
+    all_symbols: list[str],
+    detail_ticker: str | None,
+) -> tuple[list[str], int]:
+    """Empty sentinel plus symbols; index 0 when *detail_ticker* is outside the list.
+
+    A lookup ticker that is not in the loaded scan must not fall back to
+    ``all_symbols[0]`` (typically AAPL) or the selectbox will rewrite ``?ticker=``.
+    """
+    options = [""] + list(all_symbols)
+    if detail_ticker and detail_ticker in all_symbols:
+        return options, all_symbols.index(detail_ticker) + 1
+    return options, 0
+
+
+def clear_detail_pickers() -> None:
+    """Drop cached ticker-selectbox values so lookup can become authoritative.
+
+    Safe in widget callbacks (before the next run instantiates the selectboxes).
+    Do not call after a keyed selectbox has already been created in the same run.
+    """
+    for key in DETAIL_PICKER_KEYS:
+        st.session_state.pop(key, None)
 
 
 def set_detail_ticker(ticker: str | None) -> None:

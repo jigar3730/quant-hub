@@ -2,38 +2,32 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 from quant_hub.dashboard.viz.components import (
-    apply_chart_style,
     get_ticker_by_name,
     render_compare_radar,
-    render_exclusion_chart,
-    render_heatmap,
-    render_regime_panel,
     render_scan_header,
-    render_score_histogram,
     render_ticker_detail,
-    render_tier_chart,
     tier_badge_html,
 )
 from quant_hub.dashboard.viz.data import (
     LAUNCHPAD_SCORE_LABELS,
-    TIER_COLORS,
     full_universe_dataframe,
-    score_heatmap_dataframe,
 )
 from quant_hub.dashboard.viz.labels import tier_friendly
 from quant_hub.dashboard.viz.launchpad_filters import (
     LaunchpadFilters,
     apply_launchpad_filters,
-    launchpad_scatter_dataframe,
 )
+from quant_hub.dashboard.viz.launchpad_overview import render_launchpad_overview
 from quant_hub.dashboard.viz.navigation import (
     set_detail_ticker,
     ticker_link_html,
+    ticker_picker_options,
 )
 from quant_hub.dashboard.viz.styles import PLOTLY_CONFIG
 from quant_hub.dashboard.viz.table_helpers import (
@@ -52,81 +46,25 @@ from quant_hub.dashboard.viz.ux_helpers import render_near_miss_panel
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 
-def _render_launchpad_scatter(scatter_df: pd.DataFrame):
-    fig = px.scatter(
-        scatter_df,
-        x="squeeze_intensity",
-        y="tightness_percentile",
-        text="ticker",
-        size="final_score",
-        color="tier",
-        color_discrete_map=TIER_COLORS,
-        hover_data=["final_score", "tier"],
-        labels={
-            "squeeze_intensity": "Squeeze Intensity",
-            "tightness_percentile": "Candle Tightness",
-            "final_score": "Final Score",
-        },
-    )
-    fig.update_traces(textposition="top center", marker=dict(line=dict(width=1, color="white")))
-    fig.update_layout(title="Squeeze vs Tightness")
-    return apply_chart_style(fig, height=400)
-
-
 def render_overview_tab(
     *,
-    report_path: str,
     summary: dict,
     regime: dict,
-    df: pd.DataFrame,
     tickers: list[dict],
-    filters: LaunchpadFilters,
+    repo: ScanRepository | None = None,
+    strategy_id: str = "launchpad",
+    universe_id: str | None = None,
+    scan_date: date | str | None = None,
 ) -> None:
-    render_regime_panel(regime)
-
-    col_left, col_right = st.columns(2)
-    with col_left:
-        st.plotly_chart(
-            render_tier_chart(summary["tier_counts"]),
-            use_container_width=True,
-            config=PLOTLY_CONFIG,
-        )
-    with col_right:
-        exclusion_fig = render_exclusion_chart(summary.get("filter_breakdown", {}))
-        if exclusion_fig:
-            st.plotly_chart(exclusion_fig, use_container_width=True, config=PLOTLY_CONFIG)
-        else:
-            st.success("All tickers in universe were evaluated for scoring.")
-
-    filtered_df = apply_launchpad_filters(df, filters)
-    eligible_df = filtered_df[filtered_df["eligible"]]
-    if eligible_df.empty:
-        return
-
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.plotly_chart(
-            render_score_histogram(eligible_df),
-            use_container_width=True,
-            config=PLOTLY_CONFIG,
-        )
-    with col_b:
-        eligible_tickers = {row["ticker"] for _, row in eligible_df.iterrows()}
-        heat_df = score_heatmap_dataframe(
-            [t for t in tickers if t["ticker"] in eligible_tickers],
-            eligible_only=False,
-        )
-        if len(heat_df) > 1:
-            st.plotly_chart(render_heatmap(heat_df), use_container_width=True, config=PLOTLY_CONFIG)
-
-    scatter_df = launchpad_scatter_dataframe(
-        [t for t in tickers if t["ticker"] in set(eligible_df["ticker"])]
+    render_launchpad_overview(
+        summary=summary,
+        regime=regime,
+        tickers=tickers,
+        repo=repo,
+        strategy_id=strategy_id,
+        universe_id=universe_id,
+        scan_date=scan_date,
     )
-    if scatter_df.empty:
-        return
-    st.plotly_chart(_render_launchpad_scatter(scatter_df), use_container_width=True, config=PLOTLY_CONFIG)
-    links = " · ".join(ticker_link_html(symbol) for symbol in scatter_df["ticker"].head(20))
-    st.markdown(links, unsafe_allow_html=True)
 
 
 def render_all_tickers_tab(
@@ -176,15 +114,19 @@ def render_ticker_detail_tab(
     st.markdown("### Ticker Profile")
     active = detail_ticker
     if all_symbols:
-        pick_index = all_symbols.index(detail_ticker) if detail_ticker in all_symbols else 0
-        active = st.selectbox(
+        options, pick_index = ticker_picker_options(all_symbols, detail_ticker)
+        picked = st.selectbox(
             "Select ticker",
-            all_symbols,
+            options,
             index=pick_index,
             key="launchpad_detail_tab_pick",
+            format_func=lambda value: "Select a ticker..." if value == "" else value,
         )
-        if active != detail_ticker:
-            set_detail_ticker(active)
+        if picked and picked != detail_ticker:
+            set_detail_ticker(picked)
+            active = picked
+        else:
+            active = detail_ticker or picked or None
     elif detail_ticker:
         active = detail_ticker
     else:

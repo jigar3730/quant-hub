@@ -14,8 +14,10 @@ from quant_hub.dashboard.viz.navigation import (
     HISTORY_PAGE_OFFSET_KEY,
     SHOW_GLOBAL_HISTORY_KEY,
     apply_pending_navigation,
+    clear_detail_pickers,
     set_detail_ticker,
     sync_detail_ticker,
+    ticker_picker_options,
 )
 from quant_hub.dashboard.viz.ux_helpers import (
     DASHBOARD_RUN_LOOKUP_LIMIT,
@@ -43,6 +45,7 @@ def _commit_global_lookup() -> None:
     lookup = st.session_state.get("global_ticker_lookup", "").strip().upper()
     if not lookup:
         return
+    clear_detail_pickers()
     set_detail_ticker(lookup)
     st.session_state[SHOW_GLOBAL_HISTORY_KEY] = True
     st.session_state[f"history_{HISTORY_PAGE_OFFSET_KEY}"] = 0
@@ -210,10 +213,12 @@ def render_sidebar_ticker_picker(all_symbols: list[str]) -> str | None:
     detail_ticker = sync_detail_ticker()
     st.sidebar.divider()
     st.sidebar.header("Ticker Detail")
+    options, pick_index = ticker_picker_options(all_symbols, detail_ticker)
     sidebar_pick = st.sidebar.selectbox(
         "Open ticker profile",
-        options=[""] + all_symbols,
-        index=(all_symbols.index(detail_ticker) + 1) if detail_ticker in all_symbols else 0,
+        options=options,
+        index=pick_index,
+        key="sidebar_ticker_pick",
         format_func=lambda value: "Select a ticker..." if value == "" else value,
     )
     if sidebar_pick and sidebar_pick != detail_ticker:
