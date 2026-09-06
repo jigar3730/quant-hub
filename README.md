@@ -2,26 +2,40 @@
 
 Homelab quant stack focused on **Launchpad** (quality coiled-spring scanner + ML) and **Lynch** (fundamental screen). Postgres-backed results, parquet price cache, Streamlit dashboard, and digest emails.
 
-## Quick start
+## Which stack am I on?
+
+This **dev** branch's `docker-compose.yml` is the **sandbox**. It does not share data with production.
+
+| | Production | Dev (this branch) |
+|---|---|---|
+| Containers | `quant-hub`, `quant-hub-db` | `quant-hub-dev`, `quant-hub-db-dev` |
+| Dashboard | `:5002` | `:5003` |
+| Postgres (host) | `127.0.0.1:5433` | `127.0.0.1:5434` |
+| Volumes | `/mnt/fast/quant-data/{data,logs,postgres}` | `/mnt/fast/quant-data/{data-dev,logs-dev,postgres-dev}` |
+
+Learn ML here: [ML Operations Course](docs/ML_OPERATIONS.md). Leave production scanners on the other stack.
+
+## Quick start (dev)
 
 ```bash
 cd /opt/stacks/quant-hub
-cp .env.example .env   # set POSTGRES_PASSWORD, DATABASE_URL, SMTP_*
+cp .env.example .env   # set POSTGRES_PASSWORD; host DATABASE_URL port is 5434
 docker compose up -d --build
-docker exec quant-hub quant-hub status
+mkdir -p /mnt/fast/quant-data/data-dev
+cp data/universes.json /mnt/fast/quant-data/data-dev/
+cp -r data/universes /mnt/fast/quant-data/data-dev/
+docker exec quant-hub-dev quant-hub status
 ```
 
-Manual scans (inside container):
+Dashboard: `http://<host>:5003`.
+
+Manual scans:
 
 ```bash
-docker exec quant-hub quant-launchpad --universe mega_runners --cache --report both
-docker exec quant-hub quant-launchpad-all --cache --report both
-docker exec quant-hub quant-lynch --universe sp500_index --no-email
-docker exec quant-hub quant-lynch-all --no-email
-docker exec quant-hub bash /app/scripts/launchpad-lynch-rescan.sh
+docker exec quant-hub-dev quant-launchpad --universe mega_runners --cache --report both
+docker exec quant-hub-dev quant-launchpad-all --cache --report both
+docker exec quant-hub-dev quant-lynch --universe sp500_index --no-email
 ```
-
-Dashboard: `http://<host>:5002` (`quant-view` inside the container).
 
 ## CLI
 
@@ -62,7 +76,7 @@ Dashboard: `http://<host>:5002` (`quant-view` inside the container).
 
 ```
 src/quant_hub/     application code (launchpad + lynch)
-data/universes/    ticker lists (sync to /mnt/fast/quant-data/data on the host)
+data/universes/    ticker lists (sync to /mnt/fast/quant-data/data-dev on this branch)
 docker/            Dockerfile, crontab, entrypoint
 docs/              operator manuals
 scripts/           launchpad-lynch-rescan.sh

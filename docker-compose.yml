@@ -3,16 +3,16 @@ version: "3.8"
 services:
   postgres:
     image: postgres:16
-    container_name: quant-hub-db
+    container_name: quant-hub-db-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: quant
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: quant_hub
     volumes:
-      - /mnt/fast/quant-data/postgres:/var/lib/postgresql/data
+      - /mnt/fast/quant-data/postgres-dev:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:5434:5432"
     # --- PERFORMANCE & METRICS TUNING ---
     command: >
       postgres 
@@ -31,7 +31,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: quant-hub
+    container_name: quant-hub-dev
     restart: unless-stopped
     depends_on:
       postgres:
@@ -42,7 +42,7 @@ services:
       TZ: America/New_York
       DATABASE_URL: postgresql://quant:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/quant_hub
     volumes:
-      - /mnt/fast/quant-data/data:/app/data
-      - /mnt/fast/quant-data/logs:/app/logs
+      - /mnt/fast/quant-data/data-dev:/app/data
+      - /mnt/fast/quant-data/logs-dev:/app/logs
     ports:
-      - "5002:5000"
+      - "5003:5000"
