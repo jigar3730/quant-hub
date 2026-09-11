@@ -93,13 +93,38 @@ export interface TickerDetail {
   summary?: ScoreSummary
 }
 
+// Mirrors `regime/market.py::regime_detail`'s return dict exactly.
+export interface MarketRegimeDetail {
+  label: string
+  multiplier: number
+  meaning: string
+  spy_price: number
+  sma50: number
+  sma200: number
+  high_52w: number
+  return_63d_pct: number
+  pct_below_52w_high: number
+}
+
+// Mirrors `report/builder.py`'s `scan_summary` (sibling to `tickers`, not
+// per-ticker) — tier_counts/filter_breakdown keys vary by strategy, so they
+// stay loosely typed rather than an exhaustive union.
+export interface ScanSummary {
+  universe_size: number
+  eligible_count: number
+  excluded_count: number
+  actionable_count: number
+  tier_counts: Record<string, number>
+  filter_breakdown: Record<string, number>
+}
+
 export interface ScanReport {
   strategy_id: string
   universe_id: string
   scan_date: string
   scan_time: string | null
-  scan_summary: Record<string, unknown>
-  market_regime: Record<string, unknown>
+  scan_summary: ScanSummary
+  market_regime: MarketRegimeDetail
   tickers: TickerDetail[]
 }
 

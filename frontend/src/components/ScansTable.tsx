@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { fetchScans, type ScanRunSummary } from '@/lib/api'
+import { regimeVariant } from '@/lib/regime'
 
 const features = tableFeatures({})
 const columnHelper = createColumnHelper<typeof features, ScanRunSummary>()
@@ -20,7 +21,9 @@ const columns = columnHelper.columns([
   columnHelper.accessor('universe_id', { header: 'Universe' }),
   columnHelper.accessor('regime_label', {
     header: 'Regime',
-    cell: (info) => <Badge variant="outline">{info.getValue()}</Badge>,
+    cell: (info) => (
+      <Badge variant={regimeVariant(info.getValue())}>{info.getValue()}</Badge>
+    ),
   }),
   columnHelper.accessor('tier1_count', { header: 'Tier 1' }),
   columnHelper.accessor('tier2_count', { header: 'Tier 2' }),

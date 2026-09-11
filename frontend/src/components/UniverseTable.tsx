@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { RegimeBanner } from '@/components/RegimeBanner'
 import {
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { fetchLatestScan, fetchScanReport, type TickerDetail } from '@/lib/api'
+import { fetchLatestScan, fetchScanReport, type ScoreComponent, type TickerDetail } from '@/lib/api'
 import { LAUNCHPAD_UNIVERSES } from '@/lib/universes'
 import {
   SCORE_LABELS,
@@ -31,16 +32,29 @@ import { cn } from '@/lib/utils'
 
 const STRATEGY_ID = 'launchpad'
 
-function ScoreBar({ score, max }: { score: number; max: number }) {
-  const pct = max > 0 ? Math.min(100, Math.max(0, (score / max) * 100)) : 0
+// Inline, always-visible — the old dashboard showed these as small
+// multiples directly in its Overview table; hiding them behind a click
+// (as an earlier pass here did) was a step backward, not an improvement.
+function FactorSparkbars({ scores }: { scores: Record<string, ScoreComponent> | undefined }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-foreground/70" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">
-        {score}/{max}
-      </span>
+    <div className="flex items-end gap-1">
+      {SCORE_ORDER.map((key) => {
+        const component = scores?.[key]
+        const pct =
+          component && component.max > 0
+            ? Math.max(6, Math.min(100, (component.score / component.max) * 100))
+            : 0
+        const label = SCORE_LABELS[key] ?? key
+        return (
+          <div
+            key={key}
+            className="flex h-6 w-2 items-end overflow-hidden rounded-[2px] bg-muted"
+            title={component ? `${label}: ${component.score}/${component.max}` : `${label}: n/a`}
+          >
+            <div className="w-full rounded-[2px] bg-foreground/70" style={{ height: `${pct}%` }} />
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -48,55 +62,29 @@ function ScoreBar({ score, max }: { score: number; max: number }) {
 function TickerDrawer({ ticker }: { ticker: TickerDetail }) {
   const scores = ticker.scores ?? {}
   return (
-    <div className="grid gap-4 bg-muted/30 px-4 py-4 sm:grid-cols-2">
-      <div>
-        <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Score breakdown
-        </h4>
-        <dl className="mt-2 space-y-2">
-          {SCORE_ORDER.filter((key) => scores[key]).map((key) => {
-            const component = scores[key]
-            return (
-              <div key={key} className="flex items-center justify-between gap-3">
-                <dt className="text-sm text-foreground">{SCORE_LABELS[key] ?? key}</dt>
-                <dd className="flex items-center gap-2">
-                  <ScoreBar score={component.score} max={component.max} />
-                </dd>
-              </div>
-            )
-          })}
-        </dl>
+    <div className="bg-muted/30 px-4 py-4">
+      {ticker.tier_reason && (
+        <p className="text-sm text-foreground">
+          <span className="text-muted-foreground">Tier reason: </span>
+          {ticker.tier_reason}
+        </p>
+      )}
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+        {SCORE_ORDER.filter((key) => scores[key]).map((key) => (
+          <p key={key} className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{SCORE_LABELS[key] ?? key}</span>
+            {' '}({scores[key].score}/{scores[key].max}): {scores[key].meaning}
+          </p>
+        ))}
       </div>
-      <div>
-        <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Detail
-        </h4>
-        <dl className="mt-2 space-y-1 text-sm">
-          {ticker.tier_reason && (
-            <div>
-              <dt className="text-xs text-muted-foreground">Tier reason</dt>
-              <dd className="text-foreground">{ticker.tier_reason}</dd>
-            </div>
-          )}
-          {ticker.sector_etf && (
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Sector ETF</dt>
-              <dd className="text-foreground">{ticker.sector_etf}</dd>
-            </div>
-          )}
+      {(ticker.sector_etf || (!ticker.eligible && filterReason(ticker))) && (
+        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+          {ticker.sector_etf && <span>Sector ETF: {ticker.sector_etf}</span>}
           {!ticker.eligible && filterReason(ticker) && (
-            <div>
-              <dt className="text-xs text-muted-foreground">Filter reason</dt>
-              <dd className="text-foreground">{filterReason(ticker)}</dd>
-            </div>
+            <span>Filter reason: {filterReason(ticker)}</span>
           )}
-          {Object.entries(scores).map(([key, component]) => (
-            <div key={key} className="pt-1 text-xs text-muted-foreground">
-              {SCORE_LABELS[key] ?? key}: {component.meaning}
-            </div>
-          ))}
-        </dl>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -145,7 +133,7 @@ export function UniverseTable() {
         </Select>
         {latestScan.data && (
           <span className="text-sm text-muted-foreground">
-            Latest scan: {latestScan.data.scan_date} · {latestScan.data.regime_label}
+            Scan date: {latestScan.data.scan_date}
           </span>
         )}
       </div>
@@ -169,6 +157,12 @@ export function UniverseTable() {
         )}
 
         {report.data && (
+          <div className="mb-4">
+            <RegimeBanner regime={report.data.market_regime} />
+          </div>
+        )}
+
+        {report.data && (
           <Table>
             <TableHeader>
               <TableRow>
@@ -176,6 +170,7 @@ export function UniverseTable() {
                 <TableHead>Ticker</TableHead>
                 <TableHead>Tier</TableHead>
                 <TableHead>Final score</TableHead>
+                <TableHead>Factors</TableHead>
                 <TableHead>Filter reason</TableHead>
               </TableRow>
             </TableHeader>
@@ -212,13 +207,16 @@ export function UniverseTable() {
                       <TableCell className="tabular-nums">
                         {finalScore(ticker) != null ? finalScore(ticker)!.toFixed(1) : '—'}
                       </TableCell>
+                      <TableCell>
+                        <FactorSparkbars scores={ticker.scores} />
+                      </TableCell>
                       <TableCell className="max-w-xs truncate text-muted-foreground">
                         {!ticker.eligible ? filterReason(ticker) : '—'}
                       </TableCell>
                     </TableRow>
                     {isOpen && (
                       <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={5} className="p-0">
+                        <TableCell colSpan={6} className="p-0">
                           <TickerDrawer ticker={ticker} />
                         </TableCell>
                       </TableRow>

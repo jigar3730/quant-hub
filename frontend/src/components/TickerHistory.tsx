@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { fetchTickerHistory } from '@/lib/api'
+import { regimeVariant } from '@/lib/regime'
 import { tierBadgeVariant } from '@/lib/scoring'
 
 const PAGE_SIZE = 20
@@ -120,8 +121,14 @@ export function TickerHistory() {
                         ? (row.final_score ?? row.lynch_score)!.toFixed(1)
                         : '—'}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {row.regime_label ?? '—'}
+                    <TableCell>
+                      {row.regime_label ? (
+                        <Badge variant={regimeVariant(row.regime_label)}>
+                          {row.regime_label}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
