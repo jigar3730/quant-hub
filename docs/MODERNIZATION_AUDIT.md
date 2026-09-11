@@ -14,6 +14,7 @@ See also: [Architecture Gaps](ARCHITECTURE_GAPS.md) (operational/security risk r
 - [02 · Frontend & UI assessment](#02--existing-frontend--ui-assessment)
 - [03 · Modernization blueprint & API decoupling plan](#03--ui-modernization-blueprint--api-decoupling-plan)
 - [04 · Modernization roadmap](#04--modernization-roadmap)
+- [05 · Training data guardrails (ML/LLM)](#05--training-data-guardrails-mlllm)
 
 ---
 
@@ -195,6 +196,45 @@ Five phases, each shippable on its own, each leaving the previous phase's users 
 | Second reachable surface | A REST API is a new network surface next to the already-unauthenticated dashboard (`docs/ARCHITECTURE_GAPS.md` C1/C2) | Put the API behind the same authenticated reverse proxy/VPN boundary *before* Phase 1 ships, not after |
 | Command Center inheriting slowness | If exposed before Phase 0 lands, `/command-center` would carry the N+1 fan-out into the API | Sequencing dependency: Phase 0's repository fix is a hard prerequisite for that one endpoint, not a nice-to-have |
 | Over-building for scale that doesn't exist | This is a single/small-team tool at ~8–10 scans/day, not a multi-tenant product | Pooling + one index + caching is the right size of fix; no need for read replicas, message queues, or a services split |
+
+---
+
+## 05 · Training data guardrails (ML/LLM)
+
+**Trigger:** this data (Launchpad/Lynch scan history, forward-return labels) is a planned source for both the existing scikit-learn-style Launchpad model and a future LLM fine-tune/RAG corpus. Confirmed before starting modernization: quality gating existed, but only on one of the two paths that read it.
+
+### 5.1 · What already exists
+
+The repository already computes real quality signals at ingestion — this audit's job was to check they're *enforced*, not just recorded.
+
+| Control | Where | What it catches |
+|---|---|---|
+| OHLCV validation (staleness, spike, incomplete last bar) | `data/quality.py` (`validate_ohlcv`, `ohlcv_is_stale`, `has_price_spike`) | Bad/partial Yahoo price bars before they reach scoring |
+| Fundamentals/Lynch fetch-quality summary | `data/quality.py:lynch_metrics_quality_summary`, `lynch/metrics.py:248` | Missing PE/PEG/ROE/institutional fields, fetch errors, surfaced per-run in `scan_runs.metadata.metrics_quality` |
+| Forward-label status | `ml/labels.py:compute_forward_outcome` → `signal_outcomes.label_status` (`ok`/`no_price`/`invalid_anchor`/`insufficient_future_bars`) | Labels computed off missing or too-short price history |
+| Training-set filtering | `ml/training_set.py:build_training_frame` | Drops non-setup tiers, non-`ok` labels, missing targets, missing features (`TrainingSetStats` records every drop reason) |
+| Point-in-time embargo | `ml/walk_forward.py:apply_ticker_signal_embargo` | Same-ticker signal leakage within the forward-label horizon |
+| Schema/lineage versioning | `ml/constants.py:FEATURE_SCHEMA_VERSION`, stamped on every feature row | Lets a consumer detect a stale feature definition |
+
+### 5.2 · Gap found and closed in this pass
+
+`ml/training_set.py` (used by `quant-ml train`) enforced all of the above. `application/ml_export_service.py` (used by `quant-ml export-features`, the Parquet path most likely to leave this repo for external ML/LLM tooling) did not — it merged every ticker row regardless of tier, `label_status`, or Lynch fetch errors, with only passive flag columns for a consumer to filter themselves.
+
+Fixed: `MLExportService.run()` now takes `quality_gate: bool = True` and applies the same filters as `training_set.py` (setup tier, `label_status == ok`, Lynch `fetch_error`, signal embargo), tracks drop counts per reason, and writes a `*.manifest.json` next to every Parquet export recording `feature_schema_version`, row counts, drop reasons, and a hard warning when the gate is explicitly disabled (`quant-ml export-features --no-quality-gate`, an audit-only escape hatch — not for training/LLM use). See `tests/unit/test_ml_export_service.py`.
+
+### 5.3 · LLM/RAG-specific requirement
+
+Any future text/narrative corpus built from this data (fine-tune examples, RAG documents, eval sets) must be built from a `quality_gate=True` export and must carry its manifest as provenance. The specific failure mode to guard against: **hindsight leaking into generated text.** A narrative summarizing a ticker's `detail` payload must anchor every claim to `metadata.data_provenance.as_of_price`/`scan_date` — never "as of today" — or a model trained on it learns to describe historical setups with outcome knowledge it wouldn't have had at scan time. This is the same point-in-time discipline `apply_ticker_signal_embargo` already enforces numerically; it has no analogue yet for free text, because none is generated today.
+
+### 5.4 · Preconditions this pass does not close
+
+Row-level gating doesn't fix dataset-level validity. Before treating an export as a trustworthy ML/LLM training source at scale, these existing gaps from `ARCHITECTURE_GAPS.md` still apply and should land ahead of or alongside Phase 0:
+
+- **P3 — survivorship bias:** universes aren't point-in-time membership sets. A training/RAG corpus built across history implicitly excludes tickers that were later delisted or dropped from an index, biasing both labels and any generated narrative toward survivors.
+- **P1 — single data provider:** Yahoo is the sole source with no retry/backoff, so incomplete-fetch rows (already filtered here) aren't rare — expect the drop counts in export manifests to be non-trivial until P1 is addressed.
+- **P4 — no retention/archive policy:** `scan_runs` cascades to `ticker_results` and `signal_outcomes`; an unplanned cleanup silently shrinks or removes historical training data with no snapshot to recover from.
+
+**Recommendation:** fold the export-path fix (done) into Phase 0 of §04 — it's a repository-layer change with no API surface impact. Treat P3/P1/P4 as prerequisites for any *broad* ML/LLM training claim, not for the guardrails themselves, which are now enforced per-export regardless.
 
 ---
 

@@ -52,8 +52,16 @@ def _cmd_export_features(args: argparse.Namespace) -> int:
         horizon_days=args.horizon,
         include_labels=not args.no_labels,
         per_run_files=args.per_run,
+        quality_gate=not args.no_quality_gate,
     )
     print(stats.summary())
+    if args.no_quality_gate:
+        print(
+            "WARNING: --no-quality-gate produced an unfiltered export "
+            "(non-setup tiers, non-ok labels, incomplete fetches included). "
+            "Do not use for model/LLM training without filtering downstream.",
+            file=sys.stderr,
+        )
     return 0 if stats.rows_written > 0 else 1
 
 
@@ -181,6 +189,15 @@ def main(argv: list[str] | None = None) -> int:
         "--per-run",
         action="store_true",
         help="Write one Parquet file per scan run instead of a combined export",
+    )
+    export.add_argument(
+        "--no-quality-gate",
+        action="store_true",
+        help=(
+            "Skip the training/LLM quality gate (tier, label_status, fetch-"
+            "completeness, embargo) and export every row unfiltered. Use only "
+            "for auditing the raw feed, never for training data."
+        ),
     )
 
     sub.add_parser("status", help="Show signal_outcomes counts")
