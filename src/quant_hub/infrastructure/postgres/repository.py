@@ -90,6 +90,56 @@ def _tier_counts_from_run(run: dict[str, Any], metadata: dict[str, Any]) -> dict
     }
 
 
+def _build_report_dict(run: dict[str, Any], tickers: list[dict[str, Any]]) -> dict[str, Any]:
+    """Shape a scan_runs row + its ticker details into the report dict both
+    load_report() and get_report_for_run() return."""
+    metadata = run.get("metadata") or {}
+    tier_counts = _tier_counts_from_run(run, metadata)
+    scan_summary: dict[str, Any] = {
+        "universe_size": run.get("universe_size", len(tickers)),
+        "eligible_count": metadata.get("eligible_count", 0),
+        "excluded_count": metadata.get("excluded_count", 0),
+        "tier_counts": tier_counts,
+        "actionable_count": run.get("actionable_count", 0),
+        "filter_breakdown": metadata.get("filter_breakdown", {}),
+        "setup_long_count": metadata.get("setup_long_count"),
+        "setup_short_count": metadata.get("setup_short_count"),
+        "fundamentals_quality": metadata.get("fundamentals_quality"),
+    }
+    if run["strategy_id"] == "lynch":
+        scan_summary.update(
+            {
+                "preset": metadata.get("preset"),
+                "preset_label": metadata.get("preset_label"),
+                "passed_count": metadata.get("passed_count", run.get("actionable_count", 0)),
+                "category_counts": metadata.get("category_counts", tier_counts),
+                "scanner": "peter_lynch",
+                "metrics_quality": metadata.get("metrics_quality"),
+            }
+        )
+
+    result: dict[str, Any] = {
+        "strategy_id": run["strategy_id"],
+        "universe_id": run["universe_id"],
+        "scan_date": str(run["scan_date"]),
+        "scan_time": run["scan_time"].isoformat() if run["scan_time"] else None,
+        "scan_summary": scan_summary,
+        "market_regime": _restore_market_regime(run),
+        "tickers": tickers,
+    }
+    if run["strategy_id"] == "lynch":
+        passed = [t for t in tickers if t.get("passed")]
+        result["candidates"] = sorted(
+            passed,
+            key=lambda t: (t.get("lynch_score") or 0, -(t.get("peg_ratio") or 99)),
+            reverse=True,
+        )
+        from quant_hub.lynch.categories import QUALITATIVE_OVERLAY
+
+        result["qualitative_overlay"] = metadata.get("qualitative_overlay", QUALITATIVE_OVERLAY)
+    return result
+
+
 def _tier_counts_from_report(strategy_id: str, tiers: dict[str, int]) -> tuple[int, int, int, int]:
     if strategy_id == "lynch":
         return (
@@ -266,73 +316,20 @@ class ScanRepository:
         )
         if not run:
             return None
+        tickers = self.list_ticker_details_for_run(run["id"])
+        return _build_report_dict(run, tickers)
 
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT detail FROM ticker_results
-                    WHERE run_id = %s
-                    ORDER BY ticker
-                    """,
-                    (run["id"],),
-                )
-                tickers = []
-                for row in cur.fetchall():
-                    detail = row[0]
-                    if isinstance(detail, str):
-                        detail = json.loads(detail)
-                    tickers.append(detail)
+    def get_report_for_run(self, run_id: int) -> dict[str, Any] | None:
+        """Same report shape as load_report(), keyed by a specific run_id.
 
-        metadata = run.get("metadata") or {}
-        tier_counts = _tier_counts_from_run(run, metadata)
-        scan_summary: dict[str, Any] = {
-            "universe_size": run.get("universe_size", len(tickers)),
-            "eligible_count": metadata.get("eligible_count", 0),
-            "excluded_count": metadata.get("excluded_count", 0),
-            "tier_counts": tier_counts,
-            "actionable_count": run.get("actionable_count", 0),
-            "filter_breakdown": metadata.get("filter_breakdown", {}),
-            "setup_long_count": metadata.get("setup_long_count"),
-            "setup_short_count": metadata.get("setup_short_count"),
-            "fundamentals_quality": metadata.get("fundamentals_quality"),
-        }
-        if run["strategy_id"] == "lynch":
-            scan_summary.update(
-                {
-                    "preset": metadata.get("preset"),
-                    "preset_label": metadata.get("preset_label"),
-                    "passed_count": metadata.get(
-                        "passed_count", run.get("actionable_count", 0)
-                    ),
-                    "category_counts": metadata.get("category_counts", tier_counts),
-                    "scanner": "peter_lynch",
-                    "metrics_quality": metadata.get("metrics_quality"),
-                }
-            )
-
-        result: dict[str, Any] = {
-            "strategy_id": run["strategy_id"],
-            "universe_id": run["universe_id"],
-            "scan_date": str(run["scan_date"]),
-            "scan_time": run["scan_time"].isoformat() if run["scan_time"] else None,
-            "scan_summary": scan_summary,
-            "market_regime": _restore_market_regime(run),
-            "tickers": tickers,
-        }
-        if run["strategy_id"] == "lynch":
-            passed = [t for t in tickers if t.get("passed")]
-            result["candidates"] = sorted(
-                passed,
-                key=lambda t: (t.get("lynch_score") or 0, -(t.get("peg_ratio") or 99)),
-                reverse=True,
-            )
-            from quant_hub.lynch.categories import QUALITATIVE_OVERLAY
-
-            result["qualitative_overlay"] = metadata.get(
-                "qualitative_overlay", QUALITATIVE_OVERLAY
-            )
-        return result
+        Additive pass-through for the API layer — reuses the same
+        rendering as load_report() rather than re-deriving it.
+        """
+        run = self.get_run_by_id(run_id)
+        if not run:
+            return None
+        tickers = self.list_ticker_details_for_run(run_id)
+        return _build_report_dict(run, tickers)
 
     def _ticker_history_where(
         self,

@@ -33,6 +33,11 @@ ml = [
     "scikit-learn>=1.5.0",
     "lightgbm>=4.0.0",
 ]
+api = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "httpx2",  # required by starlette's TestClient for tests/unit/test_api.py
+]
 
 [project.scripts]
 quant-lynch-all = "quant_hub.cli.lynch_all:main"
@@ -47,6 +52,7 @@ quant-hub = "quant_hub.cli.status:main"
 quant-ml = "quant_hub.cli.ml:main"
 quant-backfill = "quant_hub.cli.backfill:main"
 quant-view = "quant_hub.cli.view:main"
+quant-api = "quant_hub.api.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/quant_hub"]
