@@ -106,3 +106,62 @@ export interface ScanReport {
 export function fetchScanReport(runId: number): Promise<ScanReport> {
   return apiGet<ScanReport>(`/scans/${runId}/report`)
 }
+
+// One appearance of a ticker in a scan run, from
+// `history/ticker_projection.py::project_row`. The 5 base fields are typed
+// on the API's `TickerHistoryRow` model; everything else is `extra="allow"`
+// and varies by `strategy_id` (launchpad vs. lynch) — kept optional here
+// rather than split into two types since a caller may not filter by strategy.
+export interface TickerHistoryRow {
+  run_id: number
+  scan_date: string
+  strategy_id: string
+  universe_id: string
+  ticker: string
+  strategy_label?: string
+  tier?: string | null
+  tier_label?: string | null
+  eligible?: boolean | null
+  filter_reason?: string | null
+  sector_etf?: string | null
+  regime_label?: string | null
+  regime_multiplier?: number | null
+  final_score?: number | null
+  // launchpad-only
+  tier_reason?: string | null
+  normalized_score?: number | null
+  // lynch-only
+  lynch_score?: number | null
+  passed?: boolean | null
+  categories?: string | null
+  company_name?: string | null
+}
+
+export interface TickerHistoryPage {
+  ticker: string
+  total: number
+  limit: number
+  offset: number
+  rows: TickerHistoryRow[]
+}
+
+export function fetchTickerHistory(
+  ticker: string,
+  params: {
+    actionableOnly?: boolean
+    strategyId?: string
+    universeId?: string
+    limit?: number
+    offset?: number
+  } = {},
+): Promise<TickerHistoryPage> {
+  const search = new URLSearchParams()
+  search.set('actionable_only', String(params.actionableOnly ?? true))
+  if (params.strategyId) search.set('strategy_id', params.strategyId)
+  if (params.universeId) search.set('universe_id', params.universeId)
+  search.set('limit', String(params.limit ?? 20))
+  search.set('offset', String(params.offset ?? 0))
+  return apiGet<TickerHistoryPage>(
+    `/tickers/${encodeURIComponent(ticker)}/history?${search.toString()}`,
+  )
+}

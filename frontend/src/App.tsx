@@ -1,4 +1,5 @@
 import { ScansTable } from '@/components/ScansTable'
+import { TickerHistory } from '@/components/TickerHistory'
 import { UniverseTable } from '@/components/UniverseTable'
 
 function App() {
@@ -13,6 +14,13 @@ function App() {
         <h2 className="text-foreground text-lg font-semibold">Universe report</h2>
         <div className="mt-3">
           <UniverseTable />
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-foreground text-lg font-semibold">Ticker history</h2>
+        <div className="mt-3">
+          <TickerHistory />
         </div>
       </section>
 

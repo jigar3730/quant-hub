@@ -25,16 +25,11 @@ import {
   filterReason,
   finalScore,
   isActionable,
+  tierBadgeVariant,
 } from '@/lib/scoring'
 import { cn } from '@/lib/utils'
 
 const STRATEGY_ID = 'launchpad'
-
-function tierBadgeVariant(tier: string): 'default' | 'secondary' | 'outline' {
-  if (tier === 'Tier 1') return 'default'
-  if (tier === 'Tier 2') return 'secondary'
-  return 'outline'
-}
 
 function ScoreBar({ score, max }: { score: number; max: number }) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (score / max) * 100)) : 0

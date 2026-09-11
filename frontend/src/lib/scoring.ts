@@ -39,3 +39,11 @@ export function finalScore(ticker: TickerDetail): number | null {
 export function filterReason(ticker: TickerDetail): string | null {
   return ticker.eligibility?.summary ?? ticker.eligibility?.fail_reason ?? null
 }
+
+export function tierBadgeVariant(
+  tier: string | null | undefined,
+): 'default' | 'secondary' | 'outline' {
+  if (tier === 'Tier 1') return 'default'
+  if (tier === 'Tier 2') return 'secondary'
+  return 'outline'
+}
