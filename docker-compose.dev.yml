@@ -28,6 +28,23 @@ services:
     ports:
       - "${DASHBOARD_PORT:-5002}:5000"
 
+  quant-hub-api:
+    container_name: quant-hub-api-dev
+    env_file:
+      - .env.dev
+    environment:
+      APP_ENV: dev
+      LOG_LEVEL: WARNING
+    volumes:
+      - ./src:/app/src
+      - ./data/universes.json:/app/data/universes.json
+      - ./data/universes:/app/data/universes
+      - quant-hub-data-dev:/app/data
+      - quant-hub-logs-dev:/app/logs
+    command: ["quant-api", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "${API_PORT:-5010}:8000"
+
 volumes:
   quant-hub-pg-dev:
   quant-hub-data-dev:

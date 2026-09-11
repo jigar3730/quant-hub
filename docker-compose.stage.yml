@@ -29,3 +29,18 @@ services:
     ports:
       - "${DASHBOARD_PORT:-5003}:5000"
     restart: unless-stopped
+
+  quant-hub-api:
+    container_name: quant-hub-api-stage
+    env_file:
+      - .env.stage
+    environment:
+      APP_ENV: stage
+      LOG_LEVEL: INFO
+    volumes:
+      - /mnt/fast/quant-data-stage/data:/app/data
+      - /mnt/fast/quant-data-stage/logs:/app/logs
+    command: ["quant-api", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "${API_PORT:-5011}:8000"
+    restart: unless-stopped
