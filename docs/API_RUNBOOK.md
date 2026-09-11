@@ -286,6 +286,7 @@ curl -s "$BASE_URL/command-center?scan_date=2026-09-10" | jq .
   "scan_date": "2026-09-10",
   "generated_at": "2026-09-10T21:10:00+00:00",
   "regime_label": "risk-on",
+  "regime_multiplier": 1.0,
   "run_count": 2,
   "per_strategy": {
     "launchpad": { "actionable": 46, "tier1": 12, "universes": 1 },

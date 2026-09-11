@@ -73,6 +73,7 @@ def build_command_center_payload(
         for strategy in COMMAND_CENTER_STRATEGIES
     }
     regime_label: str | None = None
+    regime_multiplier: float | None = None
 
     for run in runs:
         strategy_id = run["strategy_id"]
@@ -80,6 +81,7 @@ def build_command_center_payload(
         rows = repo.list_actionable_tickers_for_run(run["id"], strategy_id)
         if strategy_id == "launchpad" and regime_label is None:
             regime_label = run.get("regime_label")
+            regime_multiplier = run.get("regime_multiplier")
         coverage.append(
             {
                 "strategy_id": strategy_id,
@@ -165,6 +167,7 @@ def build_command_center_payload(
         "scan_date": str(scan_date),
         "generated_at": datetime.now(tz=UTC).isoformat(),
         "regime_label": regime_label,
+        "regime_multiplier": regime_multiplier,
         "run_count": len(runs),
         "per_strategy": per_strategy,
         "coverage": coverage,
