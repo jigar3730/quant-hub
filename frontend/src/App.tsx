@@ -1,4 +1,5 @@
 import { ScansTable } from '@/components/ScansTable'
+import { UniverseTable } from '@/components/UniverseTable'
 
 function App() {
   return (
@@ -7,9 +8,20 @@ function App() {
       <p className="text-muted-foreground mt-1 text-sm">
         Phase 2 design-system scaffold — reading live data from the Phase 1 API.
       </p>
-      <div className="mt-6">
-        <ScansTable />
-      </div>
+
+      <section className="mt-8">
+        <h2 className="text-foreground text-lg font-semibold">Universe report</h2>
+        <div className="mt-3">
+          <UniverseTable />
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-foreground text-lg font-semibold">Recent scans</h2>
+        <div className="mt-3">
+          <ScansTable />
+        </div>
+      </section>
     </div>
   )
 }
