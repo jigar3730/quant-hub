@@ -5,6 +5,11 @@ from __future__ import annotations
 import streamlit as st
 
 from quant_hub.config import PRIMARY_INDEX_UNIVERSE
+from quant_hub.dashboard.viz.cached_reads import (
+    cached_list_runs,
+    cached_load_report,
+    cached_table_counts,
+)
 from quant_hub.dashboard.viz.data import tickers_to_dataframe
 from quant_hub.dashboard.viz.digest_components import render_digest_preview_tab
 from quant_hub.dashboard.viz.labels import format_report_label
@@ -48,7 +53,7 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 def _render_system_panel(job_repo: JobRunRepository, repo: ScanRepository) -> None:
     st.subheader("System Status")
-    counts = repo.table_counts()
+    counts = cached_table_counts()
     c1, c2, c3 = st.columns(3)
     c1.metric("Scan runs", counts.get("scan_runs", 0))
     c2.metric("Ticker results", counts.get("ticker_results", 0))
@@ -67,7 +72,7 @@ def _render_system_panel(job_repo: JobRunRepository, repo: ScanRepository) -> No
         st.caption("No jobs recorded yet.")
 
     st.markdown("**Recent scans (launchpad)**")
-    for run in repo.list_runs(strategy_id="launchpad", limit=5, exclude_fixtures=True):
+    for run in cached_list_runs("launchpad", 5, True):
         st.text(
             f"{run['scan_date']} {run['universe_id']} "
             f"T1={run.get('tier1_count', 0)} T2={run.get('tier2_count', 0)} "
@@ -75,7 +80,7 @@ def _render_system_panel(job_repo: JobRunRepository, repo: ScanRepository) -> No
         )
 
     st.markdown("**Recent scans (lynch)**")
-    for run in repo.list_runs(strategy_id="lynch", limit=5, exclude_fixtures=True):
+    for run in cached_list_runs("lynch", 5, True):
         st.text(
             f"{run['scan_date']} {run['universe_id']} "
             f"passed={run.get('actionable_count', 0)} "
@@ -120,11 +125,11 @@ if strategy_id == "digest":
     render_disclaimer()
     st.stop()
 
-report = repo.load_report(
-    strategy_id=strategy_id,
-    universe_id=universe_id,
-    scan_date=scan_date,
-    exclude_fixtures=scan_date is None,
+report = cached_load_report(
+    strategy_id,
+    universe_id,
+    scan_date,
+    scan_date is None,
 )
 if report is None:
     st.warning("No scan found for this strategy/universe/date.")

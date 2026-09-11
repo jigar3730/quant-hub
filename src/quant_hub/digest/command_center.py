@@ -19,13 +19,7 @@ def _prior_run(
     universe_id: str,
     before: date,
 ) -> dict[str, Any] | None:
-    runs = repo.list_runs_filtered(
-        strategy_id=strategy_id,
-        universe_id=universe_id,
-        until=before,
-        limit=30,
-    )
-    return next((run for run in runs if run["scan_date"] < before), None)
+    return repo.get_prior_run(strategy_id=strategy_id, universe_id=universe_id, before=before)
 
 
 def _symbols(rows: list[dict[str, Any]]) -> set[str]:
@@ -42,24 +36,18 @@ def _persistent_symbols(
 ) -> list[dict[str, Any]]:
     if not current:
         return []
-    runs = repo.list_runs_filtered(
+    run_ids = repo.list_run_ids_filtered(
         strategy_id=strategy_id,
         universe_id=universe_id,
         until=scan_date,
         limit=PERSISTENCE_MIN_APPEARANCES + 3,
-    )
-    counts = dict.fromkeys(current, 0)
-    for run in runs[: PERSISTENCE_MIN_APPEARANCES + 2]:
-        run_symbols = _symbols(
-            repo.list_actionable_tickers_for_run(run["id"], strategy_id)
-        )
-        for ticker in current & run_symbols:
-            counts[ticker] += 1
+    )[: PERSISTENCE_MIN_APPEARANCES + 2]
+    counts = repo.count_actionable_appearances(run_ids, current, strategy_id)
     return sorted(
         (
-            {"ticker": ticker, "appearances": appearances}
-            for ticker, appearances in counts.items()
-            if appearances >= PERSISTENCE_MIN_APPEARANCES
+            {"ticker": ticker, "appearances": counts.get(ticker, 0)}
+            for ticker in current
+            if counts.get(ticker, 0) >= PERSISTENCE_MIN_APPEARANCES
         ),
         key=lambda row: (-row["appearances"], row["ticker"]),
     )

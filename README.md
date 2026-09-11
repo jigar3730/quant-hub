@@ -74,6 +74,7 @@ docker exec quant-hub-dev quant-universe list
 | [Run Team Quickstart](docs/RUN_TEAM_QUICKSTART.md) | Team operating checklist |
 | [Junior Developer Database Guide](docs/JUNIOR_DEV_DATABASE_GUIDE.md) | Database workflows |
 | [Architecture Gaps](docs/ARCHITECTURE_GAPS.md) | Current risks and remediation |
+| [Modernization Audit](docs/MODERNIZATION_AUDIT.md) | API decoupling plan and frontend migration roadmap |
 
 ## Layout
 

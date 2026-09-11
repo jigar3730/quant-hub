@@ -664,6 +664,97 @@ class ScanRepository:
                 )
                 return [row[0] for row in cur.fetchall()]
 
+    def get_prior_run(
+        self,
+        *,
+        strategy_id: str,
+        universe_id: str,
+        before: date,
+        exclude_fixtures: bool = True,
+    ) -> dict[str, Any] | None:
+        """Most recent run strictly before `before` for this strategy/universe."""
+        clauses = ["strategy_id = %s", "universe_id = %s", "scan_date < %s"]
+        params: list[Any] = [strategy_id, universe_id, before]
+        if exclude_fixtures:
+            fixture_clause, fixture_params = _fixture_sql_clause(True)
+            clauses.append(fixture_clause)
+            params.extend(fixture_params)
+        where = " AND ".join(clauses)
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, scan_date, scan_time, strategy_id, universe_id,
+                           universe_size, tier1_count, tier2_count, tier3_count,
+                           filtered_count, actionable_count,
+                           regime_label, regime_multiplier, metadata
+                    FROM scan_runs
+                    WHERE {where}
+                    ORDER BY scan_date DESC, scan_time DESC
+                    LIMIT 1
+                    """,
+                    params,
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return self._row_to_run_dict(row)
+
+    def list_run_ids_filtered(
+        self,
+        *,
+        strategy_id: str,
+        universe_id: str,
+        until: date,
+        limit: int,
+        exclude_fixtures: bool = True,
+    ) -> list[int]:
+        """Lean run ids (most recent first) for persistence-window lookups."""
+        clauses = ["strategy_id = %s", "universe_id = %s", "scan_date <= %s"]
+        params: list[Any] = [strategy_id, universe_id, until]
+        if exclude_fixtures:
+            fixture_clause, fixture_params = _fixture_sql_clause(True)
+            clauses.append(fixture_clause)
+            params.extend(fixture_params)
+        where = " AND ".join(clauses)
+        params.append(limit)
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id
+                    FROM scan_runs
+                    WHERE {where}
+                    ORDER BY scan_date DESC, scan_time DESC
+                    LIMIT %s
+                    """,
+                    params,
+                )
+                return [row[0] for row in cur.fetchall()]
+
+    def count_actionable_appearances(
+        self,
+        run_ids: list[int],
+        tickers: set[str],
+        strategy_id: str,
+    ) -> dict[str, int]:
+        """Ticker -> appearance count across `run_ids`, in one query."""
+        if not run_ids or not tickers:
+            return {}
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT tr.ticker, COUNT(*)
+                    FROM ticker_results tr
+                    JOIN scan_runs sr ON sr.id = tr.run_id
+                    WHERE tr.run_id = ANY(%s) AND tr.ticker = ANY(%s) AND {actionable_sql_clause()}
+                    GROUP BY tr.ticker
+                    """,
+                    (list(run_ids), list(tickers)),
+                )
+                return {row[0]: row[1] for row in cur.fetchall()}
+
     def list_actionable_tickers_for_run(
         self,
         run_id: int,

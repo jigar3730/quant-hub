@@ -7,6 +7,7 @@ from datetime import date
 import streamlit as st
 
 from quant_hub.application.universe_service import UniverseService
+from quant_hub.dashboard.viz.cached_reads import cached_list_runs, cached_list_scan_dates
 from quant_hub.dashboard.viz.labels import format_universe_option
 from quant_hub.dashboard.viz.launchpad_filters import LaunchpadFilters
 from quant_hub.dashboard.viz.launchpad_score_guide import render_launchpad_score_guide
@@ -95,7 +96,7 @@ def render_sidebar_controls(
     )
 
     if strategy_id == "command_center":
-        scan_dates = repo.list_scan_dates(limit=DASHBOARD_RUN_LOOKUP_LIMIT)
+        scan_dates = cached_list_scan_dates(DASHBOARD_RUN_LOOKUP_LIMIT, True)
         scan_date: date | None = None
         if scan_dates:
             date_options = [str(d) for d in scan_dates]
@@ -121,11 +122,7 @@ def render_sidebar_controls(
         lookup_universe = (
             P.DAILY_LAUNCHPAD_UNIVERSE if digest_kind == "daily" else P.WEEKLY_LYNCH_UNIVERSE
         )
-        runs = repo.list_runs(
-            strategy_id=lookup_strategy,
-            limit=DASHBOARD_RUN_LOOKUP_LIMIT,
-            exclude_fixtures=True,
-        )
+        runs = cached_list_runs(lookup_strategy, DASHBOARD_RUN_LOOKUP_LIMIT, True)
         universe_runs = [r for r in runs if r["universe_id"] == lookup_universe]
         scan_date: date | None = None
         if universe_runs:
@@ -159,11 +156,7 @@ def render_sidebar_controls(
         key="sidebar_universe",
     )
 
-    runs = repo.list_runs(
-        strategy_id=strategy_id,
-        limit=DASHBOARD_RUN_LOOKUP_LIMIT,
-        exclude_fixtures=True,
-    )
+    runs = cached_list_runs(strategy_id, DASHBOARD_RUN_LOOKUP_LIMIT, True)
     universe_runs = [r for r in runs if r["universe_id"] == universe_id]
     scan_date: date | None = None
     if universe_runs:
