@@ -1,5 +1,6 @@
 import { ScansTable } from '@/components/ScansTable'
 import { TickerHistory } from '@/components/TickerHistory'
+import { TodaysPriorities } from '@/components/TodaysPriorities'
 import { UniverseTable } from '@/components/UniverseTable'
 
 function App() {
@@ -11,7 +12,14 @@ function App() {
       </p>
 
       <section className="mt-8">
-        <h2 className="text-foreground text-lg font-semibold">Universe report</h2>
+        <h2 className="text-foreground text-lg font-semibold">Today's priorities</h2>
+        <div className="mt-3">
+          <TodaysPriorities />
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-foreground text-lg font-semibold">Universe explorer</h2>
         <div className="mt-3">
           <UniverseTable />
         </div>

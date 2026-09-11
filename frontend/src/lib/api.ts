@@ -170,6 +170,53 @@ export interface TickerHistoryPage {
   rows: TickerHistoryRow[]
 }
 
+// Mirrors `digest/command_center.py::build_command_center_payload`.
+export interface CommandCenterCoverage {
+  strategy_id: string
+  strategy_label: string
+  universe_id: string
+  run_id: number
+  actionable_count: number
+  tier1_count: number
+  tier2_count: number
+  regime_label: string | null
+  scan_time: string | null
+}
+
+// The lightweight `list_actionable_tickers_for_run` projection — ticker,
+// tier, eligible, sector_etf, final_score — with run/universe/regime
+// context added. No per-factor score breakdown at this level (no JSONB
+// load); drill into GET /scans/{run_id}/report for that.
+export interface ActionableTicker {
+  ticker: string
+  tier: string
+  eligible: boolean
+  sector_etf: string | null
+  final_score: number | null
+  strategy_id: string
+  universe_id: string
+  run_id: number
+  regime_label: string | null
+  scan_time: string | null
+}
+
+export interface CommandCenterPayload {
+  scan_date: string
+  generated_at: string
+  regime_label: string | null
+  regime_multiplier: number | null
+  run_count: number
+  per_strategy: Record<string, { actionable: number; tier1: number; universes: number }>
+  coverage: CommandCenterCoverage[]
+  actionable_tickers: ActionableTicker[]
+  overlap_count: number
+}
+
+export function fetchCommandCenter(scanDate?: string): Promise<CommandCenterPayload> {
+  const search = scanDate ? `?scan_date=${scanDate}` : ''
+  return apiGet<CommandCenterPayload>(`/command-center${search}`)
+}
+
 export function fetchTickerHistory(
   ticker: string,
   params: {
