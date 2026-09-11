@@ -259,9 +259,17 @@ Edge cases:
 
 ### 2.6 `GET /command-center`
 
-Launchpad/Lynch coverage, deltas, and overlap for one scan date — same
-payload the dashboard's Command Center page and the digest job use
-(`quant_hub/digest/command_center.py`).
+Launchpad/Lynch coverage, deltas, overlap, and a cross-universe actionable
+ticker list for one scan date — same payload the dashboard's Command Center
+page and the digest job use (`quant_hub/digest/command_center.py`).
+
+`actionable_tickers` is a flat, pre-sorted (`final_score` desc) list merging
+every universe/strategy's actionable rows for the date — the lightweight
+`ticker/tier/eligible/sector_etf/final_score` projection (no per-factor score
+breakdown; that requires `GET /scans/{run_id}/report` for the specific run),
+annotated with `universe_id`/`run_id`/`regime_label`/`scan_time` so a
+cross-universe "what to look at today" view doesn't need to fan out to
+every universe's full report just to find the handful of actionable rows.
 
 | Param | Type | Location | Required | Notes |
 |---|---|---|---|---|
@@ -292,6 +300,20 @@ curl -s "$BASE_URL/command-center?scan_date=2026-09-10" | jq .
       "actionable_count": 46,
       "tier1_count": 12,
       "tier2_count": 34,
+      "regime_label": "risk-on",
+      "scan_time": "2026-09-10T21:05:11"
+    }
+  ],
+  "actionable_tickers": [
+    {
+      "ticker": "AAPL",
+      "tier": "tier1",
+      "eligible": true,
+      "sector_etf": "XLK",
+      "final_score": 87.3,
+      "strategy_id": "launchpad",
+      "universe_id": "sp500",
+      "run_id": 4821,
       "regime_label": "risk-on",
       "scan_time": "2026-09-10T21:05:11"
     }
