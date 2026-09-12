@@ -16,16 +16,17 @@ import { regimeVariant } from '@/lib/regime'
 const features = tableFeatures({})
 const columnHelper = createColumnHelper<typeof features, ScanRunSummary>()
 
-// Only Launchpad uses the Tier 1/2/3 scheme. Verified live: a Lynch
-// scan_runs row's tier1_count/tier2_count are NOT "N tickers with tier
-// Tier 1/Tier 2" -- for run id=3 (lynch, most_actives), tier2_count=4 but
-// the real tier breakdown is stalwart:4/passed:1 (no ticker's tier is
-// literally "Tier 2", that string doesn't exist in Lynch's vocabulary).
-// Linking those columns for a Lynch row would show a real count but land
-// on a filter that finds zero matches -- worse than not linking at all.
-// Plain count, not a link, for any other strategy.
-function tierCell(row: ScanRunSummary, count: number, tier: string) {
-  if (row.strategy_id !== 'launchpad') return count
+// Correction (was wrong in an earlier pass): tier1_count/tier2_count on a
+// Lynch scan_runs row are NOT meaningless for Lynch -- repository.py's
+// _tier_counts_from_run repurposes those exact columns for Lynch's
+// fast_grower/stalwart counts respectively (confirmed at
+// infrastructure/postgres/repository.py:80-81, and the FG=/ST=/AP= legend
+// in dashboard/app.py:87). tier2_count=4 on the Lynch run used to verify
+// this literally means 4 stalwart tickers. So each column needs the
+// tier value that's actually correct for the row's own strategy, not a
+// single hardcoded literal used regardless of strategy.
+function tierCell(row: ScanRunSummary, count: number, launchpadTier: string, lynchTier: string) {
+  const tier = row.strategy_id === 'lynch' ? lynchTier : launchpadTier
   const params = new URLSearchParams({
     strategy: row.strategy_id,
     universe: row.universe_id,
@@ -69,12 +70,12 @@ const columns = columnHelper.columns([
     ),
   }),
   columnHelper.accessor('tier1_count', {
-    header: 'Tier 1',
-    cell: (info) => tierCell(info.row.original, info.getValue(), 'Tier 1'),
+    header: () => <span title="Launchpad: Tier 1. Lynch: Fast Grower.">Tier 1</span>,
+    cell: (info) => tierCell(info.row.original, info.getValue(), 'Tier 1', 'fast_grower'),
   }),
   columnHelper.accessor('tier2_count', {
-    header: 'Tier 2',
-    cell: (info) => tierCell(info.row.original, info.getValue(), 'Tier 2'),
+    header: () => <span title="Launchpad: Tier 2. Lynch: Stalwart.">Tier 2</span>,
+    cell: (info) => tierCell(info.row.original, info.getValue(), 'Tier 2', 'stalwart'),
   }),
   columnHelper.accessor('actionable_count', {
     header: 'Actionable',

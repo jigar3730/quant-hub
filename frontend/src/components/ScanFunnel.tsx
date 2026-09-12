@@ -38,7 +38,14 @@ function FunnelBar({
   )
 }
 
-const TIER_ORDER = ['Tier 1', 'Tier 2', 'Tier 3']
+// Covers both strategies' tier vocabularies -- Launchpad's Tier 1/2/3 and
+// Lynch's fast_grower/stalwart/asset_play (repository.py's
+// _tier_counts_from_run repurposes the same tier1/2/3_count columns for
+// Lynch's 3 categories in that exact order, confirmed live: a Lynch
+// report's tier_counts keys are literally fast_grower/stalwart/asset_play/
+// filtered, not Tier 1/2/3). One list covers either shape without needing
+// this component to know which strategy produced the report.
+const TIER_ORDER = ['Tier 1', 'Tier 2', 'Tier 3', 'fast_grower', 'stalwart', 'asset_play']
 
 export function ScanFunnel({ summary }: { summary: ScanSummary }) {
   const total = summary.universe_size
@@ -59,7 +66,12 @@ export function ScanFunnel({ summary }: { summary: ScanSummary }) {
           </div>
           <div className="space-y-1.5">
             {tierEntries.map((tier) => (
-              <FunnelBar key={tier} label={tier} count={summary.tier_counts[tier]} total={total} />
+              <FunnelBar
+                key={tier}
+                label={humanizeKey(tier)}
+                count={summary.tier_counts[tier]}
+                total={total}
+              />
             ))}
           </div>
         </div>
