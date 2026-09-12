@@ -17,13 +17,13 @@ function NavItem({
   label,
   icon: Icon,
   end,
-  mobileExpanded,
+  collapsed,
 }: {
   to: string
   label: string
   icon: ComponentType<{ className?: string }>
   end?: boolean
-  mobileExpanded: boolean
+  collapsed: boolean
 }) {
   return (
     <NavLink
@@ -33,7 +33,7 @@ function NavItem({
       className={({ isActive }) =>
         cn(
           'flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors',
-          mobileExpanded ? 'px-3' : 'px-2 md:px-3',
+          collapsed ? 'px-2' : 'px-3',
           isActive
             ? 'bg-secondary text-secondary-foreground'
             : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -41,11 +41,20 @@ function NavItem({
       }
     >
       <Icon className="size-5 shrink-0" />
-      <span className={cn('truncate', mobileExpanded ? 'inline' : 'hidden md:inline')}>
-        {label}
-      </span>
+      {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   )
+}
+
+// A single collapse toggle (an "app rail" when collapsed), the same on
+// every screen size -- not a mobile-only fallback. Starting state differs
+// sensibly by device (collapsed on a narrow viewport, expanded on a wide
+// one) but from there it's a manual, per-session user choice either way,
+// same as VS Code's activity bar or Slack's app rail: resizing the window
+// doesn't fight a choice you already made.
+function initialCollapsed(): boolean {
+  if (typeof window === 'undefined') return false
+  return !window.matchMedia('(min-width: 768px)').matches
 }
 
 // A persistent sidebar workspace switcher rather than one long stacked
@@ -53,51 +62,39 @@ function NavItem({
 // drill-down table, a ticker profile, a comparison tool), not a section
 // of the same document. Real routes (not in-memory tab state) so a
 // ticker can be linked to directly from anywhere it appears.
-//
-// Mobile: an icon-only rail, always visible and directly tappable — no
-// drawer to open first. The hamburger only toggles whether labels are
-// shown alongside the icons, it's not a gate on navigation (a slide-in
-// drawer would cost an extra tap just to see the nav, worse for 5 flat
-// destinations than a persistent icon rail). Desktop keeps the full
-// labeled sidebar regardless of this toggle.
 export function AppLayout() {
-  const [mobileExpanded, setMobileExpanded] = useState(false)
+  const [collapsed, setCollapsed] = useState(initialCollapsed)
 
   return (
     <div className="flex min-h-screen">
       <nav
         className={cn(
-          'flex shrink-0 flex-col border-r border-border transition-[width] duration-150 md:w-56 md:p-4',
-          mobileExpanded ? 'w-56 p-4' : 'w-14 p-2',
+          'flex shrink-0 flex-col border-r border-border transition-[width] duration-150',
+          collapsed ? 'w-14 p-2' : 'w-56 p-4',
         )}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <span
-            className={cn(
-              'truncate text-lg font-semibold text-foreground',
-              mobileExpanded ? 'inline' : 'hidden md:inline',
-            )}
-          >
-            Quant Hub
-          </span>
+        <div className={cn('mb-4 flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
+          {!collapsed && (
+            <span className="truncate text-lg font-semibold text-foreground">Quant Hub</span>
+          )}
           <button
             type="button"
-            onClick={() => setMobileExpanded((v) => !v)}
-            aria-label={mobileExpanded ? 'Collapse navigation labels' : 'Expand navigation labels'}
-            aria-expanded={mobileExpanded}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+            onClick={() => setCollapsed((v) => !v)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Menu className="size-5" />
           </button>
         </div>
         <div className="space-y-1">
           {PRIMARY_NAV.map((item) => (
-            <NavItem key={item.to} {...item} mobileExpanded={mobileExpanded} />
+            <NavItem key={item.to} {...item} collapsed={collapsed} />
           ))}
         </div>
         <div className="mt-6 space-y-1 border-t border-border pt-4">
           {SECONDARY_NAV.map((item) => (
-            <NavItem key={item.to} {...item} mobileExpanded={mobileExpanded} />
+            <NavItem key={item.to} {...item} collapsed={collapsed} />
           ))}
         </div>
       </nav>
