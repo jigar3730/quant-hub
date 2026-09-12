@@ -26,12 +26,20 @@ async function apiGet<T>(path: string): Promise<T> {
 }
 
 export function fetchScans(
-  params: { limit?: number; strategyId?: string; universeId?: string } = {},
+  params: {
+    limit?: number
+    strategyId?: string
+    universeId?: string
+    since?: string
+    until?: string
+  } = {},
 ): Promise<ScanRunSummary[]> {
   const search = new URLSearchParams()
   if (params.limit) search.set('limit', String(params.limit))
   if (params.strategyId) search.set('strategy_id', params.strategyId)
   if (params.universeId) search.set('universe_id', params.universeId)
+  if (params.since) search.set('since', params.since)
+  if (params.until) search.set('until', params.until)
   const qs = search.toString()
   return apiGet<ScanRunSummary[]>(`/scans${qs ? `?${qs}` : ''}`)
 }

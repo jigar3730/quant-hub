@@ -12,6 +12,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { RegimeBanner } from '@/components/RegimeBanner'
 import { ScanFunnel } from '@/components/ScanFunnel'
 import {
@@ -21,7 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { fetchLatestScan, fetchScanReport, type ScoreComponent, type TickerDetail } from '@/lib/api'
+import {
+  fetchLatestScan,
+  fetchScanReport,
+  fetchScans,
+  type ScoreComponent,
+  type TickerDetail,
+} from '@/lib/api'
 import { LAUNCHPAD_UNIVERSES } from '@/lib/universes'
 import {
   filterReason,
@@ -140,18 +148,38 @@ function SortIcon({ state }: { state: false | 'asc' | 'desc' }) {
 
 export function UniverseTable() {
   const [universeId, setUniverseId] = useState(LAUNCHPAD_UNIVERSES[0].id)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const latestScan = useQuery({
-    queryKey: ['scans', 'latest', { strategyId: STRATEGY_ID, universeId }],
-    queryFn: () => fetchLatestScan({ strategyId: STRATEGY_ID, universeId }),
+  // null selectedDate -> latest scan (the original default); a picked date
+  // looks up that day's run specifically instead, via the same /scans
+  // endpoint the "Recent scans" list already uses (since/until filters).
+  // A day with no run is a normal, expected outcome here (Lynch runs
+  // weekly, Launchpad doesn't run every universe every day) -- resolves
+  // to `null`, not an error, so it gets its own message rather than being
+  // conflated with a real fetch failure.
+  const scanRun = useQuery({
+    queryKey: ['scans', 'for-universe', { strategyId: STRATEGY_ID, universeId, selectedDate }],
+    queryFn: async () => {
+      if (selectedDate) {
+        const rows = await fetchScans({
+          strategyId: STRATEGY_ID,
+          universeId,
+          since: selectedDate,
+          until: selectedDate,
+          limit: 1,
+        })
+        return rows[0] ?? null
+      }
+      return fetchLatestScan({ strategyId: STRATEGY_ID, universeId })
+    },
   })
 
   const report = useQuery({
-    queryKey: ['scans', 'report', latestScan.data?.id],
-    queryFn: () => fetchScanReport(latestScan.data!.id),
-    enabled: latestScan.data != null,
+    queryKey: ['scans', 'report', scanRun.data?.id],
+    queryFn: () => fetchScanReport(scanRun.data!.id),
+    enabled: scanRun.data != null,
   })
 
   const table = useTable({
@@ -181,7 +209,7 @@ export function UniverseTable() {
 
   return (
     <div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm font-medium text-foreground" htmlFor="universe-select">
           Universe
         </label>
@@ -197,23 +225,45 @@ export function UniverseTable() {
             ))}
           </SelectContent>
         </Select>
-        {latestScan.data && (
+
+        <label className="text-sm font-medium text-foreground" htmlFor="scan-date">
+          Scan date
+        </label>
+        <Input
+          id="scan-date"
+          type="date"
+          value={selectedDate ?? ''}
+          onChange={(e) => setSelectedDate(e.target.value || null)}
+          className="w-40"
+        />
+        {selectedDate && (
+          <Button variant="outline" size="sm" onClick={() => setSelectedDate(null)}>
+            Latest
+          </Button>
+        )}
+
+        {scanRun.data && (
           <span className="text-sm text-muted-foreground">
-            Scan date: {latestScan.data.scan_date}
+            Showing: {scanRun.data.scan_date}
           </span>
         )}
       </div>
 
       <div className="mt-4">
-        {latestScan.isLoading && (
-          <p className="text-sm text-muted-foreground">Loading latest scan…</p>
+        {scanRun.isLoading && (
+          <p className="text-sm text-muted-foreground">Loading scan…</p>
         )}
-        {latestScan.isError && (
+        {scanRun.isError && (
           <p className="text-sm text-destructive">
             No scan runs found for this universe yet.
           </p>
         )}
-        {report.isLoading && latestScan.data && (
+        {!scanRun.isLoading && !scanRun.isError && scanRun.data == null && (
+          <p className="text-sm text-muted-foreground">
+            No scan run found for {universeId} on {selectedDate}.
+          </p>
+        )}
+        {report.isLoading && scanRun.data && (
           <p className="text-sm text-muted-foreground">Loading universe report…</p>
         )}
         {report.isError && (
