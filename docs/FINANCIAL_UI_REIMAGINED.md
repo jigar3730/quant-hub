@@ -141,8 +141,9 @@ above the existing history table:
 2. **Fundamental (Lynch)** — **not** the Launchpad grade pattern (see the
    correction in §1.1): category badges + a `lynch_score` gauge + a
    pass/fail checks table, with the inverted-direction fields
-   (`institutional_pct`, `analyst_count`) handled explicitly. Not yet
-   built.
+   (`institutional_pct`, `analyst_count`) sidestepped by rendering
+   `checks[]` directly rather than re-deriving thresholds. **Shipped** as
+   `TickerFundamentalCard`.
 3. **ML Outcomes** — pull `signal_outcomes` rows for this ticker
    (`forward_return_pct`, `excess_return_pct`, `label_status`). The real
    distinction (corrected from an earlier draft of this doc, which
@@ -331,7 +332,7 @@ covered by what's installed.
 Roughly ordered by (value ÷ new-backend-risk), not by section number:
 
 1. **Multi-universe overlap matrix** (§2.2) — free right now, client-side only. **← in progress**
-2. **Ticker 360 evolution** (§1.2, §1.3) — mostly data already fetched; needs one new `ticker`-filtered `/outcomes` query param. **Shipped: audit-trail heatmap (`TickerAuditTrail`), composite/factor letter grades (`TickerTechnicalCard`), ML outcomes card (`TickerOutcomesCard` + the new `/outcomes?ticker=` mode). Deferred: the Fundamental/Lynch card — Lynch's factor/scoring shape still needs its own verification pass before grading it, same rigor as was applied to Launchpad's.**
+2. **Ticker 360 evolution** (§1.1, §1.2, §1.3) — ✅ **Done.** `TickerAuditTrail` (pass-rate heatmap), `TickerTechnicalCard` (Launchpad composite/factor letter grades), `TickerOutcomesCard` (ML outcomes, via the new `/outcomes?ticker=` mode), `TickerFundamentalCard` (Lynch — category badges + score gauge + checks list, per the corrected non-grade design). All four stacked above the existing paginated history table in `TickerHistory`.
 3. **Compare view** (§3.5) — zero new backend; standalone, can slot in anytime after step 2 establishes the per-ticker factor patterns.
 4. **Table sort + virtualization** (§3.1) — incremental, low-risk, unblocks `sp500_index` at scale.
 5. **Scan-run funnel view** (§2.1) — zero new backend, pure new rendering.
