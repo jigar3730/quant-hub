@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router'
 import { AppLayout } from '@/components/AppLayout'
+import { CommandCenterHeatmap } from '@/components/CommandCenterHeatmap'
 import { CompareTickers } from '@/components/CompareTickers'
 import { OverlapMatrix } from '@/components/OverlapMatrix'
 import { ScansTable } from '@/components/ScansTable'
@@ -17,6 +18,13 @@ function PrioritiesPage() {
       <div className="mt-4">
         <TodaysPriorities />
       </div>
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-foreground">Coverage heatmap</h2>
+        <div className="mt-3">
+          <CommandCenterHeatmap />
+        </div>
+      </section>
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-foreground">Multi-universe overlap</h2>
