@@ -331,12 +331,12 @@ covered by what's installed.
 
 Roughly ordered by (value ÷ new-backend-risk), not by section number:
 
-1. **Multi-universe overlap matrix** (§2.2) — free right now, client-side only. **← in progress**
+1. **Multi-universe overlap matrix** (§2.2) — ✅ **Done.** `OverlapMatrix`, client-side only, no new backend query.
 2. **Ticker 360 evolution** (§1.1, §1.2, §1.3) — ✅ **Done.** `TickerAuditTrail` (pass-rate heatmap), `TickerTechnicalCard` (Launchpad composite/factor letter grades), `TickerOutcomesCard` (ML outcomes, via the new `/outcomes?ticker=` mode), `TickerFundamentalCard` (Lynch — category badges + score gauge + checks list, per the corrected non-grade design). All four stacked above the existing paginated history table in `TickerHistory`.
-3. **Compare view** (§3.5) — zero new backend; standalone, can slot in anytime after step 2 establishes the per-ticker factor patterns.
+3. **Compare view** (§3.5) — zero new backend; standalone. **← in progress.** Scoping note: building as aligned factor bars across ticker columns, not a radar/spider chart — no charting library exists yet (Plotly is reserved for item #7), and hand-rolling SVG for a chart type Plotly natively supports (`Scatterpolar`) would be thrown away once that lands.
 4. **Table sort + virtualization** (§3.1) — incremental, low-risk, unblocks `sp500_index` at scale.
 5. **Scan-run funnel view** (§2.1) — zero new backend, pure new rendering.
-6. **Letter-grade mapping + MetricGrid generalization** (§1.1, §1.4) — frontend-only; do Lynch's factor research first.
+6. **MetricGrid generalization** (§1.4) — frontend-only. The letter-grade half of this item shipped as part of Ticker 360 (item #2); MetricGrid itself (a generic, key-driven renderer for `detail.scores` so a new Launchpad factor doesn't need a frontend code change) is still open. Lynch's factor research (once a blocker) is done — see item #2.
 7. **Command Center heatmap** (Plotly) — the one remaining item from the original Phase 2 spec (§3.3 of the modernization audit).
 8. **Real Watchlist** (§3.5) — the one item here needing new backend surface (persistence); scope with the same rigor as any other additive change.
 9. **Dark-first palette pass** — do once several of the above exist, so it themes consistently rather than piecemeal.

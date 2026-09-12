@@ -1,3 +1,4 @@
+import { CompareTickers } from '@/components/CompareTickers'
 import { OverlapMatrix } from '@/components/OverlapMatrix'
 import { ScansTable } from '@/components/ScansTable'
 import { TickerHistory } from '@/components/TickerHistory'
@@ -37,6 +38,13 @@ function App() {
         <h2 className="text-foreground text-lg font-semibold">Ticker history</h2>
         <div className="mt-3">
           <TickerHistory />
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-foreground text-lg font-semibold">Compare tickers</h2>
+        <div className="mt-3">
+          <CompareTickers />
         </div>
       </section>
 
