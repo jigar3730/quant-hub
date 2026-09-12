@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   createColumnHelper,
@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,6 +65,16 @@ function tierSortFn(rowA: Row<typeof features, TickerDetail>, rowB: Row<typeof f
   const b = TIER_RANK[rowB.original.tier] ?? 4
   return a - b
 }
+
+// "All tiers" has to be a real sentinel, not "" -- Radix Select reserves
+// the empty string for its own internal placeholder state.
+const TIER_FILTER_OPTIONS = [
+  { value: 'all', label: 'All tiers' },
+  { value: 'Tier 1', label: 'Tier 1' },
+  { value: 'Tier 2', label: 'Tier 2' },
+  { value: 'Tier 3', label: 'Tier 3' },
+  { value: 'filtered', label: 'Filtered' },
+]
 
 const columns = columnHelper.columns([
   columnHelper.accessor('ticker', { id: 'ticker' }),
@@ -147,10 +157,48 @@ function SortIcon({ state }: { state: false | 'asc' | 'desc' }) {
 }
 
 export function UniverseTable() {
-  const [universeId, setUniverseId] = useState(LAUNCHPAD_UNIVERSES[0].id)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  // universe/date/tier live in the URL (?universe=&date=&tier=), same
+  // pattern as the ticker in Ticker 360 -- so a link from Recent Scans
+  // ("Tier 2 has 2 candidates" -> click -> see them) works, and this page
+  // stays linkable/bookmarkable rather than only reachable through its own
+  // controls. Derived directly from searchParams every render (not a
+  // separate useState that's only initialized once) so re-navigating here
+  // with different params actually updates the page -- react-router
+  // doesn't remount the component just because the query string changed
+  // on the same route.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const universeId = searchParams.get('universe') ?? LAUNCHPAD_UNIVERSES[0].id
+  const selectedDate = searchParams.get('date')
+  const tierFilter = searchParams.get('tier')
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  function setUniverseId(id: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('universe', id)
+      return next
+    })
+  }
+
+  function setSelectedDate(date: string | null) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (date) next.set('date', date)
+      else next.delete('date')
+      return next
+    })
+  }
+
+  function setTierFilter(tier: string | null) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (tier) next.set('tier', tier)
+      else next.delete('tier')
+      return next
+    })
+  }
 
   // null selectedDate -> latest scan (the original default); a picked date
   // looks up that day's run specifically instead, via the same /scans
@@ -182,10 +230,18 @@ export function UniverseTable() {
     enabled: scanRun.data != null,
   })
 
+  // Filters the underlying data, not just the rendered rows -- so counts,
+  // sorting, and virtualization all operate on the actually-selected set.
+  const filteredTickers = useMemo(() => {
+    const all = report.data?.tickers ?? EMPTY_TICKERS
+    if (!tierFilter) return all
+    return all.filter((t) => t.tier === tierFilter)
+  }, [report.data, tierFilter])
+
   const table = useTable({
     features,
     columns,
-    data: report.data?.tickers ?? EMPTY_TICKERS,
+    data: filteredTickers,
     initialState: { sorting: [{ id: 'score', desc: true }] },
   })
   const rows = table.getRowModel().rows
@@ -242,6 +298,25 @@ export function UniverseTable() {
           </Button>
         )}
 
+        <label className="text-sm font-medium text-foreground" htmlFor="tier-filter">
+          Tier
+        </label>
+        <Select
+          value={tierFilter ?? 'all'}
+          onValueChange={(value) => setTierFilter(value === 'all' ? null : value)}
+        >
+          <SelectTrigger id="tier-filter" className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIER_FILTER_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {scanRun.data && (
           <span className="text-sm text-muted-foreground">
             Showing: {scanRun.data.scan_date}
@@ -285,7 +360,11 @@ export function UniverseTable() {
         )}
 
         {report.data && rows.length === 0 && (
-          <p className="text-sm text-muted-foreground">No tickers in this report.</p>
+          <p className="text-sm text-muted-foreground">
+            {tierFilter
+              ? `No ${tierFilter} tickers in this report.`
+              : 'No tickers in this report.'}
+          </p>
         )}
 
         {report.data && rows.length > 0 && (
