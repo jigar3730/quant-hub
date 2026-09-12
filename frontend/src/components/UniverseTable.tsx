@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
+import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { RegimeBanner } from '@/components/RegimeBanner'
 import {
@@ -300,7 +301,13 @@ export function UniverseTable() {
                             'flex items-center gap-2 px-2 py-2 font-medium text-foreground',
                           )}
                         >
-                          {ticker.ticker}
+                          <Link
+                            to={`/ticker/${ticker.ticker}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="hover:underline"
+                          >
+                            {ticker.ticker}
+                          </Link>
                           {actionable && <Badge variant="success">Actionable</Badge>}
                         </div>
                         <div className={cn(COL.tier, 'flex items-center px-2 py-2')}>

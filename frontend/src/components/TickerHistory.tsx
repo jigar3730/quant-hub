@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate, useParams } from 'react-router'
+import { TickerAuditTrail } from '@/components/TickerAuditTrail'
+import { TickerFundamentalCard } from '@/components/TickerFundamentalCard'
+import { TickerOutcomesCard } from '@/components/TickerOutcomesCard'
+import { TickerTechnicalCard } from '@/components/TickerTechnicalCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -12,21 +17,33 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { TickerAuditTrail } from '@/components/TickerAuditTrail'
-import { TickerFundamentalCard } from '@/components/TickerFundamentalCard'
-import { TickerOutcomesCard } from '@/components/TickerOutcomesCard'
-import { TickerTechnicalCard } from '@/components/TickerTechnicalCard'
 import { fetchTickerHistory } from '@/lib/api'
 import { regimeVariant } from '@/lib/regime'
 import { tierBadgeVariant } from '@/lib/scoring'
 
 const PAGE_SIZE = 20
 
+// The current ticker lives in the URL (/ticker/:symbol), not local state --
+// this is what makes it a real Ticker 360 destination other screens can
+// link into, instead of a search box you can only reach by retyping a
+// symbol.
 export function TickerHistory() {
-  const [input, setInput] = useState('')
-  const [ticker, setTicker] = useState<string | null>(null)
+  const { symbol } = useParams<{ symbol?: string }>()
+  const navigate = useNavigate()
+  const ticker = symbol ? symbol.toUpperCase() : null
+
   const [actionableOnly, setActionableOnly] = useState(true)
   const [offset, setOffset] = useState(0)
+  // Reset paging when the route's ticker changes (a fresh ticker's page
+  // count has nothing to do with the previous one's). Derived during
+  // render, not via an effect -- an effect that itself calls setState
+  // just starts a second, avoidable render (React's own "adjusting state
+  // when a prop changes" pattern).
+  const [offsetResetFor, setOffsetResetFor] = useState(ticker)
+  if (ticker !== offsetResetFor) {
+    setOffsetResetFor(ticker)
+    setOffset(0)
+  }
 
   const history = useQuery({
     queryKey: ['tickers', ticker, 'history', { actionableOnly, offset }],
@@ -35,12 +52,12 @@ export function TickerHistory() {
     enabled: ticker != null,
   })
 
-  function submit(e: FormEvent) {
+  function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const trimmed = input.trim().toUpperCase()
+    const raw = new FormData(e.currentTarget).get('ticker')
+    const trimmed = String(raw ?? '').trim().toUpperCase()
     if (!trimmed) return
-    setOffset(0)
-    setTicker(trimmed)
+    navigate(`/ticker/${trimmed}`)
   }
 
   function toggleActionableOnly(checked: boolean) {
@@ -56,8 +73,9 @@ export function TickerHistory() {
     <div>
       <form onSubmit={submit} className="flex flex-wrap items-center gap-3">
         <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+          key={ticker ?? 'empty'}
+          name="ticker"
+          defaultValue={ticker ?? ''}
           placeholder="Ticker, e.g. AAPL"
           className="w-40"
           aria-label="Ticker symbol"

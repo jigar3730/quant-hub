@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import { RegimeBanner } from '@/components/RegimeBanner'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -92,7 +93,11 @@ export function TodaysPriorities() {
           <TableBody>
             {tickers.map((t) => (
               <TableRow key={`${t.universe_id}-${t.ticker}`}>
-                <TableCell className="font-medium text-foreground">{t.ticker}</TableCell>
+                <TableCell className="font-medium text-foreground">
+                  <Link to={`/ticker/${t.ticker}`} className="hover:underline">
+                    {t.ticker}
+                  </Link>
+                </TableCell>
                 <TableCell>
                   <Badge variant={tierBadgeVariant(t.tier)}>{t.tier}</Badge>
                 </TableCell>

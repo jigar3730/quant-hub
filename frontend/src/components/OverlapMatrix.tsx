@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -82,7 +83,11 @@ export function OverlapMatrix() {
       <TableBody>
         {overlaps.map((row) => (
           <TableRow key={row.ticker}>
-            <TableCell className="font-medium text-foreground">{row.ticker}</TableCell>
+            <TableCell className="font-medium text-foreground">
+              <Link to={`/ticker/${row.ticker}`} className="hover:underline">
+                {row.ticker}
+              </Link>
+            </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {row.universes.map((u) => (
