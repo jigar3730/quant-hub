@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TickerAuditTrail } from '@/components/TickerAuditTrail'
+import { TickerFundamentalCard } from '@/components/TickerFundamentalCard'
 import { TickerOutcomesCard } from '@/components/TickerOutcomesCard'
 import { TickerTechnicalCard } from '@/components/TickerTechnicalCard'
 import { fetchTickerHistory } from '@/lib/api'
@@ -76,6 +77,12 @@ export function TickerHistory() {
       {ticker != null && (
         <div className="mt-4">
           <TickerTechnicalCard ticker={ticker} />
+        </div>
+      )}
+
+      {ticker != null && (
+        <div className="mt-4">
+          <TickerFundamentalCard ticker={ticker} />
         </div>
       )}
 

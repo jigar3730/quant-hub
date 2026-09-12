@@ -81,9 +81,29 @@ export interface ScoreSummary {
 // `report/builder.py::build_ticker_report` — broader than the API's
 // `TickerDetail` Pydantic model, which only declares a few stable fields
 // and passes the rest through untouched (`extra="allow"`).
+// One Lynch screening rule (lynch/explain.py::enrich_checks). `passed` is
+// already phrased so true always means "good" from the user's point of
+// view (e.g. the `wall_street_neglect` rule's own label is "Not
+// over-owned by Wall Street") -- render this directly rather than
+// re-deriving per-field thresholds, since some fields (institutional_pct,
+// analyst_count) are lower-is-better and a naive color scale would
+// mislead.
+export interface LynchCheck {
+  rule: string
+  label: string
+  value: unknown
+  detail: string
+  passed: boolean
+  threshold: string
+  plain_value: string
+  result_text: string
+  why_it_matters: string
+}
+
 export interface TickerDetail {
   ticker: string
-  verdict: 'eligible' | 'excluded' | string
+  // Launchpad-only; not present on Lynch tickers (confirmed live, run id 3).
+  verdict?: 'eligible' | 'excluded' | string
   eligible: boolean
   tier: 'Tier 1' | 'Tier 2' | 'Tier 3' | 'filtered' | string
   tier_reason?: string
@@ -91,6 +111,27 @@ export interface TickerDetail {
   eligibility?: EligibilityDetail
   scores?: Record<string, ScoreComponent>
   summary?: ScoreSummary
+  // Lynch-only extras (lynch/runner.py::_evaluate). `categories` is a
+  // non-exclusive set -- a ticker can be more than one at once -- distinct
+  // from `tier`, which picks just the first matching category or falls
+  // back to "passed"/"filtered".
+  categories?: string[]
+  lynch_score?: number | null
+  company_name?: string | null
+  sector?: string | null
+  investor_summary?: string | null
+  checks?: LynchCheck[]
+  pe_ratio?: number | null
+  peg_ratio?: number | null
+  eps_growth_5y_pct?: number | null
+  eps_growth_ttm_pct?: number | null
+  debt_to_equity?: number | null
+  institutional_pct?: number | null
+  analyst_count?: number | null
+  market_cap?: number | null
+  dividend_yield?: number | null
+  price_to_book?: number | null
+  net_cash?: number | null
 }
 
 // Mirrors `regime/market.py::regime_detail`'s return dict exactly.
