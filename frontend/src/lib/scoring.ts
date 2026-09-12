@@ -47,3 +47,13 @@ export function tierBadgeVariant(
   if (tier === 'Tier 2') return 'secondary'
   return 'outline'
 }
+
+// Heatmap cell fill for the ticker audit-trail — the one place a green
+// intensity scale earns its keep (a pass-rate heatmap is conventionally
+// read that way), distinct from the tier badge's neutral monochrome scale.
+export function tierHeatClass(tier: string | null | undefined): string {
+  if (tier === 'Tier 1') return 'bg-success'
+  if (tier === 'Tier 2') return 'bg-success/50'
+  if (tier === 'Tier 3') return 'bg-muted-foreground/30'
+  return 'bg-muted'
+}
