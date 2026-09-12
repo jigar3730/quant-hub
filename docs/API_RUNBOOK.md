@@ -337,15 +337,20 @@ Edge cases:
 
 ### 2.7 `GET /outcomes`
 
-Forward-return outcomes for tickers in one scan run.
+Forward-return outcomes for tickers, in one of two mutually exclusive
+query modes.
 
 | Param | Type | Location | Required | Notes |
 |---|---|---|---|---|
-| `run_id` | int | query | **yes** | `Query(...)` — no default |
-| `horizon_days` | int | query | no | filters to one horizon if given |
+| `run_id` | int | query | one of `run_id`/`ticker` | outcomes for every ticker in one scan run |
+| `ticker` | string | query | one of `run_id`/`ticker` | cross-run outcomes for one ticker (any case — uppercased server-side); joins `scan_runs` so each row also carries `strategy_id`/`universe_id`/`scan_date` |
+| `strategy_id` | string | query | no | only meaningful with `ticker` mode |
+| `horizon_days` | int | query | no | filters to one horizon if given, either mode |
+| `limit` | int | query | no | `ticker` mode only; default `100`, max `500` |
 
 ```bash
 curl -s "$BASE_URL/outcomes?run_id=4821&horizon_days=20" | jq .
+curl -s "$BASE_URL/outcomes?ticker=AAPL&strategy_id=launchpad" | jq .
 ```
 
 200 OK (array of `OutcomeRow`):
@@ -362,18 +367,28 @@ curl -s "$BASE_URL/outcomes?run_id=4821&horizon_days=20" | jq .
     "spy_forward_return_pct": 1.5,
     "excess_return_pct": 2.7,
     "label_binary": true,
-    "label_status": "resolved",
-    "computed_at": "2026-10-08T00:00:00"
+    "label_status": "ok",
+    "computed_at": "2026-10-08T00:00:00",
+    "strategy_id": "launchpad",
+    "universe_id": "sp500",
+    "scan_date": "2026-09-10"
   }
 ]
 ```
 
+`strategy_id`/`universe_id`/`scan_date` are only populated in `ticker`
+mode (they come from a join to `scan_runs`; `signal_outcomes` itself has
+no such columns) — `null` in `run_id` mode. `label_status` is one of
+`ok` (the previous doc example, `"resolved"`, was never a real value —
+see `ml/constants.py`), `no_price`, `insufficient_future_bars`, or
+`invalid_anchor`; only `ok` rows have real numbers in the return/drawdown
+fields. There is no literal "pending" status in practice — a signal whose
+horizon hasn't elapsed yet simply has no row at all, in either mode.
+
 Edge cases:
-- **Missing `run_id`** (it's required, no default) → **422**
-  `{"detail": [{"loc": ["query","run_id"], "msg": "Field required", ...}]}`.
-  This is the one endpoint in the API where forgetting a param is the most
-  common mistake.
-- `run_id` with no outcomes yet (still pending horizon) → **200** with `[]`.
+- **Neither `run_id` nor `ticker` given** → **422**
+  `{"detail": "Provide either run_id or ticker"}`.
+- `run_id` or `ticker` with no matching outcomes yet → **200** with `[]`.
 - Invalid `run_id` type (e.g. `run_id=abc`) → **422**.
 
 ---
