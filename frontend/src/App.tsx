@@ -1,3 +1,4 @@
+import { OverlapMatrix } from '@/components/OverlapMatrix'
 import { ScansTable } from '@/components/ScansTable'
 import { TickerHistory } from '@/components/TickerHistory'
 import { TodaysPriorities } from '@/components/TodaysPriorities'
@@ -15,6 +16,13 @@ function App() {
         <h2 className="text-foreground text-lg font-semibold">Today's priorities</h2>
         <div className="mt-3">
           <TodaysPriorities />
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-foreground text-lg font-semibold">Multi-universe overlap</h2>
+        <div className="mt-3">
+          <OverlapMatrix />
         </div>
       </section>
 
