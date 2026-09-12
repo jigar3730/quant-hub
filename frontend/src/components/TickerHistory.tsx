@@ -90,6 +90,16 @@ export function TickerHistory() {
           />
           Actionable appearances only
         </label>
+        {ticker != null && (
+          <a
+            href={`https://finviz.com/quote.ashx?t=${ticker}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            View on Finviz ↗
+          </a>
+        )}
       </form>
 
       {ticker != null && (
