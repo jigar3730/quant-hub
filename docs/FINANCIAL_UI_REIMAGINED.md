@@ -92,12 +92,41 @@ Launchpad factors already have (`macd_zero_line`, `squeeze_intensity`,
 `tightness_percentile`, `volume_vacuum_depth`, `trend_proximity_match`),
 each independently graded on the same 0–100% scale.
 
-**Open item:** Lynch's factor breakdown wasn't verified this session (its
-`detail` JSONB shape differs from Launchpad's per `history/ticker_projection.py`
-— fields like `pe_ratio`, `peg_ratio`, `eps_growth_5y_pct` were seen, but a
-full valuation/growth grading rubric needs its own short research pass,
-same rigor as was applied to Launchpad's factors, before this ships for
-Lynch tickers.
+**Resolved — Lynch does NOT get the letter-grade treatment above.**
+Research (2026-09-12) traced Lynch's scoring end-to-end
+(`lynch/runner.py`, `lynch/filters.py`, `lynch/categories.py`,
+`lynch/config.py`) and found a fundamentally different paradigm: boolean
+pass/fail checks aggregated into one `lynch_score` percentage — **no
+per-factor `{score, max}` exists to grade**. Forcing letter grades onto
+it would fabricate a rubric the data doesn't have. Correct treatment:
+
+- **`categories`** (a *non-exclusive set* — `fast_grower`/`stalwart`/
+  `asset_play`; a ticker can be more than one at once) as color-coded
+  badges, not grades. The old Streamlit dashboard already has a color
+  convention for these (`dashboard/viz/design_tokens.py:130-135`) worth
+  mirroring for consistency: fast_grower=success green, stalwart=primary,
+  asset_play=accent.
+- **`tier`** is a *different axis* from `categories`, not a hierarchy of
+  it — one of 5 strings (`fast_grower`/`stalwart`/`asset_play`/`passed`/
+  `filtered`; `tier = categories[0]` if any category matched, else
+  `passed`/`filtered`). Render as its own badge, separate from the
+  category badges.
+- **`lynch_score`** — a single 0-100 percentage already, render as one
+  gauge/progress bar. Do not decompose it into sub-grades.
+- **A pass/fail checks table**, not factor grades — `detail.checks`
+  already carries `label`/`passed`/`plain_value`/`threshold`/
+  `why_it_matters`/`result_text` per rule (`lynch/explain.py:170-184`),
+  the natural Lynch analogue to Launchpad's per-factor breakdown.
+- **Individual ratios** (PE, PEG, D/E, etc.) — direct color-coded display
+  against the real thresholds in `lynch/config.py`, **not** a naive
+  green-high/red-low scale. Two fields are inverted from intuition:
+  `institutional_pct` and `analyst_count` are **lower-is-better** (Lynch's
+  "wall street neglect" — under-covered stocks are the target). Several
+  other fields (P/E, P/B, dividend yield) are only meaningfully
+  thresholded *within specific category contexts* (e.g. P/B only matters
+  for an asset_play evaluation) — showing a color judgment on them
+  outside that context would imply a rubric that wasn't actually applied
+  to that ticker.
 
 ### 1.2 Unified master view (Launchpad + Lynch + ML outcomes)
 
@@ -108,29 +137,35 @@ above the existing history table:
 1. **Technical (Launchpad)** — latest tier, composite grade, factor grade
    row, sparkline of `final_score` across recent appearances (data already
    in the history rows — `final_score`/`normalized_score` per run).
-2. **Fundamental (Lynch)** — same pattern using Lynch's own score fields
-   (`lynch_score`, `categories`, `pe_ratio`, etc. — already typed as
-   optional extras on `TickerHistoryRow`).
+   **Shipped** as `TickerTechnicalCard`.
+2. **Fundamental (Lynch)** — **not** the Launchpad grade pattern (see the
+   correction in §1.1): category badges + a `lynch_score` gauge + a
+   pass/fail checks table, with the inverted-direction fields
+   (`institutional_pct`, `analyst_count`) handled explicitly. Not yet
+   built.
 3. **ML Outcomes** — pull `signal_outcomes` rows for this ticker
-   (`forward_return_pct`, `excess_return_pct`, `label_status`). Distinguish
-   **pending** (still inside the 5-trading-day embargo, no reliable forward
-   return yet) from **finalized** outcomes using `label_status` — this is
-   the correct place for "embargo" to surface in the UI: as a data-maturity
-   indicator on historical outcomes, not as a live trade-risk warning.
+   (`forward_return_pct`, `excess_return_pct`, `label_status`). The real
+   distinction (corrected from an earlier draft of this doc, which
+   assumed a literal "pending" status) is: **no row exists yet** for a
+   signal still inside its embargo window (the actual "still waiting"
+   case) vs. **a row with `label_status: "ok"`** (a real, usable number)
+   vs. **a row with any other status** (`no_price`/`insufficient_future_bars`/
+   `invalid_anchor` — a genuine data problem, not a timing one). **Shipped**
+   as `TickerOutcomesCard`.
 
-This requires one new API surface: `GET /outcomes` already exists
-per-run (`list_outcomes_for_run`) — a per-ticker variant (`ticker` as a
-query filter, same additive pattern as everything else in the API layer)
-would be needed to power this card without a new repository write path.
+This required one new API surface, now shipped: `GET /outcomes` gained a
+`ticker`+`strategy_id` query mode (`list_outcomes_for_ticker`, joins
+`scan_runs` for context) alongside the original `run_id` mode.
 
 ### 1.3 Historical audit trail — pass-rate heatmap
 
-A compact, calendar-style heatmap (one column per scan date, one row per
-universe the ticker has appeared in) — cell intensity = tier that day
-(Tier 1 = strongest fill, Tier 2 = medium, Tier 3/filtered = faint,
-no-appearance = empty). **Zero new backend work** — `/tickers/{ticker}/history`
-already returns `run_id`/`scan_date`/`universe_id`/`tier` per appearance;
-this is purely a new rendering of data already being fetched.
+**Shipped** as `TickerAuditTrail`, as a per-universe chronological strip
+rather than a shared-date calendar grid (Launchpad daily vs. Lynch weekly
+cadence made a shared date axis misrepresent density — see the component's
+own comment). Cell intensity = tier that appearance (Tier 1 = strongest
+fill, Tier 2 = medium, Tier 3/filtered = faint). **Zero new backend
+work** — `/tickers/{ticker}/history` already returns
+`run_id`/`scan_date`/`universe_id`/`tier` per appearance.
 
 ### 1.4 JSONB inspection engine — generalized metric grid
 
