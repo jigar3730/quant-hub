@@ -17,6 +17,14 @@ const MAX_TICKERS = 4
 // lands for item #7). Fixed SCORE_ORDER per column keeps each factor's
 // row position identical across tickers, which is what makes this
 // comparable at a glance despite each column fetching independently.
+//
+// Deliberately NOT using orderedScoreKeys/scoreLabel's per-ticker
+// generalization here (item #6): if two tickers had different unknown/
+// extra factors, each column's row set could differ, breaking the
+// row-alignment this view depends on -- misaligned columns would be a
+// worse regression than "a brand-new factor doesn't show up in Compare
+// yet." Single-ticker views (UniverseTable, TickerTechnicalCard) don't
+// have that constraint and use the generalized version.
 function CompareColumn({ ticker }: { ticker: string }) {
   const history = useQuery({
     queryKey: ['tickers', ticker, 'history', 'audit-trail'],

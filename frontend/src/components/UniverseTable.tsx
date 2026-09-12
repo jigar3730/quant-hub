@@ -24,11 +24,11 @@ import {
 import { fetchLatestScan, fetchScanReport, type ScoreComponent, type TickerDetail } from '@/lib/api'
 import { LAUNCHPAD_UNIVERSES } from '@/lib/universes'
 import {
-  SCORE_LABELS,
-  SCORE_ORDER,
   filterReason,
   finalScore,
   isActionable,
+  orderedScoreKeys,
+  scoreLabel,
   tierBadgeVariant,
 } from '@/lib/scoring'
 import { cn } from '@/lib/utils'
@@ -81,13 +81,13 @@ const COL = {
 function FactorSparkbars({ scores }: { scores: Record<string, ScoreComponent> | undefined }) {
   return (
     <div className="flex items-end gap-1">
-      {SCORE_ORDER.map((key) => {
+      {orderedScoreKeys(scores).map((key) => {
         const component = scores?.[key]
         const pct =
           component && component.max > 0
             ? Math.max(6, Math.min(100, (component.score / component.max) * 100))
             : 0
-        const label = SCORE_LABELS[key] ?? key
+        const label = scoreLabel(key)
         return (
           <div
             key={key}
@@ -113,9 +113,9 @@ function TickerDrawer({ ticker }: { ticker: TickerDetail }) {
         </p>
       )}
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
-        {SCORE_ORDER.filter((key) => scores[key]).map((key) => (
+        {orderedScoreKeys(scores).map((key) => (
           <p key={key} className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{SCORE_LABELS[key] ?? key}</span>
+            <span className="font-medium text-foreground">{scoreLabel(key)}</span>
             {' '}({scores[key].score}/{scores[key].max}): {scores[key].meaning}
           </p>
         ))}

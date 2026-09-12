@@ -1,4 +1,5 @@
-import type { TickerDetail } from '@/lib/api'
+import type { ScoreComponent, TickerDetail } from '@/lib/api'
+import { humanizeKey } from '@/lib/utils'
 
 // Mirrors `history/actionable.py::ACTIONABLE_TIERS` — the single source of
 // truth for which tiers count as actionable. Launchpad is the only strategy
@@ -22,8 +23,8 @@ export const SCORE_LABELS: Record<string, string> = {
   trend_proximity_match: 'Trend / Proximity',
 }
 
-// Fixed, stable ordering for the score breakdown regardless of key order
-// in the JSONB payload.
+// Preferred ordering for the 5 known factors regardless of key order in
+// the JSONB payload.
 export const SCORE_ORDER = [
   'macd_zero_line',
   'squeeze_intensity',
@@ -31,6 +32,23 @@ export const SCORE_ORDER = [
   'volume_vacuum_depth',
   'trend_proximity_match',
 ]
+
+// MetricGrid generalization (docs/FINANCIAL_UI_REIMAGINED.md §1.4): a new
+// factor added to `detail.scores` on the backend shows up here too, in a
+// reasonable place, instead of being silently dropped because it isn't in
+// SCORE_ORDER. Known keys keep their curated order; anything else is
+// appended in the order the payload itself has (no arbitrary invented
+// ordering for factors this frontend doesn't know about yet).
+export function orderedScoreKeys(scores: Record<string, ScoreComponent> | undefined): string[] {
+  if (!scores) return []
+  const known = SCORE_ORDER.filter((key) => key in scores)
+  const unknown = Object.keys(scores).filter((key) => !SCORE_ORDER.includes(key))
+  return [...known, ...unknown]
+}
+
+export function scoreLabel(key: string): string {
+  return SCORE_LABELS[key] ?? humanizeKey(key)
+}
 
 export function finalScore(ticker: TickerDetail): number | null {
   return ticker.summary?.final_adjusted_score ?? null

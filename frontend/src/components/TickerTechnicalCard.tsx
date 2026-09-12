@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { fetchScanReport, fetchTickerHistory } from '@/lib/api'
 import {
-  SCORE_LABELS,
-  SCORE_ORDER,
   finalScore,
   isActionable,
+  orderedScoreKeys,
   scoreGrade,
+  scoreLabel,
   tierBadgeVariant,
 } from '@/lib/scoring'
 
@@ -74,7 +74,7 @@ export function TickerTechnicalCard({ ticker }: { ticker: string }) {
         </span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {SCORE_ORDER.filter((key) => scores[key]).map((key) => {
+        {orderedScoreKeys(scores).map((key) => {
           const component = scores[key]
           const pct = component.max > 0 ? (component.score / component.max) * 100 : null
           return (
@@ -84,7 +84,7 @@ export function TickerTechnicalCard({ ticker }: { ticker: string }) {
               title={component.meaning}
             >
               <div className="text-[0.7rem] text-muted-foreground">
-                {SCORE_LABELS[key] ?? key}
+                {scoreLabel(key)}
               </div>
               <div className="text-lg font-semibold text-foreground">{scoreGrade(pct)}</div>
             </div>

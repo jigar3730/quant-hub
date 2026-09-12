@@ -1,14 +1,11 @@
 import type { ScanSummary } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { cn, humanizeKey } from '@/lib/utils'
 
 // docs/FINANCIAL_UI_REIMAGINED.md §2.1 — zero new backend work. scan_summary
 // has been fetched and typed since the report/regime work earlier this
 // session; it just wasn't rendered anywhere yet. Plain div bars (same
 // technique as FactorSparkbars), not a chart library, per the blueprint's
 // own recommendation for this one view.
-function humanizeReason(code: string): string {
-  return code.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
-}
 
 // tier_counts/filter_breakdown are peer partitions of the universe, not a
 // sequential narrowing chain -- every bar's width is relative to the same
@@ -75,7 +72,7 @@ export function ScanFunnel({ summary }: { summary: ScanSummary }) {
           </div>
           <div className="space-y-1.5">
             {filterEntries.map(([reason, count]) => (
-              <FunnelBar key={reason} label={humanizeReason(reason)} count={count} total={total} />
+              <FunnelBar key={reason} label={humanizeKey(reason)} count={count} total={total} />
             ))}
           </div>
         </div>
