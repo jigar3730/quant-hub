@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TickerAuditTrail } from '@/components/TickerAuditTrail'
+import { TickerOutcomesCard } from '@/components/TickerOutcomesCard'
 import { TickerTechnicalCard } from '@/components/TickerTechnicalCard'
 import { fetchTickerHistory } from '@/lib/api'
 import { regimeVariant } from '@/lib/regime'
@@ -75,6 +76,15 @@ export function TickerHistory() {
       {ticker != null && (
         <div className="mt-4">
           <TickerTechnicalCard ticker={ticker} />
+        </div>
+      )}
+
+      {ticker != null && (
+        <div className="mt-4">
+          <h3 className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            ML outcomes
+          </h3>
+          <TickerOutcomesCard ticker={ticker} />
         </div>
       )}
 

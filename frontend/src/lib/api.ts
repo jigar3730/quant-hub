@@ -212,6 +212,39 @@ export interface CommandCenterPayload {
   overlap_count: number
 }
 
+// Mirrors `api/schemas.py::OutcomeRow`. strategy_id/universe_id/scan_date
+// are only populated by the ticker-filtered query (a join to scan_runs) --
+// null when fetched by run_id instead.
+export interface OutcomeRow {
+  run_id: number
+  ticker: string
+  horizon_days: number
+  anchor_date: string | null
+  forward_return_pct: number | null
+  forward_max_gain_pct: number | null
+  forward_max_drawdown_pct: number | null
+  spy_forward_return_pct: number | null
+  excess_return_pct: number | null
+  label_binary: boolean | null
+  label_status: string
+  computed_at: string | null
+  strategy_id: string | null
+  universe_id: string | null
+  scan_date: string | null
+}
+
+export function fetchOutcomesForTicker(
+  ticker: string,
+  params: { strategyId?: string; horizonDays?: number; limit?: number } = {},
+): Promise<OutcomeRow[]> {
+  const search = new URLSearchParams()
+  search.set('ticker', ticker)
+  if (params.strategyId) search.set('strategy_id', params.strategyId)
+  if (params.horizonDays != null) search.set('horizon_days', String(params.horizonDays))
+  search.set('limit', String(params.limit ?? 50))
+  return apiGet<OutcomeRow[]>(`/outcomes?${search.toString()}`)
+}
+
 export function fetchCommandCenter(scanDate?: string): Promise<CommandCenterPayload> {
   const search = scanDate ? `?scan_date=${scanDate}` : ''
   return apiGet<CommandCenterPayload>(`/command-center${search}`)

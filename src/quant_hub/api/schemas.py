@@ -86,6 +86,12 @@ class OutcomeRow(BaseModel):
     label_binary: bool | None = None
     label_status: str
     computed_at: datetime | None = None
+    # Only populated by the ticker-filtered query (list_outcomes_for_ticker),
+    # which joins scan_runs for this context; signal_outcomes itself has no
+    # strategy/universe/date columns.
+    strategy_id: str | None = None
+    universe_id: str | None = None
+    scan_date: date | None = None
 
 
 class ModelSummary(TolerantModel):
