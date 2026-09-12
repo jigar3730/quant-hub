@@ -19,13 +19,7 @@ def _prior_run(
     universe_id: str,
     before: date,
 ) -> dict[str, Any] | None:
-    runs = repo.list_runs_filtered(
-        strategy_id=strategy_id,
-        universe_id=universe_id,
-        until=before,
-        limit=30,
-    )
-    return next((run for run in runs if run["scan_date"] < before), None)
+    return repo.get_prior_run(strategy_id=strategy_id, universe_id=universe_id, before=before)
 
 
 def _symbols(rows: list[dict[str, Any]]) -> set[str]:
@@ -42,24 +36,18 @@ def _persistent_symbols(
 ) -> list[dict[str, Any]]:
     if not current:
         return []
-    runs = repo.list_runs_filtered(
+    run_ids = repo.list_run_ids_filtered(
         strategy_id=strategy_id,
         universe_id=universe_id,
         until=scan_date,
         limit=PERSISTENCE_MIN_APPEARANCES + 3,
-    )
-    counts = dict.fromkeys(current, 0)
-    for run in runs[: PERSISTENCE_MIN_APPEARANCES + 2]:
-        run_symbols = _symbols(
-            repo.list_actionable_tickers_for_run(run["id"], strategy_id)
-        )
-        for ticker in current & run_symbols:
-            counts[ticker] += 1
+    )[: PERSISTENCE_MIN_APPEARANCES + 2]
+    counts = repo.count_actionable_appearances(run_ids, current, strategy_id)
     return sorted(
         (
-            {"ticker": ticker, "appearances": appearances}
-            for ticker, appearances in counts.items()
-            if appearances >= PERSISTENCE_MIN_APPEARANCES
+            {"ticker": ticker, "appearances": counts.get(ticker, 0)}
+            for ticker in current
+            if counts.get(ticker, 0) >= PERSISTENCE_MIN_APPEARANCES
         ),
         key=lambda row: (-row["appearances"], row["ticker"]),
     )
@@ -78,12 +66,14 @@ def build_command_center_payload(
     ]
     coverage: list[dict[str, Any]] = []
     deltas: list[dict[str, Any]] = []
+    actionable_tickers: list[dict[str, Any]] = []
     by_ticker: dict[str, dict[str, dict[str, Any]]] = {}
     per_strategy = {
         strategy: {"actionable": 0, "tier1": 0, "universes": 0}
         for strategy in COMMAND_CENTER_STRATEGIES
     }
     regime_label: str | None = None
+    regime_multiplier: float | None = None
 
     for run in runs:
         strategy_id = run["strategy_id"]
@@ -91,6 +81,7 @@ def build_command_center_payload(
         rows = repo.list_actionable_tickers_for_run(run["id"], strategy_id)
         if strategy_id == "launchpad" and regime_label is None:
             regime_label = run.get("regime_label")
+            regime_multiplier = run.get("regime_multiplier")
         coverage.append(
             {
                 "strategy_id": strategy_id,
@@ -114,6 +105,15 @@ def build_command_center_payload(
                 "final_score": row.get("final_score"),
                 "universe_id": universe_id,
             }
+            actionable_tickers.append(
+                {
+                    **row,
+                    "universe_id": universe_id,
+                    "run_id": run["id"],
+                    "regime_label": run.get("regime_label"),
+                    "scan_time": run["scan_time"].isoformat() if run.get("scan_time") else None,
+                }
+            )
 
         prior = _prior_run(
             repo,
@@ -145,6 +145,8 @@ def build_command_center_payload(
             }
         )
 
+    actionable_tickers.sort(key=lambda row: (-(row.get("final_score") or 0), row["ticker"]))
+
     overlap = [
         {
             "ticker": ticker,
@@ -165,9 +167,11 @@ def build_command_center_payload(
         "scan_date": str(scan_date),
         "generated_at": datetime.now(tz=UTC).isoformat(),
         "regime_label": regime_label,
+        "regime_multiplier": regime_multiplier,
         "run_count": len(runs),
         "per_strategy": per_strategy,
         "coverage": coverage,
+        "actionable_tickers": actionable_tickers,
         "launchpad_lynch_overlap": overlap,
         "overlap_count": len(overlap),
         "deltas": deltas,

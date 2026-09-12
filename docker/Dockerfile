@@ -23,7 +23,7 @@ COPY .streamlit ./.streamlit
 COPY data/universes.json data/universes.json
 COPY data/universes/ data/universes/
 
-RUN uv pip install --system -e .[dev,viz,ml]
+RUN uv pip install --system -e .[dev,viz,ml,api]
 
 COPY docker/crontab /etc/cron.d/quant-hub
 COPY docker/entrypoint.sh /entrypoint.sh

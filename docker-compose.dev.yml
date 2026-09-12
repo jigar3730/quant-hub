@@ -28,7 +28,44 @@ services:
     ports:
       - "${DASHBOARD_PORT:-5002}:5000"
 
+  quant-hub-api:
+    container_name: quant-hub-api-dev
+    env_file:
+      - .env.dev
+    environment:
+      APP_ENV: dev
+      LOG_LEVEL: WARNING
+    volumes:
+      - ./src:/app/src
+      - ./data/universes.json:/app/data/universes.json
+      - ./data/universes:/app/data/universes
+      - quant-hub-data-dev:/app/data
+      - quant-hub-logs-dev:/app/logs
+    command: ["quant-api", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "${API_PORT:-5010}:8000"
+
+  # Phase 2 design-system scaffold (docs/MODERNIZATION_AUDIT.md §04) — Vite
+  # dev server, hot-reload, proxies /api to quant-hub-api. Dev-only for now;
+  # no prod/stage build exists yet since there's no cutover in this phase.
+  quant-hub-frontend:
+    container_name: quant-hub-frontend-dev
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    restart: unless-stopped
+    depends_on:
+      - quant-hub-api
+    environment:
+      VITE_API_PROXY_TARGET: http://quant-hub-api:8000
+    volumes:
+      - ./frontend:/app
+      - quant-hub-frontend-node-modules:/app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5020}:5173"
+
 volumes:
   quant-hub-pg-dev:
   quant-hub-data-dev:
   quant-hub-logs-dev:
+  quant-hub-frontend-node-modules:

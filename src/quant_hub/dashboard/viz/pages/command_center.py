@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from quant_hub.dashboard.viz.cached_reads import cached_command_center_payload
 from quant_hub.dashboard.viz.components import apply_chart_style
 from quant_hub.dashboard.viz.design_tokens import COLORS
 from quant_hub.dashboard.viz.labels import STRATEGY_DISPLAY, tier_friendly
@@ -19,10 +20,7 @@ from quant_hub.dashboard.viz.table_helpers import (
     with_ticker_links,
 )
 from quant_hub.dashboard.viz.ticker_history_components import render_ticker_history_panel
-from quant_hub.digest.command_center import (
-    COMMAND_CENTER_STRATEGIES,
-    build_command_center_payload,
-)
+from quant_hub.digest.command_center import COMMAND_CENTER_STRATEGIES
 from quant_hub.infrastructure.postgres.repository import ScanRepository
 
 
@@ -285,7 +283,7 @@ def render_command_center(
     scan_date: date,
     detail_ticker: str | None = None,
 ) -> None:
-    payload = build_command_center_payload(repo, scan_date=scan_date)
+    payload = cached_command_center_payload(scan_date)
 
     _render_header(payload, scan_date)
     _render_summary_metrics(payload)

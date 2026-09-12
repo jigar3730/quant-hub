@@ -31,3 +31,22 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-quant}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-quant_hub}
     ports:
       - "${DASHBOARD_PORT:-5002}:5000"
+
+  # Read-only FastAPI service (docs/MODERNIZATION_AUDIT.md Phase 1) — same
+  # image, same Postgres, additive beside quant-hub. Never runs write jobs.
+  quant-hub-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-America/New_York}
+      APP_ENV: ${APP_ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-quant}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-quant_hub}
+    command: ["quant-api", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "${API_PORT:-5010}:8000"

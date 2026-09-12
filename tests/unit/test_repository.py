@@ -177,6 +177,36 @@ def test_ticker_history_actionable_filter():
         report=_lynch_report(ticker=ticker, passed=False, tier="filtered"),
     )
 
+    prior = repo.get_prior_run(
+        strategy_id="lynch",
+        universe_id=universe,
+        before=date(2099, 2, 4),
+        exclude_fixtures=False,
+    )
+    assert prior is not None
+    assert prior["scan_date"] == date(2099, 2, 3)
+    assert (
+        repo.get_prior_run(
+            strategy_id="lynch",
+            universe_id=universe,
+            before=date(2099, 2, 3),
+            exclude_fixtures=False,
+        )
+        is None
+    )
+
+    run_ids = repo.list_run_ids_filtered(
+        strategy_id="launchpad",
+        universe_id=universe,
+        until=date(2099, 2, 2),
+        limit=10,
+        exclude_fixtures=False,
+    )
+    assert len(run_ids) == 2
+
+    counts = repo.count_actionable_appearances(run_ids, {ticker}, "launchpad")
+    assert counts.get(ticker) == 1  # only the 2099-02-02 row uses `ticker` and is Tier 1
+
     rows = repo.ticker_history(ticker, actionable_only=True, exclude_fixtures=False)
     assert len(rows) == 2
     assert {r["strategy_id"] for r in rows} == {"launchpad", "lynch"}
