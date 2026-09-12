@@ -48,6 +48,27 @@ export function tierBadgeVariant(
   return 'outline'
 }
 
+// Frontend-only presentational mapping (docs/FINANCIAL_UI_REIMAGINED.md
+// §1.1) over scores the backend already computes — no new scoring concept,
+// same category as tierBadgeVariant. Thresholds are a starting point to
+// revisit once real score distributions have been reviewed.
+const GRADE_THRESHOLDS: [number, string][] = [
+  [90, 'A+'],
+  [80, 'A'],
+  [70, 'B+'],
+  [60, 'B'],
+  [50, 'C+'],
+  [40, 'C'],
+]
+
+export function scoreGrade(pct: number | null | undefined): string {
+  if (pct == null || Number.isNaN(pct)) return '—'
+  for (const [min, grade] of GRADE_THRESHOLDS) {
+    if (pct >= min) return grade
+  }
+  return 'D'
+}
+
 // Heatmap cell fill for the ticker audit-trail — the one place a green
 // intensity scale earns its keep (a pass-rate heatmap is conventionally
 // read that way), distinct from the tier badge's neutral monochrome scale.

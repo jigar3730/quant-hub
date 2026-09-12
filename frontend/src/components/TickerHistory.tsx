@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TickerAuditTrail } from '@/components/TickerAuditTrail'
+import { TickerTechnicalCard } from '@/components/TickerTechnicalCard'
 import { fetchTickerHistory } from '@/lib/api'
 import { regimeVariant } from '@/lib/regime'
 import { tierBadgeVariant } from '@/lib/scoring'
@@ -70,6 +71,12 @@ export function TickerHistory() {
           Actionable appearances only
         </label>
       </form>
+
+      {ticker != null && (
+        <div className="mt-4">
+          <TickerTechnicalCard ticker={ticker} />
+        </div>
+      )}
 
       {ticker != null && (
         <div className="mt-4">
