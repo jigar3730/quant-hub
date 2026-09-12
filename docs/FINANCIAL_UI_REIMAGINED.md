@@ -296,7 +296,7 @@ covered by what's installed.
 Roughly ordered by (value ÷ new-backend-risk), not by section number:
 
 1. **Multi-universe overlap matrix** (§2.2) — free right now, client-side only. **← in progress**
-2. **Ticker 360 evolution** (§1.2, §1.3) — mostly data already fetched; needs one new `ticker`-filtered `/outcomes` query param.
+2. **Ticker 360 evolution** (§1.2, §1.3) — mostly data already fetched; needs one new `ticker`-filtered `/outcomes` query param. **Shipped: audit-trail heatmap (`TickerAuditTrail`), composite/factor letter grades (`TickerTechnicalCard`), ML outcomes card (`TickerOutcomesCard` + the new `/outcomes?ticker=` mode). Deferred: the Fundamental/Lynch card — Lynch's factor/scoring shape still needs its own verification pass before grading it, same rigor as was applied to Launchpad's.**
 3. **Compare view** (§3.5) — zero new backend; standalone, can slot in anytime after step 2 establishes the per-ticker factor patterns.
 4. **Table sort + virtualization** (§3.1) — incremental, low-risk, unblocks `sp500_index` at scale.
 5. **Scan-run funnel view** (§2.1) — zero new backend, pure new rendering.
