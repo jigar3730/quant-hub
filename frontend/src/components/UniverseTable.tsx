@@ -70,6 +70,7 @@ function tierSortFn(rowA: Row<typeof features, TickerDetail>, rowB: Row<typeof f
 // the empty string for its own internal placeholder state.
 const TIER_FILTER_OPTIONS = [
   { value: 'all', label: 'All tiers' },
+  { value: 'actionable', label: 'Actionable (Tier 1 + 2)' },
   { value: 'Tier 1', label: 'Tier 1' },
   { value: 'Tier 2', label: 'Tier 2' },
   { value: 'Tier 3', label: 'Tier 3' },
@@ -235,6 +236,13 @@ export function UniverseTable() {
   const filteredTickers = useMemo(() => {
     const all = report.data?.tickers ?? EMPTY_TICKERS
     if (!tierFilter) return all
+    // "Actionable" spans Tier 1 + Tier 2 together (and requires eligible),
+    // not a single tier value -- reuses the same isActionable() the row
+    // badge already uses, rather than hardcoding "Tier 1 or Tier 2" here
+    // and risking the two definitions drifting apart.
+    if (tierFilter === 'actionable') {
+      return all.filter((t) => isActionable(STRATEGY_ID, t))
+    }
     return all.filter((t) => t.tier === tierFilter)
   }, [report.data, tierFilter])
 

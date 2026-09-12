@@ -18,8 +18,10 @@ const columnHelper = createColumnHelper<typeof features, ScanRunSummary>()
 
 // Only Launchpad uses the Tier 1/2/3 scheme -- Lynch's tiers are
 // fast_grower/stalwart/asset_play/passed/filtered (see lib/lynch.ts), so a
-// "Tier 2" link on a Lynch row wouldn't mean anything there. Plain count,
-// not a link, for any other strategy.
+// "Tier 2"/"Actionable" link on a Lynch row wouldn't mean anything there.
+// Plain count, not a link, for any other strategy. `tier` is either a
+// literal tier value or the 'actionable' sentinel UniverseTable's tier
+// filter understands (Tier 1 + Tier 2 together, not a single tier).
 function tierCell(row: ScanRunSummary, count: number, tier: string) {
   if (row.strategy_id !== 'launchpad') return count
   const params = new URLSearchParams({ universe: row.universe_id, date: row.scan_date, tier })
@@ -48,7 +50,10 @@ const columns = columnHelper.columns([
     header: 'Tier 2',
     cell: (info) => tierCell(info.row.original, info.getValue(), 'Tier 2'),
   }),
-  columnHelper.accessor('actionable_count', { header: 'Actionable' }),
+  columnHelper.accessor('actionable_count', {
+    header: 'Actionable',
+    cell: (info) => tierCell(info.row.original, info.getValue(), 'actionable'),
+  }),
 ])
 
 const EMPTY_SCANS: ScanRunSummary[] = []
