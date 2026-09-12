@@ -31,6 +31,25 @@ stack up under these container names, and a second `up`/`run` against the same
 names will fail with "Container name already in use". If they're already
 running, just `docker exec` into them — don't restart the stack.
 
+**Project-name mismatch — check `docker compose ls` before `stop`/`rm`/`build`.**
+Compose infers a project name from the current directory (`quant-hub` here)
+when no `-p`/`--project-name` is given, but the actually-running stack may have
+been started under a *different* project name (e.g. `quant-hub-dev`, if a peer
+session's checkout lives at a differently-named path). A `stop`/`rm`/`build`
+invoked with the wrong inferred project name doesn't error — it just silently
+no-ops (nothing to stop) or creates parallel, orphaned resources (a second
+`<project>_quant-hub-frontend-node-modules` volume) instead of touching the
+real running containers. Confirm the real project name first:
+
+```bash
+docker compose ls                              # shows the actual running project name(s)
+docker inspect quant-hub-frontend-dev --format '{{range .Mounts}}{{.Name}} -> {{.Destination}}{{"\n"}}{{end}}'  # confirms which volume a running container actually uses
+```
+
+Then pass `-p <real-project-name>` on every compose command that targets the
+running stack (`stop`, `rm`, `build`, `up`, `run`) — including the UID-mapped
+`run` example below.
+
 | Container | Service | Port (host) |
 |---|---|---|
 | `quant-hub-db-dev` | Postgres | `${POSTGRES_PORT:-5433}` |
@@ -61,13 +80,41 @@ the host UID/GID or the files come out root-owned and unwritable from the
 host:
 
 ```bash
-docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml \
+docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml \
   run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp quant-hub-frontend <cmd>
 ```
 
 If you hit `EACCES` on a bind-mounted path because a prior container already
 left root-owned files, fix it with a root container chowning its own mount —
 not host-side `sudo chown` (see the docker-uid-mapping project memory).
+
+A simpler alternative for a one-off `npm install` into the *already-running*
+container: run it as the container's default **root** user (matches
+`node_modules`' existing ownership as a named volume, not a host bind mount —
+root there is harmless), then `chown` back just the two bind-mounted files it
+touched:
+
+```bash
+docker exec quant-hub-frontend-dev npm install <package>
+docker exec quant-hub-frontend-dev chown "$(id -u):$(id -g)" /app/package.json /app/package-lock.json
+```
+
+## Rebuilding after a Dockerfile.frontend change (e.g. a Node version bump)
+
+`node_modules` is a **named volume**, not baked into the image at runtime — it
+shadows whatever the image's own `npm ci` produces. Rebuilding the image alone
+is not enough after a base-image change (a Node major-version bump, say):
+the stale volume, seeded under the old Node version, stays mounted. Remove it
+so a fresh one seeds from the rebuilt image:
+
+```bash
+docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml stop quant-hub-frontend
+docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml rm -f quant-hub-frontend
+docker volume rm quant-hub-dev_quant-hub-frontend-node-modules
+docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml build quant-hub-frontend
+docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d quant-hub-frontend
+docker exec quant-hub-frontend-dev node --version   # confirm the new version actually took
+```
 
 ## Smoke-test real data through the API
 
