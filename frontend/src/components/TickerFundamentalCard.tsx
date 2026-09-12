@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, X } from 'lucide-react'
+import { LynchChecksList } from '@/components/LynchChecksList'
+import { LynchScoreBar } from '@/components/LynchScoreBar'
 import { Badge } from '@/components/ui/badge'
 import { fetchScanReport, fetchTickerHistory } from '@/lib/api'
 import { LYNCH_CATEGORY_LABELS, LYNCH_CATEGORY_VARIANT, lynchTierVariant } from '@/lib/lynch'
@@ -55,17 +56,7 @@ export function TickerFundamentalCard({ ticker }: { ticker: string }) {
   return (
     <div className="rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-foreground/70"
-              style={{ width: `${Math.max(0, Math.min(100, score ?? 0))}%` }}
-            />
-          </div>
-          <span className="text-sm font-medium text-foreground tabular-nums">
-            {score != null ? score.toFixed(0) : '—'}
-          </span>
-        </div>
+        <LynchScoreBar score={score} barClassName="h-2 w-24" />
         <Badge variant={lynchTierVariant(detail.tier)}>{detail.tier}</Badge>
         {categories.map((c) => (
           <Badge key={c} variant={LYNCH_CATEGORY_VARIANT[c] ?? 'outline'}>
@@ -82,25 +73,9 @@ export function TickerFundamentalCard({ ticker }: { ticker: string }) {
         <p className="mt-2 text-sm text-muted-foreground">{detail.investor_summary}</p>
       )}
 
-      {checks.length > 0 && (
-        <ul className="mt-3 space-y-1.5">
-          {checks.map((c) => (
-            <li
-              key={c.rule}
-              className="flex items-start gap-2 text-sm"
-              title={c.why_it_matters}
-            >
-              {c.passed ? (
-                <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
-              ) : (
-                <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-              )}
-              <span className="text-foreground">{c.label}</span>
-              <span className="text-muted-foreground">— {c.plain_value}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="mt-3">
+        <LynchChecksList checks={checks} />
+      </div>
     </div>
   )
 }

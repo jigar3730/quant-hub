@@ -11,6 +11,8 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router'
+import { LynchChecksList } from '@/components/LynchChecksList'
+import { LynchScoreBar } from '@/components/LynchScoreBar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +32,7 @@ import {
   type ScoreComponent,
   type TickerDetail,
 } from '@/lib/api'
+import { LYNCH_CATEGORY_LABELS, LYNCH_CATEGORY_VARIANT, lynchTierVariant } from '@/lib/lynch'
 import { LAUNCHPAD_UNIVERSES } from '@/lib/universes'
 import {
   filterReason,
@@ -39,9 +42,12 @@ import {
   scoreLabel,
   tierBadgeVariant,
 } from '@/lib/scoring'
-import { cn } from '@/lib/utils'
+import { cn, humanizeKey } from '@/lib/utils'
 
-const STRATEGY_ID = 'launchpad'
+const STRATEGIES = [
+  { id: 'launchpad', label: 'Launchpad' },
+  { id: 'lynch', label: 'Lynch' },
+]
 
 // Row content is hand-rendered from `row.original` (see below) rather than
 // through TanStack's cell/FlexRender machinery — the row markup is too
@@ -58,7 +64,11 @@ const features = tableFeatures({
 const columnHelper = createColumnHelper<typeof features, TickerDetail>()
 
 // Mirrors report/builder.py's tier ordering (Tier 1 best) rather than
-// alphabetical, so "sort by tier" is actually meaningful.
+// alphabetical, so "sort by tier" is actually meaningful. Lynch's tiers
+// (fast_grower/stalwart/asset_play/passed/filtered) are peer categories,
+// not a 1-2-3 ranking, so its tier column just falls back to alphabetical
+// (no custom sortFn) rather than inventing a priority order that isn't
+// really there.
 const TIER_RANK: Record<string, number> = { 'Tier 1': 0, 'Tier 2': 1, 'Tier 3': 2, filtered: 3 }
 function tierSortFn(rowA: Row<typeof features, TickerDetail>, rowB: Row<typeof features, TickerDetail>) {
   const a = TIER_RANK[rowA.original.tier] ?? 4
@@ -66,9 +76,9 @@ function tierSortFn(rowA: Row<typeof features, TickerDetail>, rowB: Row<typeof f
   return a - b
 }
 
-// "All tiers" has to be a real sentinel, not "" -- Radix Select reserves
-// the empty string for its own internal placeholder state.
-const TIER_FILTER_OPTIONS = [
+// "All"/"actionable" have to be real sentinels, not "" -- Radix Select
+// reserves the empty string for its own internal placeholder state.
+const LAUNCHPAD_TIER_FILTER_OPTIONS = [
   { value: 'all', label: 'All tiers' },
   { value: 'actionable', label: 'Actionable (Tier 1 + 2)' },
   { value: 'Tier 1', label: 'Tier 1' },
@@ -76,11 +86,31 @@ const TIER_FILTER_OPTIONS = [
   { value: 'Tier 3', label: 'Tier 3' },
   { value: 'filtered', label: 'Filtered' },
 ]
+// Filters by a ticker's primary tier (categories[0], same field the tier
+// badge shows) -- not full category-set membership. A ticker's categories
+// are a non-exclusive set (lib/lynch.ts), so this is a real simplification:
+// a ticker whose primary tier is "stalwart" but that also qualifies as
+// "fast_grower" won't show under the Fast Grower filter. Consistent with
+// what the badge displays, at least, rather than a second, different axis.
+const LYNCH_TIER_FILTER_OPTIONS = [
+  { value: 'all', label: 'All tiers' },
+  { value: 'actionable', label: 'Actionable' },
+  { value: 'fast_grower', label: 'Fast Grower' },
+  { value: 'stalwart', label: 'Stalwart' },
+  { value: 'asset_play', label: 'Asset Play' },
+  { value: 'passed', label: 'Passed (no category)' },
+  { value: 'filtered', label: 'Filtered' },
+]
 
-const columns = columnHelper.columns([
+const launchpadColumns = columnHelper.columns([
   columnHelper.accessor('ticker', { id: 'ticker' }),
   columnHelper.accessor('tier', { id: 'tier', sortFn: tierSortFn }),
   columnHelper.accessor((row) => finalScore(row) ?? -Infinity, { id: 'score' }),
+])
+const lynchColumns = columnHelper.columns([
+  columnHelper.accessor('ticker', { id: 'ticker' }),
+  columnHelper.accessor('tier', { id: 'tier' }),
+  columnHelper.accessor((row) => row.lynch_score ?? -Infinity, { id: 'score' }),
 ])
 
 const EMPTY_TICKERS: TickerDetail[] = []
@@ -121,7 +151,7 @@ function FactorSparkbars({ scores }: { scores: Record<string, ScoreComponent> | 
   )
 }
 
-function TickerDrawer({ ticker }: { ticker: TickerDetail }) {
+function LaunchpadDrawer({ ticker }: { ticker: TickerDetail }) {
   const scores = ticker.scores ?? {}
   return (
     <div className="bg-muted/30 px-4 py-4">
@@ -151,6 +181,40 @@ function TickerDrawer({ ticker }: { ticker: TickerDetail }) {
   )
 }
 
+function LynchDrawer({ ticker }: { ticker: TickerDetail }) {
+  const categories = ticker.categories ?? []
+  const checks = ticker.checks ?? []
+  return (
+    <div className="bg-muted/30 px-4 py-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {categories.map((c) => (
+          <Badge key={c} variant={LYNCH_CATEGORY_VARIANT[c] ?? 'outline'}>
+            {LYNCH_CATEGORY_LABELS[c] ?? c}
+          </Badge>
+        ))}
+        {ticker.company_name && (
+          <span className="text-sm text-muted-foreground">
+            {ticker.company_name}
+            {ticker.sector ? ` · ${ticker.sector}` : ''}
+          </span>
+        )}
+      </div>
+      {ticker.tier_reason && (
+        <p className="mt-2 text-sm text-foreground">
+          <span className="text-muted-foreground">Tier reason: </span>
+          {ticker.tier_reason}
+        </p>
+      )}
+      {ticker.investor_summary && (
+        <p className="mt-2 text-sm text-muted-foreground">{ticker.investor_summary}</p>
+      )}
+      <div className="mt-3">
+        <LynchChecksList checks={checks} />
+      </div>
+    </div>
+  )
+}
+
 function SortIcon({ state }: { state: false | 'asc' | 'desc' }) {
   if (state === 'asc') return <ArrowUp className="size-3.5" />
   if (state === 'desc') return <ArrowDown className="size-3.5" />
@@ -158,22 +222,35 @@ function SortIcon({ state }: { state: false | 'asc' | 'desc' }) {
 }
 
 export function UniverseTable() {
-  // universe/date/tier live in the URL (?universe=&date=&tier=), same
-  // pattern as the ticker in Ticker 360 -- so a link from Recent Scans
-  // ("Tier 2 has 2 candidates" -> click -> see them) works, and this page
-  // stays linkable/bookmarkable rather than only reachable through its own
-  // controls. Derived directly from searchParams every render (not a
-  // separate useState that's only initialized once) so re-navigating here
-  // with different params actually updates the page -- react-router
-  // doesn't remount the component just because the query string changed
-  // on the same route.
+  // strategy/universe/date/tier live in the URL (?strategy=&universe=&date=&tier=),
+  // same pattern as the ticker in Ticker 360 -- so a link from Recent Scans
+  // ("Tier 2 has 2 candidates" -> click -> see them) works for either
+  // strategy, and this page stays linkable/bookmarkable rather than only
+  // reachable through its own controls. Derived directly from searchParams
+  // every render (not a separate useState that's only initialized once) so
+  // re-navigating here with different params actually updates the page --
+  // react-router doesn't remount the component just because the query
+  // string changed on the same route.
   const [searchParams, setSearchParams] = useSearchParams()
+  const strategyId = searchParams.get('strategy') ?? 'launchpad'
   const universeId = searchParams.get('universe') ?? LAUNCHPAD_UNIVERSES[0].id
   const selectedDate = searchParams.get('date')
   const tierFilter = searchParams.get('tier')
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  function setStrategyId(id: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('strategy', id)
+      // Tier vocab differs per strategy (Tier 1/2/3 vs. fast_grower/
+      // stalwart/asset_play) -- a filter value from the old strategy
+      // wouldn't match anything in the new one's option list.
+      next.delete('tier')
+      return next
+    })
+  }
 
   function setUniverseId(id: string) {
     setSearchParams((prev) => {
@@ -209,11 +286,11 @@ export function UniverseTable() {
   // to `null`, not an error, so it gets its own message rather than being
   // conflated with a real fetch failure.
   const scanRun = useQuery({
-    queryKey: ['scans', 'for-universe', { strategyId: STRATEGY_ID, universeId, selectedDate }],
+    queryKey: ['scans', 'for-universe', { strategyId, universeId, selectedDate }],
     queryFn: async () => {
       if (selectedDate) {
         const rows = await fetchScans({
-          strategyId: STRATEGY_ID,
+          strategyId,
           universeId,
           since: selectedDate,
           until: selectedDate,
@@ -221,7 +298,7 @@ export function UniverseTable() {
         })
         return rows[0] ?? null
       }
-      return fetchLatestScan({ strategyId: STRATEGY_ID, universeId })
+      return fetchLatestScan({ strategyId, universeId })
     },
   })
 
@@ -236,15 +313,19 @@ export function UniverseTable() {
   const filteredTickers = useMemo(() => {
     const all = report.data?.tickers ?? EMPTY_TICKERS
     if (!tierFilter) return all
-    // "Actionable" spans Tier 1 + Tier 2 together (and requires eligible),
+    // "Actionable" spans multiple tiers together (and requires eligible),
     // not a single tier value -- reuses the same isActionable() the row
-    // badge already uses, rather than hardcoding "Tier 1 or Tier 2" here
-    // and risking the two definitions drifting apart.
+    // badge already uses, rather than hardcoding tier lists here and
+    // risking the two definitions drifting apart.
     if (tierFilter === 'actionable') {
-      return all.filter((t) => isActionable(STRATEGY_ID, t))
+      return all.filter((t) => isActionable(strategyId, t))
     }
     return all.filter((t) => t.tier === tierFilter)
-  }, [report.data, tierFilter])
+  }, [report.data, tierFilter, strategyId])
+
+  const isLynch = strategyId === 'lynch'
+  const columns = isLynch ? lynchColumns : launchpadColumns
+  const tierFilterOptions = isLynch ? LYNCH_TIER_FILTER_OPTIONS : LAUNCHPAD_TIER_FILTER_OPTIONS
 
   const table = useTable({
     features,
@@ -274,6 +355,22 @@ export function UniverseTable() {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
+        <label className="text-sm font-medium text-foreground" htmlFor="strategy-select">
+          Strategy
+        </label>
+        <Select value={strategyId} onValueChange={setStrategyId}>
+          <SelectTrigger id="strategy-select" className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STRATEGIES.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <label className="text-sm font-medium text-foreground" htmlFor="universe-select">
           Universe
         </label>
@@ -313,11 +410,11 @@ export function UniverseTable() {
           value={tierFilter ?? 'all'}
           onValueChange={(value) => setTierFilter(value === 'all' ? null : value)}
         >
-          <SelectTrigger id="tier-filter" className="w-32">
+          <SelectTrigger id="tier-filter" className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TIER_FILTER_OPTIONS.map((option) => (
+            {tierFilterOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
@@ -383,7 +480,7 @@ export function UniverseTable() {
                 [
                   { id: 'ticker', label: 'Ticker', className: COL.ticker },
                   { id: 'tier', label: 'Tier', className: COL.tier },
-                  { id: 'score', label: 'Final score', className: COL.score },
+                  { id: 'score', label: isLynch ? 'Lynch score' : 'Final score', className: COL.score },
                 ] as const
               ).map(({ id, label, className }) => {
                 const column = table.getColumn(id)
@@ -402,7 +499,7 @@ export function UniverseTable() {
                   </button>
                 )
               })}
-              <div className={cn(COL.factors, 'px-2 py-2')}>Factors</div>
+              <div className={cn(COL.factors, 'px-2 py-2')}>{isLynch ? 'Score' : 'Factors'}</div>
               <div className={cn(COL.filterReason, 'px-2 py-2')}>Filter reason</div>
             </div>
 
@@ -413,6 +510,22 @@ export function UniverseTable() {
                   const ticker = row.original
                   const isOpen = expanded.has(ticker.ticker)
                   const actionable = isActionable(report.data!.strategy_id, ticker)
+                  const tierVariant = isLynch
+                    ? lynchTierVariant(ticker.tier)
+                    : tierBadgeVariant(ticker.tier)
+                  const tierLabel = isLynch
+                    ? (LYNCH_CATEGORY_LABELS[ticker.tier] ?? ticker.tier)
+                    : ticker.tier
+                  const scoreValue = isLynch ? (ticker.lynch_score ?? null) : finalScore(ticker)
+                  // Lynch's eligibility has no `summary` field, just a raw
+                  // rule code (e.g. "positive_earnings") in `fail_reason` --
+                  // humanized for a compact glance here. The full sentence
+                  // for the same rule is in the drawer's checks list.
+                  const reasonText = !ticker.eligible
+                    ? isLynch
+                      ? humanizeKey(filterReason(ticker) ?? '')
+                      : filterReason(ticker)
+                    : null
                   return (
                     <div
                       key={row.id}
@@ -455,13 +568,17 @@ export function UniverseTable() {
                           {actionable && <Badge variant="success">Actionable</Badge>}
                         </div>
                         <div className={cn(COL.tier, 'flex items-center px-2 py-2')}>
-                          <Badge variant={tierBadgeVariant(ticker.tier)}>{ticker.tier}</Badge>
+                          <Badge variant={tierVariant}>{tierLabel}</Badge>
                         </div>
                         <div className={cn(COL.score, 'flex items-center px-2 py-2 tabular-nums')}>
-                          {finalScore(ticker) != null ? finalScore(ticker)!.toFixed(1) : '—'}
+                          {scoreValue != null ? scoreValue.toFixed(1) : '—'}
                         </div>
                         <div className={cn(COL.factors, 'flex items-center px-2 py-2')}>
-                          <FactorSparkbars scores={ticker.scores} />
+                          {isLynch ? (
+                            <LynchScoreBar score={ticker.lynch_score} />
+                          ) : (
+                            <FactorSparkbars scores={ticker.scores} />
+                          )}
                         </div>
                         <div
                           className={cn(
@@ -469,10 +586,15 @@ export function UniverseTable() {
                             'flex items-center truncate px-2 py-2 text-muted-foreground',
                           )}
                         >
-                          {!ticker.eligible ? filterReason(ticker) : '—'}
+                          {reasonText ?? '—'}
                         </div>
                       </div>
-                      {isOpen && <TickerDrawer ticker={ticker} />}
+                      {isOpen &&
+                        (isLynch ? (
+                          <LynchDrawer ticker={ticker} />
+                        ) : (
+                          <LaunchpadDrawer ticker={ticker} />
+                        ))}
                     </div>
                   )
                 })}

@@ -2,10 +2,13 @@ import type { ScoreComponent, TickerDetail } from '@/lib/api'
 import { humanizeKey } from '@/lib/utils'
 
 // Mirrors `history/actionable.py::ACTIONABLE_TIERS` — the single source of
-// truth for which tiers count as actionable. Launchpad is the only strategy
-// wired into the frontend so far.
+// truth for which tiers count as actionable. Lynch's real tier values are
+// fast_grower/stalwart/asset_play/passed/filtered (lib/lynch.ts); "actionable"
+// there is any non-filtered tier -- equivalent to the backend's own
+// `tier != "filtered"` rule since those are the only 5 possible values.
 const ACTIONABLE_TIERS: Record<string, Set<string>> = {
   launchpad: new Set(['Tier 1', 'Tier 2']),
+  lynch: new Set(['fast_grower', 'stalwart', 'asset_play', 'passed']),
 }
 
 export function isActionable(strategyId: string, ticker: TickerDetail): boolean {

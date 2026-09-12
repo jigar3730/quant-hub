@@ -16,15 +16,41 @@ import { regimeVariant } from '@/lib/regime'
 const features = tableFeatures({})
 const columnHelper = createColumnHelper<typeof features, ScanRunSummary>()
 
-// Only Launchpad uses the Tier 1/2/3 scheme -- Lynch's tiers are
-// fast_grower/stalwart/asset_play/passed/filtered (see lib/lynch.ts), so a
-// "Tier 2"/"Actionable" link on a Lynch row wouldn't mean anything there.
-// Plain count, not a link, for any other strategy. `tier` is either a
-// literal tier value or the 'actionable' sentinel UniverseTable's tier
-// filter understands (Tier 1 + Tier 2 together, not a single tier).
+// Only Launchpad uses the Tier 1/2/3 scheme. Verified live: a Lynch
+// scan_runs row's tier1_count/tier2_count are NOT "N tickers with tier
+// Tier 1/Tier 2" -- for run id=3 (lynch, most_actives), tier2_count=4 but
+// the real tier breakdown is stalwart:4/passed:1 (no ticker's tier is
+// literally "Tier 2", that string doesn't exist in Lynch's vocabulary).
+// Linking those columns for a Lynch row would show a real count but land
+// on a filter that finds zero matches -- worse than not linking at all.
+// Plain count, not a link, for any other strategy.
 function tierCell(row: ScanRunSummary, count: number, tier: string) {
   if (row.strategy_id !== 'launchpad') return count
-  const params = new URLSearchParams({ universe: row.universe_id, date: row.scan_date, tier })
+  const params = new URLSearchParams({
+    strategy: row.strategy_id,
+    universe: row.universe_id,
+    date: row.scan_date,
+    tier,
+  })
+  return (
+    <Link to={`/universe?${params.toString()}`} className="hover:underline">
+      {count}
+    </Link>
+  )
+}
+
+// Actionable is genuinely strategy-agnostic (list_actionable_tickers_for_run
+// works the same way for both strategies, and actionable_count sums
+// correctly against the real tier breakdown for both -- verified live for
+// the Lynch case above: stalwart 4 + passed 1 = actionable_count 5). Links
+// for any strategy, unlike tierCell above.
+function actionableCell(row: ScanRunSummary, count: number) {
+  const params = new URLSearchParams({
+    strategy: row.strategy_id,
+    universe: row.universe_id,
+    date: row.scan_date,
+    tier: 'actionable',
+  })
   return (
     <Link to={`/universe?${params.toString()}`} className="hover:underline">
       {count}
@@ -52,7 +78,7 @@ const columns = columnHelper.columns([
   }),
   columnHelper.accessor('actionable_count', {
     header: 'Actionable',
-    cell: (info) => tierCell(info.row.original, info.getValue(), 'actionable'),
+    cell: (info) => actionableCell(info.row.original, info.getValue()),
   }),
 ])
 
