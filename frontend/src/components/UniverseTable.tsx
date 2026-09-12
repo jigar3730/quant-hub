@@ -13,6 +13,7 @@ import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { RegimeBanner } from '@/components/RegimeBanner'
+import { ScanFunnel } from '@/components/ScanFunnel'
 import {
   Select,
   SelectContent,
@@ -224,6 +225,12 @@ export function UniverseTable() {
         {report.data && (
           <div className="mb-4">
             <RegimeBanner regime={report.data.market_regime} />
+          </div>
+        )}
+
+        {report.data && (
+          <div className="mb-4">
+            <ScanFunnel summary={report.data.scan_summary} />
           </div>
         )}
 
