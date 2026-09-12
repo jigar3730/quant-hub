@@ -345,3 +345,22 @@ Roughly ordered by (value ÷ new-backend-risk), not by section number:
 
 Phase 3 (Streamlit retirement) proceeds tab-by-tab against this sequence,
 per the Section 0 reframing — not as a separate mechanical porting pass.
+
+## App shell (added 2026-09-12, outside the numbered sequence)
+
+The page had grown to 6 stacked sections with 3-4 more items still
+planned above — an infinite-scroll single page would have undone the
+cognitive-load work the rest of this blueprint was doing. Added a
+persistent sidebar (`AppLayout`) with real routing (`react-router` v7 —
+not v8, which needs Node ≥22.22 and this project's `Dockerfile.frontend`
+pins `node:20-slim`). Five destinations: Today's Priorities (`/`, with
+the overlap matrix folded in underneath), Universe Explorer
+(`/universe`), Ticker 360 (`/ticker/:symbol`), Compare (`/compare`), and
+Recent Scans (`/scans`, secondary).
+
+This also closed a gap flagged earlier in this doc: Ticker 360 was a
+disconnected search box. It now reads/writes the URL, and every ticker
+cell in `UniverseTable`, `OverlapMatrix`, and `TodaysPriorities` is a
+real link into it. **Every future item in the sequence above should land
+as a route/nav destination (or a section within one), not a new stacked
+section on a growing single page.**
