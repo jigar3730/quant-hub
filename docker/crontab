@@ -8,21 +8,20 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 # ===== Mon–Fri: Launchpad daily + digest =====
-# 05:10 PM ET — most_actives launchpad scan
-10 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe most_actives --no-email >> /app/logs/cron.log 2>&1
+# 05:00 AM ET — most_actives launchpad scan
+0 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe most_actives --no-email >> /app/logs/cron.log 2>&1
 
-# 05:15 PM ET — large_cap_growth launchpad scan
-15 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe large_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 05:05 AM ET — large_cap_growth launchpad scan
+5 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe large_cap_growth --no-email >> /app/logs/cron.log 2>&1
 
-# 05:20 PM ET — small_cap_growth launchpad scan
-20 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe small_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 05:10 AM ET — small_cap_growth launchpad scan
+10 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe small_cap_growth --no-email >> /app/logs/cron.log 2>&1
 
-# 05:25 PM ET — mid_cap_growth launchpad scan
-25 17 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe mid_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 05:15 AM ET — mid_cap_growth launchpad scan
+15 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe mid_cap_growth --no-email >> /app/logs/cron.log 2>&1
 
-# 05:40 PM ET — daily Launchpad digest email
-40 17 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
-
+# 05:30 AM ET — daily Launchpad digest email
+30 5 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
 
 # ===== Saturday: coverage + Lynch + ML + weekly digest =====
 # --- Launchpad Weekly Coverage (01:00 AM – 02:00 AM ET) ---

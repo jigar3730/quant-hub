@@ -46,14 +46,19 @@ def _finalize_ohlcv(sub: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
 
 
 def _download_chunk(tickers: list[str], start: str) -> pd.DataFrame:
-    raw = yf.download(
-        tickers,
-        start=start,
-        auto_adjust=True,
-        progress=False,
-        group_by="ticker",
-        threads=True,
-    )
+    try:
+        raw = yf.download(
+            tickers,
+            start=start,
+            auto_adjust=True,
+            progress=False,
+            group_by="ticker",
+            threads=True,
+            timeout=30,
+        )
+    except Exception:
+        logger.exception("yf.download failed for chunk of %d tickers", len(tickers))
+        return pd.DataFrame(columns=["Date", *OHLCV_COLUMNS, "ticker"])
     frames: list[pd.DataFrame] = []
     if isinstance(raw.columns, pd.MultiIndex):
         for ticker in tickers:
