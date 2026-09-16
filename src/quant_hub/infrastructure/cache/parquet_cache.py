@@ -46,6 +46,7 @@ class ParquetCache:
             try:
                 raw = pd.read_parquet(path)
             except Exception:
+                logger.warning("Corrupt cache file for %s; forcing refresh", ticker)
                 return False
             if ohlcv_has_incomplete_last_bar(raw):
                 return False
