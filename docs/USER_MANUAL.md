@@ -95,7 +95,7 @@ On production, the container reads the bind-mounted live data at `/mnt/fast/quan
 
 | Digest | Schedule (ET) | Content |
 |---|---|---|
-| Daily | Mon–Fri 5:40 PM ET | Launchpad Tier 1, Tier 2 when the regime permits, changes, and persistence |
+| Daily | Mon–Fri 5:30 AM ET (premarket) | All 4 Launchpad universes: Tier 1, Tier 2 when the regime permits, near-misses when a universe has neither, changes, and persistence |
 | Weekly | Saturday 8:30 AM ET | Lynch candidates, with Launchpad ∩ Lynch as the intended combined signal |
 
 Manual commands:
@@ -110,7 +110,7 @@ See [Digest Policy](DIGEST_POLICY.md) for selection and idempotency rules.
 
 ## Schedule
 
-`docker/crontab` is authoritative (America/New_York). Weekday Launchpad runs `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (5:10–5:25 PM), then the daily digest at 5:40 PM. Saturday coverage, Lynch, labels, analytics, and the weekly digest follow the crontab — do not copy older `sp500_index` 5:10 PM tables.
+`docker/crontab` is authoritative (America/New_York). Weekday Launchpad runs `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (5:00–5:15 AM), then the daily digest at 5:30 AM — all premarket, before the open. Saturday coverage, Lynch, labels, analytics, and the weekly digest follow the crontab — do not copy older `sp500_index` 5:10 PM tables.
 
 ## Launchpad ML
 

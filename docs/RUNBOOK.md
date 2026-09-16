@@ -38,7 +38,7 @@ Set a strong `POSTGRES_PASSWORD` and a matching `DATABASE_URL`. Configure `SMTP_
 Test current products:
 
 ```bash
-# Prod: quant-hub. Dev: quant-hub-dev. Cron universes: docker/crontab (not a 5:10 PM sp500_index slot).
+# Prod: quant-hub. Dev: quant-hub-dev. Cron universes: docker/crontab (premarket, not a 5:10 PM sp500_index slot).
 docker exec quant-hub quant-launchpad --universe most_actives --cache --report both
 docker exec quant-hub quant-lynch --universe most_actives --no-email
 ```
@@ -53,7 +53,7 @@ Open the **prod** dashboard at `http://127.0.0.1:5002` (dev also uses 5002 on a 
 docker exec quant-hub cat /etc/cron.d/quant-hub
 ```
 
-Weekday (ET): Launchpad on `most_actives`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth` (5:10–5:25 PM), then `quant-digest daily` at 5:40 PM. Saturday: Launchpad-all, staggered Lynch-all, ML labels, analytics, weekly digest.
+Weekday (ET, premarket): Launchpad on `most_actives`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth` (5:00–5:15 AM), then `quant-digest daily` at 5:30 AM — see [Digest Policy](DIGEST_POLICY.md) for what the daily email now covers. Saturday: Launchpad-all, staggered Lynch-all, ML labels, analytics, weekly digest.
 
 Scheduled scans persist results without email. Digest commands send mail. The weekly digest uses Launchpad ∩ Lynch overlap as the combined signal.
 

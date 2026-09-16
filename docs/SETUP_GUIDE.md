@@ -477,4 +477,4 @@ The following **setup** recipes were outdated after the multi-environment Compos
 - Bare `docker compose up` / `docker compose ps` without `run_env.sh` (base compose has no volumes)
 - Treat host port 5002 + `/mnt/fast/quant-data` as the only way to run (that is **prod** only)
 
-Schedule tables in older manuals sometimes still mention weekday `sp500_index` at 5:10 PM. **`docker/crontab` is the source of truth** (weekday growth universes, digest at 5:40 PM ET).
+Schedule tables in older manuals sometimes still mention weekday `sp500_index` at 5:10 PM. **`docker/crontab` is the source of truth** (weekday growth universes 5:00-5:15 AM ET, digest at 5:30 AM ET — all premarket).
