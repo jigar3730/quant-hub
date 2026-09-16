@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -13,10 +14,15 @@ from quant_hub.digest.humanize import (
     format_peg,
     friendly_launchpad_tier,
     friendly_lynch_categories,
+    launchpad_factor_highlights,
+    launchpad_near_miss_why,
+    launchpad_setup_text,
     launchpad_why,
     lynch_why,
 )
 from quant_hub.infrastructure.postgres.repository import ScanRepository
+
+logger = logging.getLogger(__name__)
 
 DIGEST_OUTPUT_DIR = OUTPUT_DIR / "digest"
 
@@ -28,6 +34,7 @@ def _launchpad_row(ticker: dict[str, Any]) -> dict[str, Any]:
         "final_adjusted_score",
         ticker.get("final_score", normalized),
     )
+    trend_raw = ((ticker.get("scores") or {}).get("trend_proximity_match") or {}).get("raw") or {}
     return {
         "ticker": ticker["ticker"],
         "tier": ticker.get("tier"),
@@ -36,8 +43,17 @@ def _launchpad_row(ticker: dict[str, Any]) -> dict[str, Any]:
         "normalized_score": normalized,
         "sector_etf": ticker.get("sector_etf"),
         "tier_reason": ticker.get("tier_reason"),
+        "price": trend_raw.get("price"),
         "why": launchpad_why(ticker),
+        "factor_highlights": launchpad_factor_highlights(ticker),
+        "setup": launchpad_setup_text(ticker),
     }
+
+
+def _launchpad_near_miss_row(ticker: dict[str, Any]) -> dict[str, Any]:
+    row = _launchpad_row(ticker)
+    row["why"] = launchpad_near_miss_why(ticker)
+    return row
 
 
 def _lynch_row(ticker: dict[str, Any]) -> dict[str, Any]:
@@ -66,6 +82,13 @@ def launchpad_actionable_tickers(tickers: list[dict[str, Any]]) -> list[dict[str
     )
 
 
+def _near_miss_tickers(tickers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Top Tier 3 (below-threshold) rows, for when a universe has no actionable hits."""
+    rows = [_launchpad_near_miss_row(t) for t in tickers if t.get("tier") == "Tier 3"]
+    rows.sort(key=lambda row: (row.get("normalized_score") or 0, row.get("ticker") or ""), reverse=True)
+    return rows[: P.DAILY_NEAR_MISS_MAX]
+
+
 def _prior_run(
     repo: ScanRepository,
     *,
@@ -86,6 +109,7 @@ def _persistent_launchpad(
     repo: ScanRepository,
     *,
     scan_date: date,
+    universe_id: str,
     current_tickers: set[str],
 ) -> list[dict[str, Any]]:
     if not current_tickers:
@@ -98,7 +122,7 @@ def _persistent_launchpad(
             limit=30,
         )
         if (
-            run["universe_id"] == P.DAILY_LAUNCHPAD_UNIVERSE
+            run["universe_id"] == universe_id
             and earliest <= run["scan_date"] <= scan_date
         )
     ]
@@ -116,35 +140,25 @@ def _persistent_launchpad(
     return sorted(persistent, key=lambda row: (-row["days_actionable"], row["ticker"]))
 
 
-def build_daily_payload(
+def _build_universe_block(
     repo: ScanRepository,
     *,
-    scan_date: date | None = None,
+    scan_date: date,
+    universe_id: str,
+    run: dict[str, Any],
+    report: dict[str, Any] | None,
+    regime_label: str,
 ) -> dict[str, Any]:
-    """Build the daily S&P 500 Launchpad brief."""
-    scan_date = scan_date or date.today()
-    run = repo.get_latest_run(
-        strategy_id=P.LAUNCHPAD_STRATEGY,
-        universe_id=P.DAILY_LAUNCHPAD_UNIVERSE,
-        scan_date=scan_date,
-    )
-    if not run:
-        raise RuntimeError(f"No Launchpad scan for {P.DAILY_LAUNCHPAD_UNIVERSE} on {scan_date}")
-
-    report = repo.load_report(
-        strategy_id=P.LAUNCHPAD_STRATEGY,
-        universe_id=P.DAILY_LAUNCHPAD_UNIVERSE,
-        scan_date=scan_date,
-    )
     details = repo.list_ticker_details_for_run(run["id"])
-    regime = (report or {}).get("market_regime") or {}
-    regime_label = regime.get("label", run.get("regime_label", "unknown"))
-
     actionable = launchpad_actionable_tickers(details)
     tier1 = [row for row in actionable if row["tier"] == P.LAUNCHPAD_TIER1][: P.DAILY_TIER1_MAX]
     tier2 = []
     if regime_label != P.WEAK_REGIME_LABEL:
         tier2 = [row for row in actionable if row["tier"] == P.LAUNCHPAD_TIER2][: P.DAILY_TIER2_MAX]
+
+    near_misses: list[dict[str, Any]] = []
+    if not tier1 and not tier2:
+        near_misses = _near_miss_tickers(details)
 
     # Deltas describe the scanner's actionable set, not just the names shown
     # after digest caps or weak-regime Tier 2 suppression.
@@ -153,7 +167,7 @@ def build_daily_payload(
         repo,
         scan_date=scan_date,
         strategy_id=P.LAUNCHPAD_STRATEGY,
-        universe_id=P.DAILY_LAUNCHPAD_UNIVERSE,
+        universe_id=universe_id,
     )
     prior_tickers: set[str] = set()
     if prior:
@@ -163,21 +177,96 @@ def build_daily_payload(
         }
 
     return {
-        "digest_type": "daily",
-        "scan_date": str(scan_date),
-        "launchpad_scan_date": str(run["scan_date"]),
-        "generated_at": datetime.now(tz=UTC).isoformat(),
-        "regime": regime,
+        "universe_id": universe_id,
+        "universe_label": P.UNIVERSE_LABELS.get(universe_id, universe_id),
+        "scan_date": str(run["scan_date"]),
         "summary": (report or {}).get("scan_summary") or {},
         "tier1": tier1,
         "tier2": tier2,
+        "near_misses": near_misses,
         "new_entrants": sorted(current_tickers - prior_tickers) if prior else [],
         "dropped": sorted(prior_tickers - current_tickers) if prior else [],
         "persistent": _persistent_launchpad(
             repo,
             scan_date=scan_date,
+            universe_id=universe_id,
             current_tickers=current_tickers,
         ),
+    }
+
+
+def build_daily_payload(
+    repo: ScanRepository,
+    *,
+    scan_date: date | None = None,
+) -> dict[str, Any]:
+    """Build the daily premarket Launchpad brief across all scanned universes."""
+    scan_date = scan_date or date.today()
+
+    primary_run = repo.get_latest_run(
+        strategy_id=P.LAUNCHPAD_STRATEGY,
+        universe_id=P.DAILY_LAUNCHPAD_UNIVERSE,
+        scan_date=scan_date,
+    )
+    if not primary_run:
+        raise RuntimeError(f"No Launchpad scan for {P.DAILY_LAUNCHPAD_UNIVERSE} on {scan_date}")
+
+    primary_report = repo.load_report(
+        strategy_id=P.LAUNCHPAD_STRATEGY,
+        universe_id=P.DAILY_LAUNCHPAD_UNIVERSE,
+        scan_date=scan_date,
+    )
+    regime = (primary_report or {}).get("market_regime") or {}
+    regime_label = regime.get("label", primary_run.get("regime_label", "unknown"))
+
+    universes: list[dict[str, Any]] = []
+    for universe_id in P.DAILY_UNIVERSES:
+        if universe_id == P.DAILY_LAUNCHPAD_UNIVERSE:
+            run, report = primary_run, primary_report
+        else:
+            run = repo.get_latest_run(
+                strategy_id=P.LAUNCHPAD_STRATEGY,
+                universe_id=universe_id,
+                scan_date=scan_date,
+            )
+            if not run:
+                logger.warning(
+                    "No Launchpad scan for %s on %s — skipping from daily digest",
+                    universe_id,
+                    scan_date,
+                )
+                continue
+            report = repo.load_report(
+                strategy_id=P.LAUNCHPAD_STRATEGY,
+                universe_id=universe_id,
+                scan_date=scan_date,
+            )
+        universes.append(
+            _build_universe_block(
+                repo,
+                scan_date=scan_date,
+                universe_id=universe_id,
+                run=run,
+                report=report,
+                regime_label=regime_label,
+            )
+        )
+
+    totals = {
+        "tier1": sum(len(u["tier1"]) for u in universes),
+        "tier2": sum(len(u["tier2"]) for u in universes),
+        "near_misses": sum(len(u["near_misses"]) for u in universes),
+    }
+    totals["actionable"] = totals["tier1"] + totals["tier2"]
+
+    return {
+        "digest_type": "daily",
+        "scan_date": str(scan_date),
+        "launchpad_scan_date": str(primary_run["scan_date"]),
+        "generated_at": datetime.now(tz=UTC).isoformat(),
+        "regime": regime,
+        "universes": universes,
+        "totals": totals,
         "policy_footer": P.DIGEST_POLICY_FOOTER,
     }
 

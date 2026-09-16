@@ -59,6 +59,67 @@ def launchpad_why(ticker: dict[str, Any]) -> str:
     return "Qualified Launchpad setup."
 
 
+# Factor order controls display priority (highest max points first).
+_FACTOR_DISPLAY_ORDER = (
+    "squeeze_intensity",
+    "volume_vacuum_depth",
+    "macd_zero_line",
+    "tightness_percentile",
+    "trend_proximity_match",
+)
+
+
+def launchpad_factor_highlights(ticker: dict[str, Any]) -> list[str]:
+    """Human-readable factor signals that contributed to this ticker's score."""
+    scores = ticker.get("scores") or {}
+    highlights = []
+    for factor in _FACTOR_DISPLAY_ORDER:
+        detail = scores.get(factor) or {}
+        score = detail.get("score") or 0
+        meaning = detail.get("meaning")
+        if score > 0 and meaning:
+            highlights.append(str(meaning))
+    return highlights
+
+
+def launchpad_setup_text(ticker: dict[str, Any]) -> str:
+    """One-sentence description of the setup to watch, built from already-computed levels."""
+    scores = ticker.get("scores") or {}
+    trend_raw = (scores.get("trend_proximity_match") or {}).get("raw") or {}
+    squeeze_raw = (scores.get("squeeze_intensity") or {}).get("raw") or {}
+    volume_raw = (scores.get("volume_vacuum_depth") or {}).get("raw") or {}
+
+    ema50 = trend_raw.get("price_ema50")
+    parts: list[str] = []
+    if ema50 is not None:
+        parts.append(f"Watch for a breakout above EMA50 (${ema50:.2f})")
+    else:
+        parts.append("Watch for a breakout on expanding volume")
+
+    rvol = volume_raw.get("rvol")
+    if rvol is not None:
+        parts[-1] += f" on expanding volume (RVOL {rvol})"
+
+    proximity_bits = []
+    atr_distance = trend_raw.get("atr_distance")
+    grade = trend_raw.get("near_support_grade")
+    if atr_distance is not None:
+        proximity_bits.append(f"{atr_distance} ATR from support" + (f" (grade: {grade})" if grade else ""))
+    squeeze_ratio = squeeze_raw.get("squeeze_ratio")
+    if squeeze_ratio is not None:
+        proximity_bits.append(f"squeeze ratio {squeeze_ratio}")
+
+    sentence = parts[0] + "."
+    if proximity_bits:
+        sentence += f" Currently {', '.join(proximity_bits)}."
+    return sentence
+
+
+def launchpad_near_miss_why(ticker: dict[str, Any]) -> str:
+    """Why a Tier 3 ticker didn't qualify — reuses the persisted tier_reason explanation."""
+    return launchpad_why(ticker)
+
+
 def lynch_why(ticker: dict[str, Any]) -> str:
     summary = ticker.get("investor_summary")
     if summary:
@@ -71,24 +132,42 @@ def lynch_why(ticker: dict[str, Any]) -> str:
 
 
 def daily_executive_summary(payload: dict[str, Any]) -> list[str]:
-    tier1 = payload.get("tier1") or []
-    tier2 = payload.get("tier2") or []
+    universes = payload.get("universes") or []
     regime = payload.get("regime") or {}
     label = regime.get("label", "unknown")
-    count = len(tier1) + len(tier2)
-    if not count:
-        return [
-            f"The S&P 500 Launchpad scan found no actionable names in a {label} market.",
-            "Review the weekly Lynch digest for fundamentally screened candidates.",
+
+    all_tier1 = [row for u in universes for row in (u.get("tier1") or [])]
+    all_tier2 = [row for u in universes for row in (u.get("tier2") or [])]
+    total = len(all_tier1) + len(all_tier2)
+    total_near_miss = sum(len(u.get("near_misses") or []) for u in universes)
+
+    if not universes:
+        return ["No Launchpad scans available today."]
+
+    if not total:
+        lines = [
+            f"No actionable Launchpad names across {len(universes)} screened universes ({label} market)."
         ]
-    noun = "name" if count == 1 else "names"
-    lines = [f"{count} actionable Launchpad {noun} in the S&P 500 ({label} market)."]
-    if tier1:
-        names = ", ".join(row["ticker"] for row in tier1[:5])
-        suffix = f" (+{len(tier1) - 5} more)" if len(tier1) > 5 else ""
+        if total_near_miss:
+            lines.append(f'{total_near_miss} names came close today — see "Closest to qualifying" below.')
+        else:
+            lines.append("Review the weekly Lynch digest for fundamentally screened candidates.")
+        return lines
+
+    noun = "name" if total == 1 else "names"
+    lines = [f"{total} actionable Launchpad {noun} across {len(universes)} universes ({label} market)."]
+    if all_tier1:
+        names = ", ".join(row["ticker"] for row in all_tier1[:5])
+        suffix = f" (+{len(all_tier1) - 5} more)" if len(all_tier1) > 5 else ""
         lines.append(f"High conviction: {names}{suffix}.")
-    if payload.get("new_entrants"):
-        lines.append(f"New today: {', '.join(payload['new_entrants'][:8])}.")
+    breakdown = ", ".join(
+        f"{u['universe_label']} {len(u.get('tier1') or []) + len(u.get('tier2') or [])}"
+        for u in universes
+    )
+    lines.append(f"By universe: {breakdown}.")
+    new_entrants = sorted({ticker for u in universes for ticker in (u.get("new_entrants") or [])})
+    if new_entrants:
+        lines.append(f"New today: {', '.join(new_entrants[:8])}.")
     return lines
 
 

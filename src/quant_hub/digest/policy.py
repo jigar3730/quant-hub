@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
-# Universes and strategies (must match scheduled cron scans)
-SCHEDULED_UNIVERSES = ("most_actives", "large_cap_growth")
-DAILY_LAUNCHPAD_UNIVERSE = "most_actives"
+# Universes and strategies (must match scheduled cron scans in docker/crontab)
+DAILY_UNIVERSES = ("most_actives", "large_cap_growth", "small_cap_growth", "mid_cap_growth")
+DAILY_LAUNCHPAD_UNIVERSE = "most_actives"  # primary universe; required for readiness checks
 WEEKLY_LYNCH_UNIVERSE = "most_actives"
 WEEKLY_LAUNCHPAD_UNIVERSE = "most_actives"
 LAUNCHPAD_STRATEGY = "launchpad"
 LYNCH_STRATEGY = "lynch"
+
+UNIVERSE_LABELS = {
+    "most_actives": "Most active",
+    "large_cap_growth": "Large-cap growth",
+    "small_cap_growth": "Small-cap growth",
+    "mid_cap_growth": "Mid-cap growth",
+}
 
 # Launchpad actionable tiers (matches strategies/launchpad/tiers.py).
 LAUNCHPAD_TIER1 = "Tier 1"
@@ -18,6 +25,7 @@ LAUNCHPAD_ACTIONABLE = (LAUNCHPAD_TIER1, LAUNCHPAD_TIER2)
 # Daily caps
 DAILY_TIER1_MAX = 15
 DAILY_TIER2_MAX = 10
+DAILY_NEAR_MISS_MAX = 3
 DAILY_SEND_WHEN_EMPTY = True
 
 # Weekly caps
