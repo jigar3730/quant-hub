@@ -7,10 +7,12 @@ from quant_hub.universes.batch import list_universe_ids
 from quant_hub.universes.registry import UniverseRegistry
 
 
-def test_sector_etfs_universe_matches_repo_etf_set():
+def test_sector_etfs_universe_covers_repo_etf_set():
+    # Extra ETFs may be added to the file; the repo's sector/industry set must stay in it.
     reg = UniverseRegistry()
     _, tickers = reg.resolve("sector_etfs")
-    assert sorted(tickers) == sorted(ALL_SECTOR_ETFS)
+    assert set(ALL_SECTOR_ETFS) <= set(tickers)
+    assert len(tickers) == len(set(tickers))
     assert "SPY" not in tickers
     assert reg.get_eligibility_mode("sector_etfs") == "etf"
     assert reg.is_lynch_enabled("sector_etfs") is False

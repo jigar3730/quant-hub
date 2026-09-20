@@ -12,10 +12,10 @@ from swing_fixtures import TAIL_TRIGGER, TAIL_WATCH, FakeLoader, make_frame, pat
 from quant_hub.application import sector_swing_service as svc_mod
 from quant_hub.application.sector_swing_service import SectorSwingScanService
 from quant_hub.cli import sector_swing as cli_mod
-from quant_hub.config import ALL_SECTOR_ETFS
 from quant_hub.sector_swing import config as C
 from quant_hub.sector_swing.calendar import ET
 from quant_hub.sector_swing.runner import SectorSwingRunner, StaleDataError
+from quant_hub.universes.registry import UniverseRegistry
 
 NOW = datetime(2026, 9, 21, 5, 20, tzinfo=ET)
 
@@ -42,11 +42,15 @@ class FakeJobRepo:
         self.finished.append({"job_id": job_id, **kwargs})
 
 
+def universe_tickers() -> list[str]:
+    return UniverseRegistry().resolve("sector_etfs")[1]
+
+
 def full_market(end: str = "2026-09-18") -> pd.DataFrame:
-    """SPY plus all 16 sector ETFs; XLK triggers, XLE is a watch, the rest drift sideways."""
+    """SPY plus every ticker in the universe; XLK triggers, XLE is a watch, the rest drift."""
     end_ts = pd.Timestamp(end)
     frames = [make_frame("SPY", spy_closes(), end=end_ts)]
-    for name in ALL_SECTOR_ETFS:
+    for name in universe_tickers():
         if name == "XLK":
             closes = path(50, 0.004, tail=TAIL_TRIGGER)
         elif name == "XLE":
@@ -87,10 +91,11 @@ def test_run_persists_once_and_audits_job(paths):
     call = scan_repo.calls[0]
     assert call["strategy_id"] == "sector_etf_swing" and call["universe_id"] == "sector_etfs"
     assert call["report"]["scan_summary"]["actionable_count"] == 1
-    assert job_repo.started == [("sector-swing-daily", 16)]
+    n = len(universe_tickers())
+    assert job_repo.started == [("sector-swing-daily", n)]
     assert len(job_repo.finished) == 1
     fin = job_repo.finished[0]
-    assert fin["status"] == "success" and fin["tickers_fetched"] == 16 and fin["tickers_failed"] == 0
+    assert fin["status"] == "success" and fin["tickers_fetched"] == n and fin["tickers_failed"] == 0
 
     live = paths("sector_etf_swing", "sector_etfs")
     assert live["csv"].exists() and live["json"].exists() and live["md"].exists()
