@@ -1,6 +1,6 @@
 # Sector-ETF Swing Scanner — Pipeline Reference
 
-**Version:** 1.0 (Phase 1: scanner, persistence, ops — no UI yet)
+**Version:** 1.1 (scanner, persistence, ops + React page)
 **Audience:** Analysts and operators who want to understand how the sector-ETF swing scan works, what it stores, and how to run it
 **Design source:** [sector_etf_scanner_spec.md](sector_etf_scanner_spec.md)
 
@@ -20,16 +20,17 @@ Related docs: [User Manual](USER_MANUAL.md) · [Runbook](RUNBOOK.md) · [Data Mo
 6. [Trade plan and execution assumption](#6-trade-plan-and-execution-assumption)
 7. [Storage](#7-storage)
 8. [Running and scheduling](#8-running-and-scheduling)
-9. [Configuration and source code](#9-configuration-and-source-code)
-10. [Why a separate pipeline (D1)](#10-why-a-separate-pipeline-d1)
-11. [Deviations from the spec](#11-deviations-from-the-spec)
-12. [Known limitations](#12-known-limitations)
+9. [React page](#9-react-page)
+10. [Configuration and source code](#10-configuration-and-source-code)
+11. [Why a separate pipeline (D1)](#11-why-a-separate-pipeline-d1)
+12. [Deviations from the spec](#12-deviations-from-the-spec)
+13. [Known limitations](#13-known-limitations)
 
 ---
 
 ## 1. What it does
 
-Finds long, multi-day (roughly 3–10 trading days) swing setups on the 16 sector/industry ETFs in the `sector_etfs` universe. It favors market and sector leadership (trade what is already beating SPY), a pullback that is turning up rather than a falling knife, and a stop that is defined before entry and drives position size. Output is a ranked set of **trade plans** plus a watchlist of leaders close to setting up. On many days the honest answer is "no trades" — for example when leaders fail the trend filter in a choppy market.
+Finds long, multi-day (roughly 3–10 trading days) swing setups on the ETFs in the `sector_etfs` universe (`data/universes/sector_etfs.txt`; the 16 sector/industry ETFs of `config.ALL_SECTOR_ETFS` plus whatever you add). It favors market and sector leadership (trade what is already beating SPY), a pullback that is turning up rather than a falling knife, and a stop that is defined before entry and drives position size. Output is a ranked set of **trade plans** plus a watchlist of leaders close to setting up. On many days the honest answer is "no trades" — for example when leaders fail the trend filter in a choppy market.
 
 ## 2. Pipeline overview
 
@@ -112,7 +113,7 @@ Exports (via `config.scan_output_paths`) go to `data/output/sector_etf_swing/sec
 
 Because `_build_report_dict` rebuilds the API report from run columns plus `metadata`, only the `market_regime` dict and each ticker's `detail` reach API consumers in full. The fields a UI needs (`as_of_price`, `data_freshness`, `regime_gate_passed`, `schema_version`) are therefore denormalised into `market_regime` and each `detail`. The full `data_provenance` block (equity, risk %, expected session, rule-constant hash) is in `scan_runs.metadata`.
 
-The strategy is intentionally **not** in `history/actionable.py`, `digest/command_center.py`, or the digests, so it does not appear in Command Center, Today's Priorities, cross-strategy ticker history, or emails (spec Phase 4, needs explicit approval). Side effect: `sector_etfs` shows in the Streamlit universe dropdown for Launchpad and Lynch with "no scan".
+The strategy is intentionally **not** in `history/actionable.py`, `digest/command_center.py`, or the digests, so it does not appear in Command Center, Today's Priorities, cross-strategy ticker history, or emails (spec Phase 4, needs explicit approval). Side effect: while Streamlit is still running, `sector_etfs` shows in its universe dropdown for Launchpad and Lynch with "no scan".
 
 ## 8. Running and scheduling
 
@@ -129,7 +130,28 @@ Flags: `--universe`, `--dry-run`, `--no-cache`, `--force-refresh`, `--allow-stal
 
 `docker/jobs.yaml` is a reference copy only; it was already out of date (weekday 17:xx times) when this scanner was added.
 
-## 9. Configuration and source code
+## 9. React page
+
+The UI is the React frontend at **`/swing`** ("Sector Swing" in the sidebar). The Streamlit dashboard is being decommissioned, so no Streamlit tab was built (spec Phase 1b dropped); `dashboard/` is untouched.
+
+It reads the existing generic endpoints (`/scans/latest?strategy_id=sector_etf_swing&universe_id=sector_etfs`, then `/scans/{id}/report`) — no API changes. Sections:
+
+- **Help and plain-English layer** — a *How to read this page* panel (four steps, tier meanings, the 7 checks, a glossary of RS / ADX / ATR / R / chase limit; open on first visit, remembered in `localStorage`); a coloured **headline** generated from the payload (`swingHeadline` in `lib/swing.ts`: plans ready / leaders being watched / "no trade today" with the reason / market filter off); a chip legend under the ranked table. All wording lives in `lib/swing.ts` (`SWING_RULES`, `SWING_GLOSSARY`, `SWING_TIER_HELP`) so it can be edited in one place.
+- **Status banner** — regime gate PASS/FAIL with SPY vs SMA50/SMA200, the price as-of date and data freshness. A warning appears if the scan ran on non-fresh data or the as-of date is more than 4 days old.
+- **Trade plans** — one card per Tier 1 setup with an **In plain English** sentence, captioned figures (entry ref, stop and × daily move, 2R target, chase limit, shares, money at risk), a *before the open / after entering* checklist (the R8 exit guidance: sell half at 2R, trail below EMA10, 10-day time stop), and a price ladder (stop / entry / chase / target plus EMA10, EMA20, SMA50 from the stored indicator snapshot). An expandable "Why it qualifies" lists every rule result.
+- **Sizing inputs** — equity and risk %, kept in this browser's `localStorage` (never sent anywhere). **Share counts are recomputed client-side** from each plan's per-share risk with the same rule as the backend (`floor(min(equity·risk/R, equity·30%/entry))`); the scan's own share count is only a placeholder. The 30% cap is a constant in `frontend/src/lib/swing.ts` mirroring `SwingParams.max_position_pct` (it is not in the payload).
+- **Watchlist** — Tier 2. Regime-blocked setups show their levels as informational only.
+- **All ETFs, ranked** — RS rank, RS score, 63d/126d returns, ADX, per-rule chips (green pass / red fail / grey not evaluated) and the outcome or filter reason.
+
+There is no candlestick chart: the API has no price-history endpoint, so the ladder is drawn from stored levels. A `GET /prices/{ticker}` endpoint plus a chart library is the follow-up if you want candles.
+
+The existing *Recent Scans* table links sector-swing rows to `/swing` (the universe explorer only understands Launchpad/Lynch tiers). The strategy is still absent from Today's Priorities / Command Center until Phase 4.
+
+Frontend checks: `docker exec quant-hub-frontend-dev npx tsc -b` and `npm run lint`. The frontend has no unit-test runner; behaviour was checked by server-rendering the real components against a real scan and a synthetic one covering trigger / watch / regime-blocked / stale / empty states, and by comparing the TypeScript sizing function to the Python one over a 180-case grid.
+
+**Deployment note:** `docker-compose.prod.yml` has no frontend service, so today `/swing` exists on the dev stack only. It becomes reachable in prod when the React frontend is deployed there (part of retiring Streamlit).
+
+## 10. Configuration and source code
 
 | Concern | File |
 |---|---|
@@ -144,12 +166,13 @@ Flags: `--universe`, `--dry-run`, `--no-cache`, `--force-refresh`, `--allow-stal
 | Report dict + markdown | `sector_swing/report.py` |
 | Service (job audit, persist, exports) | `src/quant_hub/application/sector_swing_service.py` |
 | CLI | `src/quant_hub/cli/sector_swing.py` |
+| React page | `frontend/src/components/SectorSwing.tsx` (+ `SwingPlanCard`, `SwingLeadersTable`, `SwingRuleChips`, `PriceLadder`), `frontend/src/lib/swing.ts`, types in `frontend/src/lib/api.ts` |
 | Universe | `data/universes.json` (`sector_etfs`, ETF mode, Lynch disabled), `data/universes/sector_etfs.txt` |
 | Tests | `tests/unit/test_sector_swing_*.py` |
 
 The universe is `eligibility_mode: etf` with `lynch_enabled: false`, so `quant-launchpad-daily`, `quant-launchpad-all`, and `quant-lynch-all` skip it. A regression test guards this. The scan-rubric and scoring modules (`scoring/`, `factors/`, `filters/`, `regime/`, `strategies/`, `engine/`, `lynch/`, `report/`) are imported read-only at most and were not modified.
 
-## 10. Why a separate pipeline (D1)
+## 11. Why a separate pipeline (D1)
 
 This follows the Lynch pattern (own package, own service, own CLI) rather than registering a `StrategyEngine` strategy. This is a documented choice, not an oversight (see NFR review finding 5.3).
 
@@ -158,15 +181,16 @@ This follows the Lynch pattern (own package, own service, own CLI) rather than r
 
 The weaknesses the NFR review names for the Lynch pipeline are avoided here: failures are isolated per ticker, and indicators are computed once per ticker and handed to the rules instead of being recomputed.
 
-## 11. Deviations from the spec
+## 12. Deviations from the spec
 
 - **`signal_cap` filter reason** added: with 4 leaders and a cap of 3 plans, a fourth fully qualified setup otherwise had no reason in the vocabulary.
 - **Provenance denormalisation** into `market_regime` / `detail` (Section 7), because `data_provenance` is stored but not returned by the API.
 - **`sector_swing/models.py`** added to the file layout to hold shared value types and avoid a runner ↔ report import cycle.
+- **Streamlit tab (Phase 1b) dropped**: the dashboard is being decommissioned, so the React page (Phase 1c) is the UI. It uses the shared `Table` primitives for the 16-row table rather than TanStack Table, and shows a levels ladder instead of a candlestick chart (no price API).
 - `--dry-run` skips the freshness gate and writes to `data/output/dry_run/`.
 - Service tests use constructor injection with fakes; `tests/unit/test_lynch_service.py` (cited by the spec) is a single source-inspection test, not a fake-repo pattern.
 
-## 12. Known limitations
+## 13. Known limitations
 
 - Yahoo is the only price source; a bad or late Yahoo bar is caught by the freshness and quality gates but not cross-checked.
 - Some ETFs have short histories (XLC began 2018; VNQ vs XLRE differ) and the fixed ETF list is not point-in-time. These matter for Phase 3 backtests, not for the daily scan.

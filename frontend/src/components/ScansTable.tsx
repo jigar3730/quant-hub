@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { fetchScans, type ScanRunSummary } from '@/lib/api'
+import { fetchScans, SWING_STRATEGY_ID, type ScanRunSummary } from '@/lib/api'
 import { regimeVariant } from '@/lib/regime'
 
 const features = tableFeatures({})
@@ -26,6 +26,8 @@ const columnHelper = createColumnHelper<typeof features, ScanRunSummary>()
 // tier value that's actually correct for the row's own strategy, not a
 // single hardcoded literal used regardless of strategy.
 function tierCell(row: ScanRunSummary, count: number, launchpadTier: string, lynchTier: string) {
+  // Sector swing has its own page (the universe explorer only knows launchpad/lynch tiers).
+  if (row.strategy_id === SWING_STRATEGY_ID) return swingLink(count)
   const tier = row.strategy_id === 'lynch' ? lynchTier : launchpadTier
   const params = new URLSearchParams({
     strategy: row.strategy_id,
@@ -46,6 +48,7 @@ function tierCell(row: ScanRunSummary, count: number, launchpadTier: string, lyn
 // the Lynch case above: stalwart 4 + passed 1 = actionable_count 5). Links
 // for any strategy, unlike tierCell above.
 function actionableCell(row: ScanRunSummary, count: number) {
+  if (row.strategy_id === SWING_STRATEGY_ID) return swingLink(count)
   const params = new URLSearchParams({
     strategy: row.strategy_id,
     universe: row.universe_id,
@@ -54,6 +57,14 @@ function actionableCell(row: ScanRunSummary, count: number) {
   })
   return (
     <Link to={`/universe?${params.toString()}`} className="hover:underline">
+      {count}
+    </Link>
+  )
+}
+
+function swingLink(count: number) {
+  return (
+    <Link to="/swing" className="hover:underline">
       {count}
     </Link>
   )

@@ -4,6 +4,7 @@ import { CommandCenterHeatmap } from '@/components/CommandCenterHeatmap'
 import { CompareTickers } from '@/components/CompareTickers'
 import { OverlapMatrix } from '@/components/OverlapMatrix'
 import { ScansTable } from '@/components/ScansTable'
+import { SectorSwing } from '@/components/SectorSwing'
 import { TickerHistory } from '@/components/TickerHistory'
 import { TodaysPriorities } from '@/components/TodaysPriorities'
 import { UniverseTable } from '@/components/UniverseTable'
@@ -86,6 +87,18 @@ function ScansPage() {
   )
 }
 
+function SwingPage() {
+  return (
+    <div>
+      <h1 className="text-2xl font-semibold text-foreground">Sector swing</h1>
+      <p className="mt-1 mb-4 text-sm text-muted-foreground">
+        Multi-day long setups on sector ETFs that lead SPY, with defined risk.
+      </p>
+      <SectorSwing />
+    </div>
+  )
+}
+
 function App() {
   return (
     <Routes>
@@ -94,6 +107,7 @@ function App() {
         <Route path="/universe" element={<UniversePage />} />
         <Route path="/ticker" element={<TickerPage />} />
         <Route path="/ticker/:symbol" element={<TickerPage />} />
+        <Route path="/swing" element={<SwingPage />} />
         <Route path="/compare" element={<ComparePage />} />
         <Route path="/scans" element={<ScansPage />} />
       </Route>

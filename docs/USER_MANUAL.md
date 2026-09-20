@@ -67,7 +67,24 @@ Lynch has **Candidates**, **Overview**, **All Tickers**, and **Ticker Detail** t
 
 ### Sector ETF swing
 
-A separate scanner ranks 16 sector/industry ETFs against SPY and issues long swing **trade plans** (entry reference, stop, 2R target, chase limit, share count). It runs premarket, so a plan is for that morning's session: skip it if the open is above the chase limit or at/below the stop. If SPY is below its 50- or 200-day average no new plans are issued. Share counts use a placeholder equity unless `SECTOR_SWING_EQUITY` is set. It has no dashboard tab yet — read the latest run from `data/output/sector_etf_swing/sector_etfs/summary.md`, `quant-hub status`, or the API (`/api/scans/latest?strategy_id=sector_etf_swing`). Research tool only; see [SECTOR_SWING_SCANNER.md](SECTOR_SWING_SCANNER.md).
+A separate scanner looks for **short swing trades (about 3–10 trading days)** in a list of sector ETFs (`sector_etfs`) that are already beating SPY, have dipped, and are turning back up. It runs before the open each weekday, so every price is the previous close. Each plan comes with a stop chosen *before* entry. It is a research tool: nothing places orders, and no return is promised.
+
+View it on the React frontend's **Sector Swing** page (`/swing`; dev stack today) — there is no Streamlit tab, since Streamlit is being retired. The page has a **How to read this page** panel (open on your first visit, reopen any time) with the same content as below. Without the UI, read `data/output/sector_etf_swing/sector_etfs/summary.md` or `quant-hub status`.
+
+**How to read it, in four steps**
+
+1. **Read the coloured headline.** It says in one sentence what today means: trade plans ready, leaders being watched, or nothing to do. "Nothing to do" is a normal and frequent answer.
+2. **Check the market gate.** If SPY is below its 50- or 200-day average the bar is red and *no* plans are issued, however good an ETF looks.
+3. **If there is a trade plan**, read the **In plain English** line first, for example: *"This plan would buy about 108 shares of XLK near 137.62 (no higher than 138.47), and exit if the price falls to 133.45 — roughly $450 at risk. First target: 145.9, twice the amount risked."* Then follow the checklist on the card:
+   - *Before the open:* skip the trade if the open is above the **chase limit** (too far from the plan) or at/below the **stop** (the idea is already wrong), and confirm the levels against a live quote.
+   - *After entering:* sell half at the **2R target**, trail the rest (exit on a daily close below the 10-day average), and exit at the close if it has not gained 1× the risk within 10 trading days.
+4. **Use the ranked table to see why not.** All 16 ETFs are listed against SPY. Seven chips (R1–R7) show the checks in order — green passed, red failed, grey not checked because an earlier one failed. Hover a chip for the value and threshold.
+
+**Labels:** *Trigger* (Tier 1) is a full plan and the only actionable tier. *Watch* (Tier 2) is a leader that is dipping but has not turned up yet. *Extended* (Tier 3) is a leader that has not pulled back, so buying would be chasing. *Filtered* did not qualify; the Outcome column says why.
+
+**Sizing:** enter your own equity and risk % on the page (stored in your browser only). Share counts are recomputed from them; the scanner's own share count uses a placeholder $50,000 / 1%, and a position is capped at 30% of equity.
+
+See [SECTOR_SWING_SCANNER.md](SECTOR_SWING_SCANNER.md) for the exact rules.
 
 ## Commands
 

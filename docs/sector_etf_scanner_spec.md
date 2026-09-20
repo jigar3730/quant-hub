@@ -1,6 +1,6 @@
 # Spec: Sector-ETF Swing Scanner for Quant Hub (v2, aligned to the repo)
 
-**Status:** Draft v2
+**Status:** Draft v2 — *update 2026-09-20: Phase 1b (Streamlit tab) is dropped because Streamlit is being decommissioned; the React page (Phase 1c) is the UI, without a candle chart (no price API) — see `docs/SECTOR_SWING_SCANNER.md` §9.*
 **Target repo/branch:** `jigar3730/quant-hub`, branch `dev` (reviewed at commit `0a71eba`, 2026-09-16)
 **Audience:** Claude Code working inside the repo
 **Reference prototype:** `sector_etf_scanner.py` (single file, synthetic-data tested only; see Section 13 for what not to copy)
