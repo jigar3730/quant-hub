@@ -65,6 +65,10 @@ Lynch has **Candidates**, **Overview**, **All Tickers**, and **Ticker Detail** t
 - **categories** — `fast_grower`, `stalwart`, and/or `asset_play`;
 - **data quality** — missing or failed Yahoo data is not a score of zero.
 
+### Sector ETF swing
+
+A separate scanner ranks 16 sector/industry ETFs against SPY and issues long swing **trade plans** (entry reference, stop, 2R target, chase limit, share count). It runs premarket, so a plan is for that morning's session: skip it if the open is above the chase limit or at/below the stop. If SPY is below its 50- or 200-day average no new plans are issued. Share counts use a placeholder equity unless `SECTOR_SWING_EQUITY` is set. It has no dashboard tab yet — read the latest run from `data/output/sector_etf_swing/sector_etfs/summary.md`, `quant-hub status`, or the API (`/api/scans/latest?strategy_id=sector_etf_swing`). Research tool only; see [SECTOR_SWING_SCANNER.md](SECTOR_SWING_SCANNER.md).
+
 ## Commands
 
 Run commands inside the **prod** container `quant-hub`. For the practice stack use `quant-hub-dev` (see [SETUP_GUIDE.md](SETUP_GUIDE.md)). Port 5002 and `/mnt/fast/quant-data` are prod, not every environment.
@@ -75,6 +79,7 @@ docker exec quant-hub quant-launchpad-daily --universe most_actives --no-email
 docker exec quant-hub quant-launchpad-all --cache --report both
 docker exec quant-hub quant-lynch --universe most_actives --no-email
 docker exec quant-hub quant-lynch-all --no-email
+docker exec quant-hub quant-sector-swing --force-refresh
 docker exec quant-hub quant-hub report --strategy launchpad --universe most_actives
 docker exec quant-hub quant-hub ticker history NVDA --json
 ```
@@ -110,7 +115,7 @@ See [Digest Policy](DIGEST_POLICY.md) for selection and idempotency rules.
 
 ## Schedule
 
-`docker/crontab` is authoritative (America/New_York). Weekday Launchpad runs `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (5:00–5:15 AM), then the daily digest at 5:30 AM — all premarket, before the open. Saturday coverage, Lynch, labels, analytics, and the weekly digest follow the crontab — do not copy older `sp500_index` 5:10 PM tables.
+`docker/crontab` is authoritative (America/New_York). Weekday Launchpad runs `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (5:00–5:15 AM), the sector-ETF swing scan at 5:20 AM, then the daily digest at 5:30 AM — all premarket, before the open. Saturday coverage, Lynch, labels, analytics, and the weekly digest follow the crontab — do not copy older `sp500_index` 5:10 PM tables.
 
 ## Launchpad ML
 

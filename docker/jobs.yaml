@@ -1,5 +1,7 @@
 # Reference schedule — authoritative source is docker/crontab (installed into the container).
 # Last synced: 2026-08-31 (most_actives + large_cap_growth only)
+# NOTE: the rows below predate the move to 05:xx premarket cron and are stale; only the
+# sector-swing entry (added 2026-09) matches docker/crontab.
 
 jobs:
   - name: launchpad-most-actives-daily
@@ -15,6 +17,14 @@ jobs:
     command: quant-launchpad-daily --universe large_cap_growth --no-email
     strategy: launchpad
     universe: large_cap_growth
+    email: false
+    status: active
+
+  - name: sector-swing-daily
+    cron: "20 5 * * 1-5"
+    command: quant-sector-swing --force-refresh
+    strategy: sector_etf_swing
+    universe: sector_etfs
     email: false
     status: active
 

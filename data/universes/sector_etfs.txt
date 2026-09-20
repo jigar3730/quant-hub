@@ -1,0 +1,18 @@
+# Sector / industry ETFs scanned by the sector-ETF swing scanner (quant-sector-swing).
+# Mirrors config.ALL_SECTOR_ETFS (already in every Launchpad price download).
+IGV
+ITA
+KRE
+SOXX
+VNQ
+XBI
+XLB
+XLC
+XLE
+XLF
+XLI
+XLK
+XLP
+XLU
+XLV
+XLY

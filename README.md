@@ -47,6 +47,7 @@ docker exec quant-hub-dev quant-universe list
 | `quant-launchpad-daily` | Weekday Launchpad workflow |
 | `quant-launchpad-all` | Launchpad across stock-mode universes |
 | `quant-lynch` / `quant-lynch-all` | Lynch fundamental screen |
+| `quant-sector-swing` | Sector-ETF swing scan (trade plans on 16 ETFs; research only) |
 | `quant-backfill launchpad` | Point-in-time Saturday backfill for ML |
 | `quant-ml` | warm-cache / label / export / train / evaluate / models |
 | `quant-digest` | Daily Launchpad + weekly Lynch emails |
@@ -63,6 +64,7 @@ docker exec quant-hub-dev quant-universe list
 | [User Manual](docs/USER_MANUAL.md) | Dashboard and daily workflow |
 | [Launchpad Scanner](docs/LAUNCHPAD_SCANNER.md) | Scoring and tiers |
 | [Lynch Scanner](docs/LYNCH_SCANNER.md) | Fundamental screen |
+| [Sector Swing Scanner](docs/SECTOR_SWING_SCANNER.md) | Sector-ETF swing scan rules, payload, ops |
 | [Launchpad ML Guide](docs/LAUNCHPAD_ML_GUIDE.md) | mega_runners → backfill → ML → tune |
 | [ML Operations Course](docs/ML_OPERATIONS.md) | Learn ML + MLOps on this pipeline |
 | [ML Ops](docs/ML_OPS.md) | Label / train / evaluate (short) |
