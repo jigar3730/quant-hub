@@ -23,8 +23,12 @@ _STYLES = {
     "why": "font-size:13px;color:#475569;line-height:1.45;margin-top:8px",
     "tier1": "display:inline-block;background:#dcfce7;color:#166534;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px",
     "tier2": "display:inline-block;background:#dbeafe;color:#1e40af;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px",
+    "tier3": "display:inline-block;background:#f1f5f9;color:#475569;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px",
     "lynch": "display:inline-block;background:#f3e8ff;color:#6b21a8;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px",
     "footer": "font-size:11px;color:#94a3b8;margin-top:24px;line-height:1.5",
+    "highlights": "font-size:12px;color:#64748b;margin-top:6px;padding-left:16px",
+    "setup": "font-size:13px;color:#0f172a;margin-top:8px;background:#f8fafc;padding:8px 10px;border-radius:6px",
+    "universe_header": "font-size:19px;margin:28px 0 4px;border-top:1px solid #e2e8f0;padding-top:20px",
 }
 
 
@@ -59,6 +63,12 @@ def _regime_chip(regime: dict[str, Any]) -> str:
 def _launchpad_card(row: dict[str, Any], *, badge_style: str) -> str:
     sector = row.get("sector_etf")
     sector_line = f'<div style="{_STYLES["meta"]}">Sector ETF: {_esc(sector)}</div>' if sector else ""
+    highlights = row.get("factor_highlights") or []
+    highlights_html = ""
+    if highlights:
+        items = "".join(f"<li>{_esc(item)}</li>" for item in highlights)
+        highlights_html = f'<ul style="{_STYLES["highlights"]}">{items}</ul>'
+    setup_html = f'<div style="{_STYLES["setup"]}">{_esc(row["setup"])}</div>' if row.get("setup") else ""
     return f"""
     <div style="{_STYLES["card"]}">
       <div>{_finviz_link(row["ticker"])}
@@ -67,43 +77,81 @@ def _launchpad_card(row: dict[str, Any], *, badge_style: str) -> str:
       </div>
       {sector_line}
       <div style="{_STYLES["why"]}">{_esc(row.get("why") or row.get("tier_reason") or "")}</div>
+      {highlights_html}
+      {setup_html}
     </div>"""
 
 
-def _launchpad_section(rows: list[dict[str, Any]], *, title: str, badge_style: str, empty: str) -> str:
+def _launchpad_section(rows: list[dict[str, Any]], *, title: str, badge_style: str, empty: str = "") -> str:
     body = "".join(_launchpad_card(row, badge_style=badge_style) for row in rows)
     if not body:
+        if not empty:
+            return ""
         body = f'<p style="color:#64748b;font-size:14px">{html.escape(empty)}</p>'
-    return f'<h3 style="font-size:17px;margin:24px 0 8px">{html.escape(title)}</h3>{body}'
+    return f'<h4 style="font-size:15px;margin:18px 0 6px">{html.escape(title)}</h4>{body}'
 
 
-def _changes_block(payload: dict[str, Any]) -> str:
-    new = ", ".join(payload.get("new_entrants") or []) or "—"
-    dropped = ", ".join(payload.get("dropped") or []) or "—"
+def _changes_block(universe: dict[str, Any]) -> str:
+    new = ", ".join(universe.get("new_entrants") or []) or "—"
+    dropped = ", ".join(universe.get("dropped") or []) or "—"
     persistent = ", ".join(
         f"{row['ticker']} ({row['days_actionable']}d)"
-        for row in payload.get("persistent") or []
+        for row in universe.get("persistent") or []
     ) or "—"
     return f"""
-    <div style="background:#f1f5f9;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:13px">
+    <div style="background:#f1f5f9;border-radius:8px;padding:10px 14px;margin:10px 0;font-size:13px">
       <strong>New today:</strong> {html.escape(new)}<br>
       <strong>Dropped:</strong> {html.escape(dropped)}<br>
-      <strong>Held {3}+ days:</strong> {html.escape(persistent)}
+      <strong>Held 3+ days:</strong> {html.escape(persistent)}
     </div>"""
+
+
+def _universe_section(universe: dict[str, Any]) -> str:
+    tier1 = universe.get("tier1") or []
+    tier2 = universe.get("tier2") or []
+    near_misses = universe.get("near_misses") or []
+    count = len(tier1) + len(tier2)
+    label = _esc(universe.get("universe_label") or universe.get("universe_id"))
+
+    body = ""
+    if count:
+        body += _launchpad_section(tier1, title="High-conviction setups", badge_style=_STYLES["tier1"])
+        body += _launchpad_section(tier2, title="Watchlist", badge_style=_STYLES["tier2"])
+    elif near_misses:
+        body += (
+            '<p style="color:#64748b;font-size:14px;margin:6px 0">'
+            "No qualified setups today."
+            "</p>"
+        )
+        body += _launchpad_section(
+            near_misses,
+            title="Closest to qualifying",
+            badge_style=_STYLES["tier3"],
+        )
+    else:
+        body += '<p style="color:#64748b;font-size:14px;margin:6px 0">No qualified setups or near-misses today.</p>'
+
+    return f"""
+    <h3 style="{_STYLES["universe_header"]}">{label} — {count} actionable</h3>
+    {_changes_block(universe)}
+    {body}"""
 
 
 def build_daily_digest_email(payload: dict[str, Any]) -> tuple[str, str]:
     scan_date = date.fromisoformat(payload["scan_date"])
-    tier1 = payload.get("tier1") or []
-    tier2 = payload.get("tier2") or []
-    count = len(tier1) + len(tier2)
+    universes = payload.get("universes") or []
+    totals = payload.get("totals") or {}
+    count = totals.get("actionable", 0)
+    tier1_count = totals.get("tier1", 0)
     day = scan_date.strftime("%A")
     if not count:
-        subject = f"{day} Launchpad brief: no qualified reversals"
-    elif tier1:
-        subject = f"{day} Launchpad brief: {count} reversal{'s' if count != 1 else ''} ({len(tier1)} high conviction)"
+        subject = f"{day} Launchpad brief: no qualified setups"
+    elif tier1_count:
+        subject = f"{day} Launchpad brief: {count} setup{'s' if count != 1 else ''} ({tier1_count} high conviction)"
     else:
-        subject = f"{day} Launchpad brief: {count} watchlist reversal{'s' if count != 1 else ''}"
+        subject = f"{day} Launchpad brief: {count} watchlist setup{'s' if count != 1 else ''}"
+
+    sections = "".join(_universe_section(universe) for universe in universes)
 
     html_doc = f"""
     <html><body style="{_STYLES["body"]}">
@@ -114,9 +162,7 @@ def build_daily_digest_email(payload: dict[str, Any]) -> tuple[str, str]:
     <div style="{_STYLES["content"]}">
       {_summary(daily_executive_summary(payload))}
       {_regime_chip(payload.get("regime") or {})}
-      {_changes_block(payload)}
-      {_launchpad_section(tier1, title="High-conviction reversals", badge_style=_STYLES["tier1"], empty="No Tier 1 Launchpad names today.")}
-      {_launchpad_section(tier2, title="Launchpad watchlist", badge_style=_STYLES["tier2"], empty="No Tier 2 watchlist names today.")}
+      {sections}
       <p style="{_STYLES["footer"]}">{_esc(payload.get("policy_footer"))}</p>
     </div></body></html>"""
     return subject, html_doc

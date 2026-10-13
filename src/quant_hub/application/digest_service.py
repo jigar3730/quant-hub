@@ -114,7 +114,8 @@ class DigestService:
             self._check_launchpad_ready(scan_date, force=force)
             payload = build_daily_payload(self.scan_repo, scan_date=scan_date)
 
-            if not payload.get("tier1") and not payload.get("tier2") and not P.DAILY_SEND_WHEN_EMPTY:
+            totals = payload.get("totals") or {}
+            if not totals.get("actionable") and not P.DAILY_SEND_WHEN_EMPTY:
                 logger.info("No signals and DAILY_SEND_WHEN_EMPTY=false — skipping email")
                 email_sent = False
             elif send_email:

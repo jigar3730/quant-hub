@@ -55,6 +55,7 @@ def _insider_purchases_6m(ticker: yf.Ticker) -> float | None:
             return None
         return float(purchases.iloc[0])
     except Exception:
+        logger.debug("insider_purchases_6m unavailable for %s", ticker.ticker, exc_info=True)
         return None
 
 
@@ -70,6 +71,7 @@ def _shares_outstanding_change_yoy(ticker: yf.Ticker) -> float | None:
             return None
         return (last - first) / first
     except Exception:
+        logger.debug("shares_outstanding_change_yoy unavailable for %s", ticker.ticker, exc_info=True)
         return None
 
 
@@ -87,6 +89,7 @@ def _revenue_coefficient_of_variation(ticker: yf.Ticker) -> float | None:
             return None
         return float(recent.std() / mean)
     except Exception:
+        logger.debug("revenue_coefficient_of_variation unavailable for %s", ticker.ticker, exc_info=True)
         return None
 
 

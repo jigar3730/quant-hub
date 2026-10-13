@@ -21,8 +21,12 @@ def regime_detail(spy_df: pd.DataFrame) -> dict:
     """Return regime classification with SPY indicator values."""
     close = spy_df["Close"]
     price = float(close.iloc[-1])
-    sma50 = float(sma(close, 50).iloc[-1])
-    sma200 = float(sma(close, 200).iloc[-1])
+    sma50_val = sma(close, 50).iloc[-1]
+    sma200_val = sma(close, 200).iloc[-1]
+    if pd.isna(sma50_val) or pd.isna(sma200_val):
+        raise RuntimeError(f"Insufficient SPY history for regime classification ({len(close)} rows)")
+    sma50 = float(sma50_val)
+    sma200 = float(sma200_val)
     ret_63 = return_over_days(close, 63) or 0.0
 
     high_52w = float(spy_df["High"].tail(252).max())

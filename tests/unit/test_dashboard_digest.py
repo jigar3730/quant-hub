@@ -60,5 +60,5 @@ def test_build_digest_preview_daily():
     repo = _FakeRepo(report, scan_date=date(2026, 7, 1))
     preview = build_digest_preview(repo, digest_kind="daily", scan_date=date(2026, 7, 1))
     assert "AAA" in preview["html"]
-    assert preview["payload"]["tier1"][0]["ticker"] == "AAA"
+    assert preview["payload"]["universes"][0]["tier1"][0]["ticker"] == "AAA"
     assert "brief" in preview["subject"].lower() or "AAA" in preview["subject"]

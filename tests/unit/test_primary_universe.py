@@ -13,7 +13,12 @@ def test_digest_policy_uses_scheduled_universes():
     assert P.DAILY_LAUNCHPAD_UNIVERSE == "most_actives"
     assert P.WEEKLY_LYNCH_UNIVERSE == "most_actives"
     assert P.WEEKLY_LAUNCHPAD_UNIVERSE == "most_actives"
-    assert set(P.SCHEDULED_UNIVERSES) == {"most_actives", "large_cap_growth"}
+    assert set(P.DAILY_UNIVERSES) == {
+        "most_actives",
+        "large_cap_growth",
+        "small_cap_growth",
+        "mid_cap_growth",
+    }
 
 
 def test_sp500_not_in_universe_registry():

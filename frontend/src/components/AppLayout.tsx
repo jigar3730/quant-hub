@@ -1,5 +1,5 @@
 import { useState, type ComponentType } from 'react'
-import { Columns3, History, LayoutDashboard, Menu, Search, Table2 } from 'lucide-react'
+import { Columns3, History, LayoutDashboard, Menu, Search, Table2, TrendingUp } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
 import { cn } from '@/lib/utils'
 
@@ -7,6 +7,7 @@ const PRIMARY_NAV = [
   { to: '/', label: "Today's Priorities", icon: LayoutDashboard, end: true },
   { to: '/universe', label: 'Universe Explorer', icon: Table2 },
   { to: '/ticker', label: 'Ticker 360', icon: Search },
+  { to: '/swing', label: 'Sector Swing', icon: TrendingUp },
   { to: '/compare', label: 'Compare', icon: Columns3 },
 ]
 

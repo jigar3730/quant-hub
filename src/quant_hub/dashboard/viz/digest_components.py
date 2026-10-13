@@ -50,12 +50,12 @@ def _summary_metrics(digest_kind: str, payload: dict) -> list[tuple[str, str]]:
             ("Lynch picks", str(len(payload.get("lynch_top") or []))),
             ("Launchpad scan", payload.get("launchpad_scan_date") or "Not available"),
         ]
-    tier1 = len(payload.get("tier1") or [])
-    tier2 = len(payload.get("tier2") or [])
+    totals = payload.get("totals") or {}
+    new_entrants = sum(len(u.get("new_entrants") or []) for u in payload.get("universes") or [])
     return [
-        ("High conviction", str(tier1)),
-        ("Watchlist", str(tier2)),
-        ("New today", str(len(payload.get("new_entrants") or []))),
+        ("High conviction", str(totals.get("tier1", 0))),
+        ("Watchlist", str(totals.get("tier2", 0))),
+        ("New today", str(new_entrants)),
     ]
 
 
@@ -102,8 +102,12 @@ def render_digest_preview_tab(
 
     st.markdown(f"**Subject:** `{preview['subject']}`")
     st.caption(
-        f"Policy: {P.DAILY_LAUNCHPAD_UNIVERSE} Launchpad"
-        + (" · Lynch top 15 with optional recent Launchpad overlap" if digest_kind == "weekly" else "")
+        "Policy: "
+        + (
+            "Lynch top 15 with optional recent Launchpad overlap"
+            if digest_kind == "weekly"
+            else f"Launchpad across {', '.join(P.DAILY_UNIVERSES)}"
+        )
     )
 
     tab_preview, tab_payload, tab_cli = st.tabs(["Email preview", "Payload JSON", "CLI"])

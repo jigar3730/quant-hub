@@ -23,7 +23,8 @@ Implemented controls include parameterized SQL, same-day upsert idempotency, Pos
 |---|---|---|---|
 | C1 | Dashboard has no built-in authentication and is published on host port 5002 | Compose/entrypoint/dashboard | Put it behind authenticated reverse proxy or VPN; do not expose it publicly |
 | C2 | Postgres is published on a host port | Compose | Bind DB to the internal network where possible; retain host access only when required |
-| H1 | Scheduled failures are primarily log-only | Cron redirects to `cron.log`; app container lacks healthcheck | Alert on stale/failing runs, make schema init fail clearly, add application healthcheck |
+| C3 | Phase 1 read-only API (`quant-hub-api`) has no authentication on any endpoint | `src/quant_hub/api/app.py`, all routers — see finding 2.1 in [NFR review](nfr_code_review.md) | Add an API-key or reverse-proxy auth gate before this service is reachable outside a private network |
+| H1 | Scheduled failures are primarily log-only | Cron redirects to `cron.log`; app container lacks healthcheck. Partially improved 2026-09-16: the price download and Lynch metric fetchers now log failures instead of hanging/swallowing silently (see section 3 of the [NFR review](nfr_code_review.md)) — but there is still no alerting layer on top of those logs | Alert on stale/failing runs, make schema init fail clearly, add application healthcheck |
 | H2 | Backups are documented but not automated or restore-tested | Runbook manual `pg_dump` | Schedule backups, off-host copy, retention, and restore drills |
 | H3 | No versioned schema migration system | Idempotent bootstrap SQL | Adopt numbered migrations and a schema-version record |
 | H4 | `job_runs` cannot fully represent degraded data or email failures | Product services/job audit | Record partial/degraded outcomes and align status with exit/email result |
@@ -34,7 +35,7 @@ Implemented controls include parameterized SQL, same-day upsert idempotency, Pos
 
 | ID | Gap | Effect | Recommended remediation |
 |---|---|---|---|
-| P1 | Yahoo is the sole market/fundamental provider | Rate limits and incomplete Lynch rows can affect scans | Expose data quality, retry with backoff, and add a secondary provider/circuit breaker |
+| P1 | Yahoo is the sole market/fundamental provider | Rate limits and incomplete Lynch rows can affect scans. 2026-09-16: the price download now has a 30s timeout and fails fast instead of hanging (`infrastructure/market/yfinance_prices.py`), but there is still no retry/backoff or secondary provider | Expose data quality, retry with backoff, and add a secondary provider/circuit breaker |
 | P2 | Launchpad ML has no live inference | Models currently tune research thresholds only | Require reproducible evaluation and explicit approval before adding a live reranker |
 | P3 | Historical universes are not point-in-time membership sets | Backtests can have survivorship bias | Archive membership snapshots before broad ML claims |
 | P4 | Scan history and JSONB payloads have no automated retention | Storage growth; destructive cleanup risk | Archive before purge and require confirmation for destructive operations |
@@ -45,7 +46,7 @@ Implemented controls include parameterized SQL, same-day upsert idempotency, Pos
 - No structured metrics, tracing, or alerting; operators must inspect logs and `quant-hub status`.
 - No job lock prevents overlapping manual and cron scans.
 - Cache freshness can diverge from persisted scan snapshots; show `as_of_price` and cache age.
-- Dynamic ticker values should be validated and escaped before dashboard HTML rendering.
+- Dynamic ticker values should be validated and escaped before dashboard HTML rendering — confirmed still open in `dashboard/viz/navigation.py:66-80`, see finding 2.2 in the [NFR review](nfr_code_review.md) for the exact fix.
 - Dependency versions are lower-bounded rather than locked; container bootstrap supply chain should be pinned.
 - Email delivery needs retry/backoff and an explicit degraded status.
 
@@ -57,4 +58,4 @@ Implemented controls include parameterized SQL, same-day upsert idempotency, Pos
 4. Add job locking, retention/archive policy, point-in-time universes, and data-provider resilience.
 5. Validate Launchpad ML and overlap outcomes before increasing automation.
 
-See [Runbook](RUNBOOK.md) for current operations and [Data Model](DATA_MODEL.md) for the persistence model.
+See [Runbook](RUNBOOK.md) for current operations, [Data Model](DATA_MODEL.md) for the persistence model, and [NFR Code Review](nfr_code_review.md) for the full performance/security/reliability/resource/maintainability audit (2026-09-16) this section's Yahoo, dashboard-escaping, and API-auth entries are drawn from.
