@@ -41,3 +41,12 @@ design period only; at most 3 candidate rubrics are taken to the holdout (each o
 a test here). Known bias, stated up front: universes are today's members (survivorship);
 `most_actives` is today's screener, so its absolute returns are inflated — evaluate relative
 to the same run's universe mean.
+
+**PR-2 design-period results (2026-10-22, holdout not yet viewed).** Clean labels (`price_gap`
+fix), 4 universes, 2022-05→2024-12, t over non-overlapping runs, returns clipped per run.
+Rubric `final_score` IC ≈ 0 at h=10/20/63; no rubric factor |t| ≥ 2; Tier 2 underperforms its
+universe (−11.2% at h=63, t −2.45). Benchmarks: 6-month momentum IC 0.13 (t 2.2) at h=63.
+Candidates (defined before their design numbers were viewed; 3 tests counted):
+C1 eligible ∩ top-20% 6m momentum: +1.47% h20 (t 2.07), +5.38% h63 (t 1.94);
+C2 universe top-20% momentum: ~0; C3 C1 ∩ squeeze≥25: −8.3% h63 (t −2.9).
+**Frozen for holdout: C1 only.**

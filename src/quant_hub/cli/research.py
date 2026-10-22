@@ -26,6 +26,7 @@ def _launchpad_factors(args: argparse.Namespace) -> int:
     columns = lf.RUBRIC_COLUMNS + lf.RAW_COLUMNS + lf.BENCHMARK_COLUMNS
     factors = lf.factor_table(panel, columns, args.horizon, splits)
     tiers = lf.tier_table(panel, args.horizon, splits)
+    candidates = lf.candidate_table(panel, args.horizon, splits)
 
     out = OUTPUT_DIR / "launchpad" / "research"
     out.mkdir(parents=True, exist_ok=True)
@@ -40,6 +41,9 @@ def _launchpad_factors(args: argparse.Namespace) -> int:
     print(lf.as_markdown(factors))
     print("\n## Tiers (mean forward return minus universe mean)\n")
     print(lf.as_markdown(tiers))
+    print("\n## PR-2 candidate sets (mean forward return minus universe mean)\n")
+    print(lf.as_markdown(candidates))
+    candidates.to_csv(out / f"candidates_h{args.horizon}_{args.show}.csv", index=False)
     return 0
 
 

@@ -188,3 +188,37 @@ def as_markdown(df: pd.DataFrame) -> str:
         cells = [f"{v:.3f}" if isinstance(v, float) and np.isfinite(v) else str(v) for v in row]
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
+
+
+def _pct_rank(panel: pd.DataFrame, column: str, mask: pd.Series) -> pd.Series:
+    """Percentile rank of ``column`` within each run, among rows where ``mask`` holds."""
+    ranked = panel[column].where(mask).groupby(panel["run_id"]).rank(pct=True)
+    return ranked.fillna(0.0)
+
+
+def candidate_sets(panel: pd.DataFrame) -> dict[str, pd.Series]:
+    """PR-2 candidates, frozen on the design period (see docs/research/LOG.md)."""
+    elig = panel["eligible"].astype(bool)
+    has_mom = panel["mom_126"].notna()
+    return {
+        "current_actionable": panel["tier"].isin(["Tier 1", "Tier 2"]),
+        "C1_eligible_top_momentum": elig & (_pct_rank(panel, "mom_126", elig & has_mom) >= 0.8),
+        "C2_universe_top_momentum": _pct_rank(panel, "mom_126", has_mom) >= 0.8,
+        "C3_C1_with_squeeze": elig
+        & (_pct_rank(panel, "mom_126", elig & has_mom) >= 0.8)
+        & (panel["sc_squeeze"] >= 25),
+    }
+
+
+def candidate_table(panel: pd.DataFrame, horizon: int, splits: list[Split]) -> pd.DataFrame:
+    """Each candidate set's mean (clipped) forward return minus its run's universe mean."""
+    out = []
+    for name, mask in candidate_sets(panel).items():
+        per_run = (panel[mask].groupby(["run_id", "scan_date", "universe_id"])["fwd_rel"]
+                   .agg(["mean", "size"]).reset_index())
+        for split in splits:
+            sel = non_overlapping(per_run[split.mask(per_run["scan_date"])], horizon)
+            out.append({"candidate": name, "period": split.name, "indep_runs": len(sel),
+                        "avg_names": sel["size"].mean(), "mean_rel_pct": sel["mean"].mean(),
+                        "t": _t(sel["mean"])})
+    return pd.DataFrame(out)
