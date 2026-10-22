@@ -34,5 +34,5 @@ the Launchpad tests.
 2. Use survivorship-free history and include costs.
 3. Use `quant-research launchpad-factors` / the `signal-eval` skill for measurement, and the
    `quant-skeptic` agent before believing any result.
-4. The cron still runs Launchpad scans and weekly labels; those live labels (from
-   2026-10-23) are the only untouched out-of-sample data for the Launchpad rubric.
+4. All cron jobs are commented out in `docker/crontab` (2026-10-22). To get untouched
+   out-of-sample data for the Launchpad rubric, re-enable the daily scans and Saturday labels.

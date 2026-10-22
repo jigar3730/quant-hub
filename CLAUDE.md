@@ -71,9 +71,7 @@ and silently targets nothing or creates orphan volumes.
 `src/` and `tests/` are bind-mounted into `quant-hub-dev`, so edits are live.
 Containers run as root: anything that *creates* files in the repo from a
 container needs `--user "$(id -u):$(id -g)"` (see `dev-stack` skill).
-Cron runs 05:00–05:30 ET weekdays and 01:00–08:30 ET Saturday inside
-`quant-hub-dev` (`docker/crontab` is authoritative) — avoid recreating the
-container in those windows.
+All cron jobs are disabled since 2026-10-22 (`docker/crontab` is authoritative).
 
 ## Verify
 

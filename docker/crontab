@@ -1,5 +1,6 @@
 # Quant Hub cron — America/New_York (container TZ)
-# Product focus: Launchpad only (Lynch and sector swing retired 2026-10-22; see docs/research/LOG.md).
+# ALL JOBS DISABLED 2026-10-22: project concluded, no edge found (docs/research/CONCLUSION.md).
+# Uncomment only for a new, pre-registered hypothesis.
 # Scheduled scans cover: most_actives, large_cap_growth, small_cap_growth, mid_cap_growth.
 # Scans use --no-email; the daily digest sends email via quant-digest.
 # SMTP_* and EMAIL_* must be in .env (exported to /etc/environment on start).
@@ -9,27 +10,27 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 # ===== Mon–Fri: Launchpad daily + digest =====
 # 05:00 AM ET — most_actives launchpad scan
-0 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe most_actives --no-email >> /app/logs/cron.log 2>&1
+# 0 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe most_actives --no-email >> /app/logs/cron.log 2>&1
 
 # 05:05 AM ET — large_cap_growth launchpad scan
-5 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe large_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 5 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe large_cap_growth --no-email >> /app/logs/cron.log 2>&1
 
 # 05:10 AM ET — small_cap_growth launchpad scan
-10 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe small_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 10 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe small_cap_growth --no-email >> /app/logs/cron.log 2>&1
 
 # 05:15 AM ET — mid_cap_growth launchpad scan
-15 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe mid_cap_growth --no-email >> /app/logs/cron.log 2>&1
+# 15 5 * * 1-5 root . /etc/environment; quant-launchpad-daily --universe mid_cap_growth --no-email >> /app/logs/cron.log 2>&1
 
 # 05:30 AM ET — daily Launchpad digest email
-30 5 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
+# 30 5 * * 1-5 root . /etc/environment; quant-digest daily >> /app/logs/cron.log 2>&1
 
 # ===== Saturday: coverage + ML labels =====
 # --- Launchpad Weekly Coverage (01:00 AM – 02:00 AM ET) ---
-0 1 * * 6 root . /etc/environment; quant-launchpad-all --universes most_actives large_cap_growth --cache --report both >> /app/logs/cron.log 2>&1
-30 1 * * 6 root . /etc/environment; quant-launchpad-all --universes small_cap_growth mid_cap_growth --cache --report both >> /app/logs/cron.log 2>&1
+# 0 1 * * 6 root . /etc/environment; quant-launchpad-all --universes most_actives large_cap_growth --cache --report both >> /app/logs/cron.log 2>&1
+# 30 1 * * 6 root . /etc/environment; quant-launchpad-all --universes small_cap_growth mid_cap_growth --cache --report both >> /app/logs/cron.log 2>&1
 
 # --- ML Forward-Return Labels (07:00 AM – 07:45 AM ET) ---
-0 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe most_actives --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
-12 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe large_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
-24 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe small_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
-36 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe mid_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
+# 0 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe most_actives --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
+# 12 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe large_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
+# 24 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe small_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
+# 36 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe mid_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
