@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 import pytest
 
-from quant_hub.sector_swing.calendar import (
+from quant_hub.data.calendar import (
     ET,
     expected_last_session,
     is_trading_day,

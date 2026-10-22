@@ -3,7 +3,7 @@ from __future__ import annotations
 import fcntl
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -31,7 +31,18 @@ class ParquetCache:
     def _lock_path(self, ticker: str) -> Path:
         return self.base_dir / f"{ticker.upper()}.parquet.lock"
 
-    def is_fresh(self, ticker: str, *, max_bar_age_days: int | None = None) -> bool:
+    def is_fresh(
+        self,
+        ticker: str,
+        *,
+        max_bar_age_days: int | None = None,
+        min_bar_date: date | None = None,
+    ) -> bool:
+        """Fresh = written within the TTL and (when given) the last bar is recent enough.
+
+        ``min_bar_date`` is the last completed session: a file written <24h ago can still end a
+        session early when the previous day's run wrote it, so mtime alone is not enough.
+        """
         path = self.path_for(ticker)
         if not path.exists():
             return False
@@ -51,6 +62,16 @@ class ParquetCache:
             if ohlcv_has_incomplete_last_bar(raw):
                 return False
             if ohlcv_is_stale(raw, max_age_days=max_bar_age_days):
+                return False
+        if min_bar_date is not None:
+            from quant_hub.data.quality import max_bar_date
+
+            try:
+                last = max_bar_date(pd.read_parquet(path))
+            except Exception:
+                logger.warning("Corrupt cache file for %s; forcing refresh", ticker)
+                return False
+            if last is None or last < min_bar_date:
                 return False
         return True
 
@@ -104,13 +125,14 @@ class ParquetCache:
         *,
         use_cache: bool,
         max_bar_age_days: int | None = None,
+        min_bar_date: date | None = None,
     ) -> tuple[list[str], list[str]]:
         if not use_cache:
             return [], tickers
         cached: list[str] = []
         stale: list[str] = []
         for ticker in tickers:
-            if self.is_fresh(ticker, max_bar_age_days=max_bar_age_days):
+            if self.is_fresh(ticker, max_bar_age_days=max_bar_age_days, min_bar_date=min_bar_date):
                 cached.append(ticker)
             else:
                 stale.append(ticker)

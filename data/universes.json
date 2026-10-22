@@ -73,18 +73,6 @@
           "path": "data/universes/mega_runners.txt"
         }
       ]
-    },
-    "sector_etfs": {
-      "name": "Sector ETFs",
-      "description": "16 sector/industry ETFs for the sector-ETF swing scanner (ETF mode; not scanned by Launchpad or Lynch)",
-      "eligibility_mode": "etf",
-      "lynch_enabled": false,
-      "sources": [
-        {
-          "type": "file",
-          "path": "data/universes/sector_etfs.txt"
-        }
-      ]
     }
   }
 }

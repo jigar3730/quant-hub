@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -33,6 +34,19 @@ def test_fresh_vs_stale_ttl(tmp_path: Path):
     cached, stale = cache.partition(["AAA", "BBB"], use_cache=True)
     assert "BBB" in stale
     assert "AAA" in stale
+
+
+def test_recent_file_missing_last_session_is_stale(tmp_path: Path):
+    # Regression: a file written minutes ago that ends a session early (the previous morning's
+    # run wrote it) must be refetched, or the scan scores on the prior session's bars.
+    cache = ParquetCache(base_dir=tmp_path / "prices", ttl_hours=24)
+    cache.write("AAA", _sample_df())  # last bar 2024-01-05
+
+    assert cache.is_fresh("AAA", min_bar_date=date(2024, 1, 5))
+    assert not cache.is_fresh("AAA", min_bar_date=date(2024, 1, 8))
+
+    cached, stale = cache.partition(["AAA"], use_cache=True, min_bar_date=date(2024, 1, 8))
+    assert cached == [] and stale == ["AAA"]
 
 
 def test_partition_use_cache_false_fetches_all(tmp_path: Path):

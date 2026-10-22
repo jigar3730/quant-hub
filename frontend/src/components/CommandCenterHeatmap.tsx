@@ -13,9 +13,9 @@ import { cn } from '@/lib/utils'
 // strategy x universe grid this simple, built it the same way as every
 // other visualization this session (FactorSparkbars, ScanFunnel,
 // TickerAuditTrail): plain divs, zero new dependencies.
+// Lynch switched off 2026-10-22 (Launchpad-only focus); its code is dormant.
 const STRATEGIES = [
   { id: 'launchpad', label: 'Launchpad' },
-  { id: 'lynch', label: 'Lynch' },
 ]
 
 function cellIntensityClass(count: number | undefined): string {

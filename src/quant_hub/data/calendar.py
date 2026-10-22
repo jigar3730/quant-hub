@@ -1,7 +1,7 @@
-"""Expected last completed NYSE session for the data-freshness gate.
+"""NYSE session calendar: the last completed session, for price-cache freshness checks.
 
-Hard-coded holiday list (spec Q5: no new dependency). Years outside ``_HOLIDAYS`` degrade to
-weekday-only logic and log a warning; ``--allow-stale`` is the escape hatch if that misfires.
+Hard-coded holiday list (no new dependency). Years outside ``_HOLIDAYS`` degrade to
+weekday-only logic and log a warning.
 """
 
 from __future__ import annotations
@@ -10,9 +10,11 @@ import logging
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from quant_hub.sector_swing.config import SESSION_CLOSE_HOUR, SESSION_CLOSE_MINUTE
-
 logger = logging.getLogger(__name__)
+
+# NYSE closes 16:00 ET; allow 15 min for the final daily bar to settle at the vendor.
+SESSION_CLOSE_HOUR = 16
+SESSION_CLOSE_MINUTE = 15
 
 ET = ZoneInfo("America/New_York")
 
@@ -86,7 +88,7 @@ def is_trading_day(day: date) -> bool:
         if day.year not in _warned_years:
             _warned_years.add(day.year)
             logger.warning(
-                "No NYSE holiday list for %d in sector_swing/calendar.py; using weekdays only",
+                "No NYSE holiday list for %d in data/calendar.py; using weekdays only",
                 day.year,
             )
         return True

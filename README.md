@@ -8,7 +8,7 @@
 2. Do not run bare `docker compose ps` / `up` against `docker-compose.yml` alone (it has **no volumes**).
 3. Port **5002** + `/mnt/fast/quant-data` is strictly **prod**, not every environment.
 
-Homelab research stack for **Launchpad** (quality coiled-spring scanner + ML) and **Lynch** (fundamental screen). Results live in Postgres. You view them in a Streamlit dashboard and optional digest emails. This is **not** a trading bot.
+Homelab research stack for **Launchpad** (quality coiled-spring scanner + ML). Lynch (fundamental screen) is switched off as of 2026-10-22 — code dormant, no cron — and the sector-ETF swing scanner was retired after a backtest showed no edge (`docs/research/LOG.md`). Results live in Postgres. You view them in a Streamlit dashboard and optional digest emails. This is **not** a trading bot.
 
 ## First-time setup
 
@@ -46,11 +46,10 @@ docker exec quant-hub-dev quant-universe list
 | `quant-launchpad` | Single-universe Launchpad scan |
 | `quant-launchpad-daily` | Weekday Launchpad workflow |
 | `quant-launchpad-all` | Launchpad across stock-mode universes |
-| `quant-lynch` / `quant-lynch-all` | Lynch fundamental screen |
-| `quant-sector-swing` | Sector-ETF swing scan (trade plans on 16 ETFs; research only) |
+| `quant-lynch` / `quant-lynch-all` | Lynch fundamental screen (dormant, not scheduled) |
 | `quant-backfill launchpad` | Point-in-time Saturday backfill for ML |
 | `quant-ml` | warm-cache / label / export / train / evaluate / models |
-| `quant-digest` | Daily Launchpad + weekly Lynch emails |
+| `quant-digest` | Daily Launchpad email (weekly Lynch digest not scheduled) |
 | `quant-hub` | status, init-db, cleanup, report, ticker history/show |
 | `quant-universe` | list / show / refresh universes |
 | `quant-analytics` | weekly digest analytics payload |
@@ -63,8 +62,7 @@ docker exec quant-hub-dev quant-universe list
 | [Setup Guide](docs/SETUP_GUIDE.md) | **Start here** — Docker, env files, dev vs prod |
 | [User Manual](docs/USER_MANUAL.md) | Dashboard and daily workflow |
 | [Launchpad Scanner](docs/LAUNCHPAD_SCANNER.md) | Scoring and tiers |
-| [Lynch Scanner](docs/LYNCH_SCANNER.md) | Fundamental screen |
-| [Sector Swing Scanner](docs/SECTOR_SWING_SCANNER.md) | Sector-ETF swing scan rules, payload, ops |
+| [Lynch Scanner](docs/LYNCH_SCANNER.md) | Fundamental screen (dormant) |
 | [Launchpad ML Guide](docs/LAUNCHPAD_ML_GUIDE.md) | mega_runners → backfill → ML → tune |
 | [ML Operations Course](docs/ML_OPERATIONS.md) | Learn ML + MLOps on this pipeline |
 | [ML Ops](docs/ML_OPS.md) | Label / train / evaluate (short) |
@@ -92,4 +90,4 @@ scripts/run_env.sh       start/stop an environment
 
 ## Schedule (America/New_York)
 
-`docker/crontab` is authoritative. Weekday Launchpad on growth universes, Saturday coverage + Lynch + ML labels + weekly digest. Do not copy times from older manuals.
+`docker/crontab` is authoritative. Weekday Launchpad on growth universes, Saturday coverage + ML labels. Do not copy times from older manuals.

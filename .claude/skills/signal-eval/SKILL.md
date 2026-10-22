@@ -1,6 +1,6 @@
 ---
 name: signal-eval
-description: Measure whether a quant-hub scanner signal (Launchpad/Lynch tiers, a score threshold, a sector-swing rule) actually predicts forward returns, using labeled outcomes in Postgres. Use whenever asked "does this work", "is there edge/alpha", before changing a rule or threshold, or before building anything (UI, positions, digest) on top of a signal.
+description: Measure whether a quant-hub scanner signal (Launchpad tiers, factor scores, a score threshold) actually predicts forward returns, using labeled outcomes in Postgres. Use whenever asked "does this work", "is there edge/alpha", before changing a rule or threshold, or before building anything (UI, positions, digest) on top of a signal.
 ---
 
 # Signal evaluation

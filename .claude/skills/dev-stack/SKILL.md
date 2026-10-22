@@ -84,7 +84,7 @@ Full endpoint contract: `docs/API_RUNBOOK.md`.
 ## Running a scanner by hand
 
 ```bash
-docker exec -e LOG_LEVEL=INFO quant-hub-dev quant-sector-swing
+docker exec -e LOG_LEVEL=INFO quant-hub-dev quant-launchpad-daily --universe most_actives --no-email
 docker exec quant-hub-dev quant-launchpad --tickers NVDA --cache --report json
 ```
 

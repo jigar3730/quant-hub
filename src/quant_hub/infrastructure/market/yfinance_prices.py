@@ -8,6 +8,7 @@ import pandas as pd
 import yfinance as yf
 
 from quant_hub.config import LOOKBACK_DAYS
+from quant_hub.data.calendar import expected_last_session
 from quant_hub.infrastructure.cache.parquet_cache import OHLCV_COLUMNS, ParquetCache
 
 logger = logging.getLogger(__name__)
@@ -90,8 +91,13 @@ def download_prices(
     """Download daily OHLCV; per-ticker parquet cache with chunked yfinance fetch."""
     tickers = sorted(set(tickers))
     cache = cache or ParquetCache()
+    # Require the last completed NYSE session, not just a <24h-old file: the 05:00 cron used to
+    # reuse files the previous morning's 05:00 run wrote seconds later (one session stale).
     cached_tickers, stale_tickers = cache.partition(
-        tickers, use_cache=use_cache, max_bar_age_days=5
+        tickers,
+        use_cache=use_cache,
+        max_bar_age_days=5,
+        min_bar_date=expected_last_session(),
     )
 
     frames: list[pd.DataFrame] = []

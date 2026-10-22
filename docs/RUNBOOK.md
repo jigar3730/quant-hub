@@ -41,7 +41,6 @@ Test current products:
 # Prod: quant-hub. Dev: quant-hub-dev. Cron universes: docker/crontab (premarket, not a 5:10 PM sp500_index slot).
 docker exec quant-hub quant-launchpad --universe most_actives --cache --report both
 docker exec quant-hub quant-lynch --universe most_actives --no-email
-docker exec quant-hub quant-sector-swing --force-refresh
 ```
 
 Open the **prod** dashboard at `http://127.0.0.1:5002` (dev also uses 5002 on a separate stack — do not run both at once). Verify Command Center, Digest, Launchpad, and Lynch load.
@@ -54,7 +53,6 @@ Open the **prod** dashboard at `http://127.0.0.1:5002` (dev also uses 5002 on a 
 docker exec quant-hub cat /etc/cron.d/quant-hub
 ```
 
-Weekday (ET, premarket): Launchpad on `most_actives`, `large_cap_growth`, `small_cap_growth`, `mid_cap_growth` (5:00–5:15 AM), the sector-ETF swing scan (`quant-sector-swing --force-refresh`) at 5:20 AM, then `quant-digest daily` at 5:30 AM — see [Digest Policy](DIGEST_POLICY.md) for what the daily email now covers. Saturday: Launchpad-all, staggered Lynch-all, ML labels, analytics, weekly digest.
 
 Scheduled scans persist results without email. Digest commands send mail. The weekly digest uses Launchpad ∩ Lynch overlap as the combined signal.
 
@@ -80,8 +78,6 @@ docker exec quant-hub quant-digest weekly --rebuild-analytics
 ```
 
 Same-day reruns safely replace the run for a product/universe/date.
-
-**Sector swing scan.** It aborts (non-zero exit, job `failed`, nothing persisted) when SPY's last bar is older than the expected session — a stale Yahoo pull or a missing holiday in `sector_swing/calendar.py`. Look for `Stale price data` in `cron.log`, rerun with `--force-refresh`, and use `--allow-stale` only when you accept an older as-of date (recorded as `data_freshness: stale_allowed`). A rebuilt image is needed for crontab or new-CLI changes; see [SECTOR_SWING_SCANNER.md](SECTOR_SWING_SCANNER.md#8-running-and-scheduling).
 
 ## Universe operations
 

@@ -13,11 +13,9 @@ from quant_hub.config import PRIMARY_INDEX_UNIVERSE
 from quant_hub.history.ticker_projection import history_display_columns
 from quant_hub.infrastructure.postgres.connection import apply_schema, ping
 from quant_hub.infrastructure.postgres.repository import JobRunRepository, ScanRepository
-from quant_hub.sector_swing.config import STRATEGY_ID as SECTOR_SWING_STRATEGY_ID
 
 STRATEGY_CHOICES = ("launchpad", "lynch")
-# status lists sector swing runs too, without widening the report/history/show argparse choices
-STATUS_STRATEGIES = (*STRATEGY_CHOICES, SECTOR_SWING_STRATEGY_ID)
+STATUS_STRATEGIES = STRATEGY_CHOICES
 
 
 def _cmd_status() -> int:

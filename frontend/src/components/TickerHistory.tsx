@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { TickerAuditTrail } from '@/components/TickerAuditTrail'
-import { TickerFundamentalCard } from '@/components/TickerFundamentalCard'
 import { TickerOutcomesCard } from '@/components/TickerOutcomesCard'
 import { TickerTechnicalCard } from '@/components/TickerTechnicalCard'
 import { Badge } from '@/components/ui/badge'
@@ -105,12 +104,6 @@ export function TickerHistory() {
       {ticker != null && (
         <div className="mt-4">
           <TickerTechnicalCard ticker={ticker} />
-        </div>
-      )}
-
-      {ticker != null && (
-        <div className="mt-4">
-          <TickerFundamentalCard ticker={ticker} />
         </div>
       )}
 

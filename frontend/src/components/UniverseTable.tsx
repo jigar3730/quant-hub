@@ -44,9 +44,9 @@ import {
 } from '@/lib/scoring'
 import { cn, humanizeKey } from '@/lib/utils'
 
+// Lynch switched off 2026-10-22 (Launchpad-only focus); its code is dormant.
 const STRATEGIES = [
   { id: 'launchpad', label: 'Launchpad' },
-  { id: 'lynch', label: 'Lynch' },
 ]
 
 // Row content is hand-rendered from `row.original` (see below) rather than

@@ -105,32 +105,6 @@ Key fields include `pe_ratio`, `peg_ratio`, earnings growth, debt/equity, net ca
 
 `lynch_score` is the percentage of checks passed, not a weighted portfolio score. A null score indicates incomplete retrieval, not zero.
 
-### Sector ETF swing `ticker_results.detail`
-
-Strategy `sector_etf_swing`, universe `sector_etfs`. It is written through the same `upsert_scan` as the other products; tiers use the standard keys (`Tier 1` trigger, `Tier 2` watch, `Tier 3` extended, `filtered`). Columns: `eligible` = tiers 1–3, `sector_etf` = `SPY` (the benchmark), `final_score` = relative-strength score in percentage points, `filter_reason` from `eligibility.fail_reason`.
-
-```json
-{
-  "schema_version": 1,
-  "ticker": "XLK", "eligible": true, "tier": "Tier 1", "sector_etf": "SPY",
-  "as_of_price": "2026-09-18", "regime_blocked": false,
-  "summary": {"final_adjusted_score": 4.21, "rs_score_pct": 4.21, "rs_rank": 1,
-              "ret_63d_pct": 9.1, "ret_126d_pct": 18.4},
-  "eligibility": {"passed": true, "fail_reason": null, "summary": "...",
-                  "checks": [{"rule": "R3_trend", "passed": true, "value": 27.4,
-                              "threshold": "Close > SMA50, EMA20 > SMA50, ADX14 >= 20"}]},
-  "indicators": {"bar_date": "2026-09-18", "close": 0, "ema10": 0, "ema20": 0, "sma50": 0,
-                 "atr14": 0, "adx14": 0, "pullback_low": 0, "avg_dollar_volume": 0},
-  "trade_plan": {"entry_ref": 0, "stop": 0, "risk_per_share": 0, "stop_atr_multiple": 0,
-                 "target_2r": 0, "chase_limit": 0, "invalidation": 0,
-                 "shares": 0, "risk_dollars": 0, "position_dollars": 0, "regime_blocked": false}
-}
-```
-
-`trade_plan` is present for Tier 1 and, as informational levels only, for regime-blocked Tier 2 rows. `eligibility.checks` matches the shape the frontend's `EligibilityCheck` type expects. Share counts assume the equity/risk recorded in `scan_runs.metadata.data_provenance` (`equity_assumed`, `risk_pct`, placeholders unless configured); per-share levels are the durable data.
-
-`market_regime` holds the standard `regime_detail` fields plus `regime_gate_passed`, `gate_rule`, `as_of_price`, `data_freshness`, and `schema_version` (only `market_regime` and each `detail` reach API consumers in full). See [SECTOR_SWING_SCANNER.md](SECTOR_SWING_SCANNER.md).
-
 ## Configuration, cache, and exports
 
 | Layer | Location |
@@ -139,7 +113,7 @@ Strategy `sector_etf_swing`, universe `sector_etfs`. It is written through the s
 | Live Docker data (**prod**) | `/mnt/fast/quant-data/data/` — not used by **dev** |
 | Price cache (prod) | `/mnt/fast/quant-data/data/cache/prices/` |
 | ML features/models (prod) | `/mnt/fast/quant-data/data/ml/` |
-| Product exports (prod) | `/mnt/fast/quant-data/data/output/{launchpad,lynch,sector_etf_swing}/` |
+| Product exports (prod) | `/mnt/fast/quant-data/data/output/{launchpad,lynch}/` |
 | Logs (prod) | `/mnt/fast/quant-data/logs/` |
 
 Postgres is richer and canonical; exports are flattened convenience artifacts.

@@ -1,15 +1,19 @@
 ---
 name: phase-scope-guard
-description: Verify a quant-hub change hasn't touched scan-rubric or scoring logic, then re-run the test suite and confirm the pass count didn't drop. Use before committing or merging any feature/phase branch (API, frontend, sector swing, positions, migrations), or whenever asked to double-check scope.
+description: Verify a quant-hub change hasn't touched scan-rubric or scoring logic, then re-run the test suite and confirm the pass count didn't drop. Use before committing or merging any feature/phase branch (API, frontend, infrastructure, migrations), or whenever asked to double-check scope.
 ---
 
 # Scope guard
 
-The user's standing worry is that feature work (API, frontend, swing scanner,
+The user's standing worry is that feature work (API, frontend, infrastructure,
 etc.) silently alters scoring. That boundary is a hard rule: a violation means
 stop and flag, never work around it.
 
 ## Forbidden paths (unless the user explicitly asked for that change)
+
+Exception: Launchpad rubric work the user asked for (2026-10-22 focus) is allowed, but only
+through the evidence process in `signal-eval` — the guard then checks that nothing *outside*
+the intended scoring change moved.
 
 - `src/quant_hub/{scoring,factors,filters,regime,strategies,engine,lynch,report}/`
 - existing **write** methods in `src/quant_hub/infrastructure/postgres/repository.py`
@@ -17,9 +21,6 @@ stop and flag, never work around it.
 
 `.claude/settings.json` makes edits to these paths prompt; this skill is the
 check for anything that slipped through (e.g. shell edits).
-
-Note: `src/quant_hub/sector_swing/report.py` is **not** forbidden — only the
-top-level `report/` package is.
 
 ## Steps
 

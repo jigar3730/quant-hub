@@ -65,27 +65,6 @@ Lynch has **Candidates**, **Overview**, **All Tickers**, and **Ticker Detail** t
 - **categories** — `fast_grower`, `stalwart`, and/or `asset_play`;
 - **data quality** — missing or failed Yahoo data is not a score of zero.
 
-### Sector ETF swing
-
-A separate scanner looks for **short swing trades (about 3–10 trading days)** in a list of sector ETFs (`sector_etfs`) that are already beating SPY, have dipped, and are turning back up. It runs before the open each weekday, so every price is the previous close. Each plan comes with a stop chosen *before* entry. It is a research tool: nothing places orders, and no return is promised.
-
-View it on the React frontend's **Sector Swing** page (`/swing`; dev stack today) — there is no Streamlit tab, since Streamlit is being retired. The page has a **How to read this page** panel (open on your first visit, reopen any time) with the same content as below. Without the UI, read `data/output/sector_etf_swing/sector_etfs/summary.md` or `quant-hub status`.
-
-**How to read it, in four steps**
-
-1. **Read the coloured headline.** It says in one sentence what today means: trade plans ready, leaders being watched, or nothing to do. "Nothing to do" is a normal and frequent answer.
-2. **Check the market gate.** If SPY is below its 50- or 200-day average the bar is red and *no* plans are issued, however good an ETF looks.
-3. **If there is a trade plan**, read the **In plain English** line first, for example: *"This plan would buy about 108 shares of XLK near 137.62 (no higher than 138.47), and exit if the price falls to 133.45 — roughly $450 at risk. First target: 145.9, twice the amount risked."* Then follow the checklist on the card:
-   - *Before the open:* skip the trade if the open is above the **chase limit** (too far from the plan) or at/below the **stop** (the idea is already wrong), and confirm the levels against a live quote.
-   - *After entering:* sell half at the **2R target**, trail the rest (exit on a daily close below the 10-day average), and exit at the close if it has not gained 1× the risk within 10 trading days.
-4. **Use the ranked table to see why not.** All 16 ETFs are listed against SPY. Seven chips (R1–R7) show the checks in order — green passed, red failed, grey not checked because an earlier one failed. Hover a chip for the value and threshold.
-
-**Labels:** *Trigger* (Tier 1) is a full plan and the only actionable tier. *Watch* (Tier 2) is a leader that is dipping but has not turned up yet. *Extended* (Tier 3) is a leader that has not pulled back, so buying would be chasing. *Filtered* did not qualify; the Outcome column says why.
-
-**Sizing:** enter your own equity and risk % on the page (stored in your browser only). Share counts are recomputed from them; the scanner's own share count uses a placeholder $50,000 / 1%, and a position is capped at 30% of equity.
-
-See [SECTOR_SWING_SCANNER.md](SECTOR_SWING_SCANNER.md) for the exact rules.
-
 ## Commands
 
 Run commands inside the **prod** container `quant-hub`. For the practice stack use `quant-hub-dev` (see [SETUP_GUIDE.md](SETUP_GUIDE.md)). Port 5002 and `/mnt/fast/quant-data` are prod, not every environment.
@@ -96,7 +75,6 @@ docker exec quant-hub quant-launchpad-daily --universe most_actives --no-email
 docker exec quant-hub quant-launchpad-all --cache --report both
 docker exec quant-hub quant-lynch --universe most_actives --no-email
 docker exec quant-hub quant-lynch-all --no-email
-docker exec quant-hub quant-sector-swing --force-refresh
 docker exec quant-hub quant-hub report --strategy launchpad --universe most_actives
 docker exec quant-hub quant-hub ticker history NVDA --json
 ```
@@ -132,7 +110,7 @@ See [Digest Policy](DIGEST_POLICY.md) for selection and idempotency rules.
 
 ## Schedule
 
-`docker/crontab` is authoritative (America/New_York). Weekday Launchpad runs `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (5:00–5:15 AM), the sector-ETF swing scan at 5:20 AM, then the daily digest at 5:30 AM — all premarket, before the open. Saturday coverage, Lynch, labels, analytics, and the weekly digest follow the crontab — do not copy older `sp500_index` 5:10 PM tables.
+`docker/crontab` is authoritative (America/New_York). Weekday Launchpad runs `most_actives`, `large_cap_growth`, `small_cap_growth`, and `mid_cap_growth` (5:00–5:15 AM), then the daily digest at 5:30 AM — all premarket, before the open. Saturday coverage and ML labels follow the crontab (Lynch, weekly analytics, and the weekly digest were switched off 2026-10-22) — do not copy older `sp500_index` 5:10 PM tables.
 
 ## Launchpad ML
 
