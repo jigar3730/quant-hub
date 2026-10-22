@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import pandas as pd
@@ -14,7 +14,10 @@ from quant_hub.ml.constants import (
     LABEL_STATUS_INVALID_ANCHOR,
     LABEL_STATUS_NO_PRICE,
     LABEL_STATUS_OK,
+    LABEL_STATUS_PRICE_GAP,
 )
+
+MAX_ENTRY_GAP_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -134,7 +137,25 @@ def compute_forward_outcome(
             label_status=LABEL_STATUS_INSUFFICIENT_FUTURE,
         )
 
-    path = future.iloc[:horizon_days]["Close"]
+    window = future.iloc[:horizon_days]
+    first_day, last_day = window["Date"].iloc[0], window["Date"].iloc[-1]
+    # N rows forward must be ~N sessions: allow weekends/holidays, reject multi-week holes.
+    if (first_day - anchor_date) > timedelta(days=MAX_ENTRY_GAP_DAYS) or (
+        last_day - anchor_date
+    ) > timedelta(days=int(horizon_days * 1.6) + MAX_ENTRY_GAP_DAYS):
+        return OutcomeRow(
+            horizon_days=horizon_days,
+            anchor_date=anchor_date,
+            forward_return_pct=None,
+            forward_max_gain_pct=None,
+            forward_max_drawdown_pct=None,
+            spy_forward_return_pct=None,
+            excess_return_pct=None,
+            label_binary=None,
+            label_status=LABEL_STATUS_PRICE_GAP,
+        )
+
+    path = window["Close"]
     entry = float(path.iloc[0])
     total, max_gain, max_drawdown = _forward_path_metrics(entry, path)
 

@@ -19,6 +19,9 @@ def _launchpad_factors(args: argparse.Namespace) -> int:
     cache = ParquetCache(base_dir=ML_LABEL_CACHE_SUBDIR, ttl_hours=ML_LABEL_CACHE_TTL_HOURS)
     panel = lf.add_price_benchmarks(panel, cache)
     splits = lf.default_splits(args.holdout_start)
+    if args.show != "both":
+        # PR-2: the holdout stays unseen until candidate rubrics are frozen.
+        splits = [s for s in splits if s.name == args.show]
 
     columns = lf.RUBRIC_COLUMNS + lf.RAW_COLUMNS + lf.BENCHMARK_COLUMNS
     factors = lf.factor_table(panel, columns, args.horizon, splits)
@@ -26,8 +29,8 @@ def _launchpad_factors(args: argparse.Namespace) -> int:
 
     out = OUTPUT_DIR / "launchpad" / "research"
     out.mkdir(parents=True, exist_ok=True)
-    factors.to_csv(out / f"factors_h{args.horizon}.csv", index=False)
-    tiers.to_csv(out / f"tiers_h{args.horizon}.csv", index=False)
+    factors.to_csv(out / f"factors_h{args.horizon}_{args.show}.csv", index=False)
+    tiers.to_csv(out / f"tiers_h{args.horizon}_{args.show}.csv", index=False)
     panel.to_parquet(out / f"panel_h{args.horizon}.parquet", index=False)
 
     dates = panel["scan_date"]
@@ -47,6 +50,8 @@ def main(argv: list[str] | None = None) -> int:
     fac.add_argument("--horizon", type=int, default=20, help="Forward horizon in trading days")
     fac.add_argument("--holdout-start", default="2025-01-01",
                      help="First date of the untouched holdout period")
+    fac.add_argument("--show", choices=("design", "holdout", "both"), default="design",
+                     help="Which period to report (default: design only, per PR-2)")
     fac.add_argument("--include-live", action="store_true",
                      help="Also use daily live runs (default: Saturday backfill runs only)")
     args = parser.parse_args(argv)

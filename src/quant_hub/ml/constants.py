@@ -12,6 +12,8 @@ LABEL_STATUS_OK = "ok"
 LABEL_STATUS_NO_PRICE = "no_price"
 LABEL_STATUS_INSUFFICIENT_FUTURE = "insufficient_future_bars"
 LABEL_STATUS_INVALID_ANCHOR = "invalid_anchor"
+# Sparse history (OTC/recycled tickers): N rows forward spans far more than N sessions.
+LABEL_STATUS_PRICE_GAP = "price_gap"
 
 # Launchpad: all eligible tiers are training candidates (filtered rows dropped when setups_only).
 LAUNCHPAD_SETUP_TIERS = frozenset({"Tier 1", "Tier 2", "Tier 3"})
@@ -35,6 +37,7 @@ __all__ = [
     "LABEL_STATUS_INSUFFICIENT_FUTURE",
     "LABEL_STATUS_INVALID_ANCHOR",
     "LABEL_STATUS_NO_PRICE",
+    "LABEL_STATUS_PRICE_GAP",
     "LABEL_STATUS_OK",
     "LAUNCHPAD_FEATURE_COLUMNS",
     "LAUNCHPAD_SETUP_TIERS",

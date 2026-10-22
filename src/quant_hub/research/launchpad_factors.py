@@ -58,8 +58,15 @@ def load_panel(horizon: int) -> pd.DataFrame:
     with get_connection() as conn:
         df = pd.read_sql(PANEL_SQL, conn, params={"h": horizon})
     df["scan_date"] = pd.to_datetime(df["scan_date"])
-    df["as_of_price"] = pd.to_datetime(df["as_of_price"].fillna(df["scan_date"].astype(str)))
+    df["as_of_price"] = pd.to_datetime(
+        df["as_of_price"].fillna(df["scan_date"].astype(str))
+    ).astype("datetime64[ns]")
     df["macd_hist"] = df["macd_line"] - df["macd_signal"]
+    # Clip each run's forward returns to its 2.5-97.5 percentile band so one meme spike or bad
+    # print cannot dominate a mean; rank ICs are unaffected.
+    grp = df.groupby("run_id")["fwd"]
+    df["fwd"] = df["fwd"].clip(grp.transform(lambda x: x.quantile(0.025)),
+                               grp.transform(lambda x: x.quantile(0.975)))
     df["fwd_rel"] = df["fwd"] - df.groupby("run_id")["fwd"].transform("mean")
     return df
 
@@ -73,7 +80,7 @@ def add_price_benchmarks(panel: pd.DataFrame, cache: ParquetCache) -> pd.DataFra
         if px is None or px.empty:
             parts.append(rows)
             continue
-        px = px.assign(Date=pd.to_datetime(px["Date"])).sort_values("Date")
+        px = px.assign(Date=pd.to_datetime(px["Date"]).astype("datetime64[ns]")).sort_values("Date")
         close, high = px["Close"].astype(float), px["High"].astype(float)
         feats = pd.DataFrame({
             "Date": px["Date"],
