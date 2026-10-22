@@ -21,3 +21,9 @@ cron if, at h=10, its mean spread is below its round-trip cost estimate
 small_cap_growth 0.50%) **or** its `t_over_weeks` < 1, with at least 12
 independent weeks. Fewer than 12 weeks → keep everything and extend the
 deadline by one quarter. h=20 is reported but not part of the rule.
+
+## Results after PR-1
+
+| Date | Hypothesis | Data | Result | Verdict | Next |
+|---|---|---|---|---|---|
+| 2026-10-22 | Sector-ETF swing rules (production defaults, untuned) have edge after costs | `quant-research swing-backtest`, 21 sector ETFs, signals 2005-12→2026-10, next-open fills, 2 bps/side, max 3 concurrent | 341 trades, expectancy −0.05R (t −0.8), PF 0.92, CAGR −0.45%, MaxDD −26.7%, 15/21 losing years. SPY B&H 11.1% CAGR; SPY-with-regime-gate 4.9%; top-RS monthly 11.6% | **No edge** (sensitivity grid and skeptic review not run — result was far enough below zero that tuning would be curve-fitting) | Strategy retired 2026-10-22; code archived on `research/swing-backtest` and tag `archive/pre-launchpad-focus` |
