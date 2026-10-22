@@ -13,7 +13,6 @@ export const LAUNCHPAD_UNIVERSES: UniverseOption[] = [
   { id: 'mid_cap_growth', name: 'Mid Cap Growth' },
   { id: 'small_cap_growth', name: 'Small Cap Growth' },
   { id: 'dividend_growers', name: 'Dividend Growers' },
-  { id: 'fintech_growth', name: 'Fintech & Digital Growth' },
   { id: 'most_actives', name: 'Most Actives' },
   { id: 'mega_runners', name: 'Mega Runners Watchlist' },
 ]

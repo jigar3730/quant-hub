@@ -40,6 +40,16 @@ ML_LABEL_LOOKBACK_DAYS = 1260  # ~5 calendar years
 ML_LABEL_CACHE_SUBDIR = CACHE_DIR / "prices" / "1d" / "5y"
 ML_LABEL_CACHE_TTL_HOURS = 8760  # 1 year — refresh via quant-ml warm-cache
 
+# Research history (backtests). Separate from the production scan cache.
+RESEARCH_DIR = DATA_DIR / "research"
+RESEARCH_PRICE_DIR = CACHE_DIR / "prices" / "1d" / "research"
+RESEARCH_LOOKBACK_DAYS = 5040  # ~20 trading years
+RESEARCH_CACHE_TTL_HOURS = 24
+RESEARCH_ETF_UNIVERSE = "sector_etfs"
+# Baselines (SPY, equal-weight, Nasdaq-100, small caps) and regime context series.
+RESEARCH_BENCHMARKS = ("SPY", "RSP", "QQQ", "IWM")
+RESEARCH_CONTEXT_SERIES = ("^VIX", "^TNX")
+
 LYNCH_FETCH_WORKERS = 3
 LYNCH_FETCH_BATCH_SIZE = 20
 LYNCH_FETCH_BATCH_DELAY_SEC = 2.0

@@ -107,7 +107,7 @@ Same-day reruns replace the persisted snapshot for `(scan_date, strategy_id, uni
 
 ## Universes
 
-The authoritative registry is `data/universes.json`. Current IDs are `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `fintech_growth`, `most_actives`, `sp500_index`, and `mega_runners`.
+The authoritative registry is `data/universes.json`. Current IDs are `large_cap_growth`, `small_cap_growth`, `mid_cap_growth`, `dividend_growers`, `most_actives`, `sp500_index`, and `mega_runners`.
 
 Weekday cron universes are listed in `docker/crontab` (currently the four growth lists, not a single `sp500_index` 5:10 PM job). `sp500_index` remains a named universe you can scan or refresh manually. `mega_runners` is a small curated list for Launchpad ML tuning.
 

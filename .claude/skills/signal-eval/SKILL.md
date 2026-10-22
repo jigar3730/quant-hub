@@ -34,6 +34,20 @@ Read it as: `mean_spread_pct` = how much a tier beat its own universe on the
 same date; `t_over_runs` uses runs (date × universe) as the unit. The universe
 baseline strips out beta and "growth stocks went up this month".
 
+## 2b. Per-universe edge over independent weeks
+
+```bash
+docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on' quant-hub-db-dev \
+  psql -U quant -d quant_hub -v strategy=launchpad -v horizon=10 \
+  < .claude/skills/signal-eval/universe_edge.sql
+```
+
+One observation per non-overlapping window (every ceil(h/5)-th week), so
+`indep_weeks` is the honest sample size. This is the query behind the
+pre-registered universe-trim decision in `docs/research/LOG.md` (due
+2027-03-15) — apply that rule as written; don't adjust thresholds after seeing
+the numbers.
+
 ## 3. Interpret honestly
 
 - Overlapping horizons: runs a few days apart with a 20-day horizon share most

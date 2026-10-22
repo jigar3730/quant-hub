@@ -40,16 +40,6 @@
         }
       ]
     },
-    "fintech_growth": {
-      "name": "Fintech & Digital Growth",
-      "description": "FDIG-style fintech and payments growth",
-      "sources": [
-        {
-          "type": "file",
-          "path": "data/universes/fintech_growth.txt"
-        }
-      ]
-    },
     "most_actives": {
       "name": "Most Actives",
       "description": "Yahoo most-actives screener (dynamic)",
