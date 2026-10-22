@@ -27,3 +27,17 @@ deadline by one quarter. h=20 is reported but not part of the rule.
 | Date | Hypothesis | Data | Result | Verdict | Next |
 |---|---|---|---|---|---|
 | 2026-10-22 | Sector-ETF swing rules (production defaults, untuned) have edge after costs | `quant-research swing-backtest`, 21 sector ETFs, signals 2005-12→2026-10, next-open fills, 2 bps/side, max 3 concurrent | 341 trades, expectancy −0.05R (t −0.8), PF 0.92, CAGR −0.45%, MaxDD −26.7%, 15/21 losing years. SPY B&H 11.1% CAGR; SPY-with-regime-gate 4.9%; top-RS monthly 11.6% | **No edge** (sensitivity grid and skeptic review not run — result was far enough below zero that tuning would be curve-fitting) | Strategy retired 2026-10-22; code archived on `research/swing-backtest` and tag `archive/pre-launchpad-focus` |
+
+**PR-2 — Launchpad rubric changes (written 2026-10-22, before any backfill result was viewed).**
+Evidence base: Saturday point-in-time backfill scans (`metadata.data_provenance.backfill`),
+universes large/mid/small_cap_growth + most_actives, labeled at h=10/20/63.
+Design period: scan dates before 2025-01-01. Holdout: 2025-01-01 onward — not looked at
+while choosing a change. Tooling: `quant-research launchpad-factors`.
+A rubric change (factor weight, threshold, gate, or eligibility rule) is promoted only if, on
+the **holdout** at h=20: (a) the new score's mean per-run rank IC is higher than the current
+`final_score`'s, and (b) the new actionable set (Tier 1+2) beats its universe mean with
+t ≥ 2 over non-overlapping runs, and (c) h=10 does not get worse. Changes are chosen on the
+design period only; at most 3 candidate rubrics are taken to the holdout (each one counts as
+a test here). Known bias, stated up front: universes are today's members (survivorship);
+`most_actives` is today's screener, so its absolute returns are inflated — evaluate relative
+to the same run's universe mean.
