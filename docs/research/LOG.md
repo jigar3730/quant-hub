@@ -50,3 +50,14 @@ Candidates (defined before their design numbers were viewed; 3 tests counted):
 C1 eligible ∩ top-20% 6m momentum: +1.47% h20 (t 2.07), +5.38% h63 (t 1.94);
 C2 universe top-20% momentum: ~0; C3 C1 ∩ squeeze≥25: −8.3% h63 (t −2.9).
 **Frozen for holdout: C1 only.**
+
+**PR-2 holdout result (2026-10-22, viewed once, after freezing C1).** 2025-01→2026-09.
+C1: −0.51% h10 (t −1.1), −0.88% h20 (t −1.0), −5.18% h63 (t −2.08) — sign flipped vs design.
+`final_score` IC −0.02/−0.02/+0.07 (all |t| < 1.3). Eligible-but-below-Tier-2 (Tier 3)
+underperforms its universe: −0.76% h20 (t −2.35), −5.95% h63 (t −2.83); filtered slightly
+outperforms (t ≈ 2.1). **Verdict: no rubric change promoted. The Launchpad rubric has no
+measurable predictive edge on 4.5 years of point-in-time scans (~900 runs, ~105k labeled
+ticker-dates), and the one candidate that looked good in-sample failed out-of-sample.**
+The 2022-26 holdout is now used; any new hypothesis must be pre-registered and judged on
+live scans from 2026-10-23 onward. The earlier 6-week live result (first table row) was also
+contaminated by sparse-history labels (fixed in e6f5473) and should not be cited.
