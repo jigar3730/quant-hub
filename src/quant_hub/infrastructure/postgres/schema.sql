@@ -90,3 +90,60 @@ CREATE TABLE IF NOT EXISTS ml_models (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ml_models_strategy ON ml_models (strategy_id, universe_id, created_at DESC);
+
+-- Sector-ETF swing Phase 2: paper positions. Fills are logged by hand (quant-sector-swing-positions);
+-- the daily scan only refreshes the tracking columns and flags exit signals, it never sells.
+CREATE TABLE IF NOT EXISTS sector_swing_positions (
+    id BIGSERIAL PRIMARY KEY,
+    ticker VARCHAR(16) NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'open',
+    source_run_id BIGINT,
+    entry_date DATE NOT NULL,
+    entry_price DOUBLE PRECISION NOT NULL,
+    initial_shares INT NOT NULL,
+    open_shares INT NOT NULL,
+    initial_stop DOUBLE PRECISION NOT NULL,
+    target_price DOUBLE PRECISION NOT NULL,
+    trail_mode VARCHAR(16) NOT NULL,
+    max_hold_days INT NOT NULL,
+    current_stop DOUBLE PRECISION NOT NULL,
+    trail_level DOUBLE PRECISION,
+    target_reached BOOLEAN NOT NULL DEFAULT FALSE,
+    highest_close DOUBLE PRECISION,
+    last_close DOUBLE PRECISION,
+    last_bar_date DATE,
+    bars_held INT NOT NULL DEFAULT 0,
+    exit_signal VARCHAR(32),
+    exit_signal_date DATE,
+    exit_signal_detail TEXT,
+    closed_date DATE,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT sector_swing_positions_status_chk CHECK (status IN ('open', 'closed')),
+    CONSTRAINT sector_swing_positions_shares_chk
+        CHECK (initial_shares > 0 AND open_shares >= 0 AND open_shares <= initial_shares),
+    CONSTRAINT sector_swing_positions_stop_chk CHECK (entry_price > initial_stop)
+);
+
+-- At most one open paper position per ETF.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sector_swing_positions_open_ticker
+    ON sector_swing_positions (ticker) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS idx_sector_swing_positions_status
+    ON sector_swing_positions (status, entry_date DESC);
+
+CREATE TABLE IF NOT EXISTS sector_swing_fills (
+    id BIGSERIAL PRIMARY KEY,
+    position_id BIGINT NOT NULL REFERENCES sector_swing_positions(id) ON DELETE CASCADE,
+    side VARCHAR(4) NOT NULL,
+    fill_date DATE NOT NULL,
+    price DOUBLE PRECISION NOT NULL,
+    shares INT NOT NULL,
+    reason VARCHAR(32),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT sector_swing_fills_side_chk CHECK (side IN ('buy', 'sell')),
+    CONSTRAINT sector_swing_fills_values_chk CHECK (price > 0 AND shares > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sector_swing_fills_position ON sector_swing_fills (position_id);
+CREATE INDEX IF NOT EXISTS idx_sector_swing_fills_date ON sector_swing_fills (side, fill_date);

@@ -81,6 +81,8 @@ export const SWING_REASON_LABEL: Record<string, string> = {
   correlated: 'Correlated with a higher-ranked plan',
   size_zero: 'Zero shares at this risk',
   signal_cap: 'Signal cap reached',
+  already_open: 'Already holding this ETF',
+  position_limit: 'Open-position limit reached',
   compute_error: 'Computation error',
 }
 
@@ -341,11 +343,15 @@ export function swingHeadline(tickers: SwingTicker[], gatePassed: boolean): Swin
   const stopIssue = leaders.filter((t) =>
     ['stop_too_wide', 'size_zero', 'correlated', 'signal_cap'].includes(t.eligibility.fail_reason ?? ''),
   ).length
+  const blockedByBook = leaders.filter((t) =>
+    ['already_open', 'position_limit'].includes(t.eligibility.fail_reason ?? ''),
+  ).length
   const parts: string[] = []
   if (watching) parts.push(`${watching} ${plural(watching, 'is', 'are')} pulling back but ${plural(watching, 'has', 'have')} not turned up yet`)
   if (extended) parts.push(`${extended} ${plural(extended, 'is', 'are')} extended and would be a chase`)
   if (trendFail) parts.push(`${trendFail} failed the uptrend check (weak trend strength or below the 50-day average)`)
   if (stopIssue) parts.push(`${stopIssue} had a setup but no usable stop or size`)
+  if (blockedByBook) parts.push(`${blockedByBook} had a setup but you already hold it or your open-position limit is reached`)
   return {
     tone: watching ? 'warning' : 'neutral',
     title: watching ? 'No trade yet — leaders are being watched' : 'No trade today',

@@ -34,6 +34,8 @@ _REASON_TEXT = {
     C.REASON_CORRELATED: "Too correlated with a higher-ranked plan in this scan",
     C.REASON_SIZE_ZERO: "Stop distance leaves zero shares at the risk budget",
     C.REASON_SIGNAL_CAP: "Qualified, but the per-scan new-signal cap was reached",
+    C.REASON_ALREADY_OPEN: "Qualified, but a paper position in this ETF is already open",
+    C.REASON_POSITION_LIMIT: "Qualified, but the open-position limit is reached",
     C.REASON_COMPUTE_ERROR: "Computation error (see detail.error)",
 }
 
@@ -141,6 +143,8 @@ def build_report(
             "schema_version": C.SCHEMA_VERSION,
         }
     )
+    if result.portfolio is not None:
+        regime["portfolio"] = result.portfolio.to_dict(params, equity)
 
     extra: dict[str, Any] = {
         "schema_version": C.SCHEMA_VERSION,
@@ -226,8 +230,21 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"Extended {counts[C.TIER_EXTENDED]} · Filtered {counts[C.TIER_FILTERED]}",
         f"- Sizing assumption: equity ${prov.get('equity_assumed', 0):,.0f}, "
         f"{prov.get('risk_pct', 0):.2%} risk per trade (placeholders unless configured)",
-        "",
     ]
+    portfolio = regime.get("portfolio")
+    if portfolio:
+        held = ", ".join(portfolio["open_tickers"]) or "none"
+        lines.append(
+            f"- Open paper positions: {portfolio['open_positions']} of "
+            f"{portfolio['max_open_positions']} ({held}); realized P&L this week "
+            f"${portfolio['week_realized_pnl']:,.0f}"
+        )
+        if portfolio["trading_paused"]:
+            lines.append(
+                f"- **TRADING PAUSED (advisory):** this week's realized loss reached the "
+                f"${portfolio['weekly_loss_limit']:,.0f} weekly limit"
+            )
+    lines.append("")
     tickers = report["tickers"]
 
     plans = [t for t in tickers if t["tier"] == C.TIER_TRIGGER and t.get("trade_plan")]

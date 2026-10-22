@@ -16,6 +16,7 @@ from quant_hub.config import ETF_MIN_PRICE
 STRATEGY_ID = "sector_etf_swing"
 UNIVERSE_ID = "sector_etfs"
 JOB_NAME = "sector-swing-daily"
+POSITIONS_JOB_NAME = "sector-swing-positions"
 SCHEMA_VERSION = 1
 
 # Tier keys must match ScanRepository._tier_counts_from_report for non-Lynch strategies.
@@ -36,6 +37,8 @@ REASON_STOP_TOO_WIDE = "stop_too_wide"
 REASON_CORRELATED = "correlated"
 REASON_SIZE_ZERO = "size_zero"
 REASON_SIGNAL_CAP = "signal_cap"  # a qualified setup beyond MAX_NEW_SIGNALS (not in spec v2)
+REASON_ALREADY_OPEN = "already_open"  # Phase 2: a paper position in this ETF is already open
+REASON_POSITION_LIMIT = "position_limit"  # Phase 2: MAX_OPEN_POSITIONS already held
 REASON_COMPUTE_ERROR = "compute_error"
 FILTER_REASONS = (
     REASON_NO_PRICE_DATA,
@@ -48,6 +51,8 @@ FILTER_REASONS = (
     REASON_CORRELATED,
     REASON_SIZE_ZERO,
     REASON_SIGNAL_CAP,
+    REASON_ALREADY_OPEN,
+    REASON_POSITION_LIMIT,
     REASON_COMPUTE_ERROR,
 )
 
@@ -108,6 +113,9 @@ class SwingParams:
     corr_window: int = 60
     corr_max: float = 0.85
     corr_min_overlap: int = 30
+    # Phase 2 — open-position awareness
+    max_open_positions: int = 3
+    weekly_loss_limit_pct: float = 0.03  # advisory "trading paused" flag, never blocks plans
     # R1 — regime
     regime_fast_sma: int = 50
     regime_slow_sma: int = 200

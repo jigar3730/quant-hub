@@ -7,6 +7,7 @@ from functools import partial
 
 import pandas as pd
 import pytest
+from swing_fake_positions import FakePositionsRepo
 from swing_fixtures import TAIL_TRIGGER, TAIL_WATCH, FakeLoader, make_frame, path, spy_closes
 
 from quant_hub.application import sector_swing_service as svc_mod
@@ -72,11 +73,12 @@ def paths(tmp_path, monkeypatch):
     return fake_paths
 
 
-def make_service(loader, scan_repo=None, job_repo=None):
+def make_service(loader, scan_repo=None, job_repo=None, positions_repo=None):
     return SectorSwingScanService(
         scan_repo=scan_repo or FakeScanRepo(),
         job_repo=job_repo or FakeJobRepo(),
         runner_factory=partial(SectorSwingRunner, price_loader=loader, now=NOW),
+        positions_repo=positions_repo or FakePositionsRepo(),
     )
 
 

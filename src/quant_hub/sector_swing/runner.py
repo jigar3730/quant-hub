@@ -31,6 +31,13 @@ from quant_hub.sector_swing.calendar import expected_last_session
 from quant_hub.sector_swing.config import SwingParams
 from quant_hub.sector_swing.indicators import compute_indicators
 from quant_hub.sector_swing.models import RuleResult, TickerOutcome
+from quant_hub.sector_swing.positions import (
+    PortfolioState,
+    Position,
+    PositionStatus,
+    evaluate_position,
+    week_start,
+)
 from quant_hub.sector_swing.report import build_report, outcomes_to_dataframe
 from quant_hub.sector_swing.sizing import build_trade_plan
 
@@ -57,6 +64,7 @@ class ScanResult:
     regime: dict
     regime_check: RuleResult
     spy_as_of: date
+    portfolio: PortfolioState | None = None
 
     @property
     def regime_gate_passed(self) -> bool:
@@ -181,35 +189,66 @@ def _apply_portfolio_gates(
     candidates: list[TickerOutcome],
     frames: dict[str, pd.DataFrame],
     params: SwingParams,
+    held: dict[str, pd.DataFrame | None] | None = None,
 ) -> None:
-    """Walk candidates in RS-rank order: cap new signals, skip near-duplicates (correlation)."""
+    """Walk candidates in RS-rank order: skip ETFs already held, cap new signals (per scan and
+    against open positions), skip near-duplicates of a selected plan or an open position.
+
+    ``held`` maps each open-position ticker to its price frame (None when unavailable).
+    """
+    held = held or {}
     selected: list[TickerOutcome] = []
     returns: dict[str, pd.Series] = {}
+    slots = max(0, params.max_open_positions - len(held))
+    cap = min(params.max_new_signals, slots)
 
     def series(ticker: str) -> pd.Series:
         if ticker not in returns:
-            returns[ticker] = _returns(frames[ticker], params.corr_window)
+            frame = frames.get(ticker)
+            if frame is None:
+                frame = held[ticker]
+            returns[ticker] = _returns(frame, params.corr_window)
         return returns[ticker]
 
+    def demote(cand: TickerOutcome, reason: str) -> None:
+        cand.tier, cand.reason, cand.plan = C.TIER_FILTERED, reason, None
+
     for cand in sorted(candidates, key=lambda o: o.rs_rank or 10**6):
-        if len(selected) >= params.max_new_signals:
+        if cand.ticker in held:
             cand.checks.append(
-                RuleResult("P_signal_cap", False, float(len(selected)),
-                           f"at most {params.max_new_signals} new signals per scan")
+                RuleResult("P_already_open", False, None, "no open position in this ETF")
             )
-            cand.tier, cand.reason, cand.plan = C.TIER_FILTERED, C.REASON_SIGNAL_CAP, None
+            demote(cand, C.REASON_ALREADY_OPEN)
             continue
 
+        if len(selected) >= cap:
+            if len(held) + len(selected) >= params.max_open_positions:
+                cand.checks.append(
+                    RuleResult("P_position_limit", False, float(len(held) + len(selected)),
+                               f"at most {params.max_open_positions} open positions "
+                               f"({len(held)} open)")
+                )
+                demote(cand, C.REASON_POSITION_LIMIT)
+            else:
+                cand.checks.append(
+                    RuleResult("P_signal_cap", False, float(len(selected)),
+                               f"at most {params.max_new_signals} new signals per scan")
+                )
+                demote(cand, C.REASON_SIGNAL_CAP)
+            continue
+
+        others = [t for t, f in held.items() if f is not None] + [o.ticker for o in selected]
         blocker: tuple[str, float] | None = None
         worst: tuple[str, float] | None = None
-        for other in selected:
+        for other in others:
+            label = f"{other} (open)" if other in held else other
             pair = pd.concat(
-                [series(cand.ticker), series(other.ticker)], axis=1, join="inner"
+                [series(cand.ticker), series(other)], axis=1, join="inner"
             ).dropna()
             if len(pair) < params.corr_min_overlap:
                 logger.warning(
                     "Correlation gate skipped for %s vs %s: only %d overlapping returns",
-                    cand.ticker, other.ticker, len(pair),
+                    cand.ticker, label, len(pair),
                 )
                 continue
             corr = (
@@ -220,13 +259,13 @@ def _apply_portfolio_gates(
             if not math.isfinite(corr):  # zero-variance series (e.g. frozen price)
                 logger.warning(
                     "Correlation gate skipped for %s vs %s: correlation undefined",
-                    cand.ticker, other.ticker,
+                    cand.ticker, label,
                 )
                 continue
             if worst is None or corr > worst[1]:
-                worst = (other.ticker, corr)
+                worst = (label, corr)
             if corr > params.corr_max:
-                blocker = (other.ticker, corr)
+                blocker = (label, corr)
                 break
 
         if blocker is not None:
@@ -235,7 +274,7 @@ def _apply_portfolio_gates(
                            f"{params.corr_window}d return corr <= {params.corr_max:g} vs "
                            f"{blocker[0]}")
             )
-            cand.tier, cand.reason, cand.plan = C.TIER_FILTERED, C.REASON_CORRELATED, None
+            demote(cand, C.REASON_CORRELATED)
             continue
 
         if worst is not None:
@@ -256,10 +295,13 @@ def scan_prices(
     equity: float,
     risk_pct: float,
     as_of: date | None = None,
+    portfolio: PortfolioState | None = None,
 ) -> ScanResult:
     """Pure scan over an already-loaded long price frame (benchmark included).
 
     ``as_of`` truncates every series to bars on or before that date (point-in-time replay).
+    ``portfolio`` adds the Phase 2 open-position gates; its tickers' prices should be in
+    ``prices`` (needed for the correlation gate) even when they are outside ``universe``.
     """
     spy_df = _frame(prices, BENCHMARK_TICKER, as_of)
     if spy_df is None or spy_df.empty:
@@ -333,8 +375,15 @@ def scan_prices(
             outcome.error = f"{type(exc).__name__}: {exc}"
 
     # Phase D: portfolio-level gates.
+    held: dict[str, pd.DataFrame | None] = {}
+    for ticker in portfolio.open_tickers if portfolio else ():
+        held[ticker] = frames.get(ticker)
+        if held[ticker] is None:
+            held[ticker] = _frame(prices, ticker, as_of)
+        if held[ticker] is None:
+            logger.warning("No prices for open position %s; correlation vs it is skipped", ticker)
     try:
-        _apply_portfolio_gates(candidates, frames, params)
+        _apply_portfolio_gates(candidates, frames, params, held)
     except Exception as exc:  # noqa: BLE001
         # Fail safe: never issue an un-gated plan.
         logger.exception("Portfolio gates failed; demoting %d candidates", len(candidates))
@@ -349,6 +398,7 @@ def scan_prices(
         regime=regime,
         regime_check=regime_check,
         spy_as_of=spy_as_of,
+        portfolio=portfolio,
     )
 
 
@@ -374,6 +424,8 @@ class SectorSwingRunner:
         now: datetime | None = None,
         price_loader: PriceLoader | None = None,
         scan_date: date | None = None,
+        positions: list[Position] | None = None,
+        week_realized_pnl: float = 0.0,
     ) -> None:
         self.universe = [t for t in dict.fromkeys(universe) if t != BENCHMARK_TICKER]
         self.universe_id = universe_id
@@ -386,10 +438,14 @@ class SectorSwingRunner:
         self.now = now
         self.price_loader = price_loader or download_prices
         self.scan_date = scan_date or date.today()
+        self.positions = list(positions or [])
+        self.week_realized_pnl = float(week_realized_pnl)
+        # Filled by run(): each open position's refreshed status (None when it failed).
+        self.position_updates: list[tuple[Position, PositionStatus | None]] = []
 
     def _load_prices(self) -> tuple[pd.DataFrame, str, date | None]:
         """Returns (prices, data_freshness, expected_session). Aborts on stale/missing data."""
-        tickers = sorted({*self.universe, BENCHMARK_TICKER})
+        tickers = sorted({*self.universe, *(p.ticker for p in self.positions), BENCHMARK_TICKER})
         if self.dry_run:
             return synthetic_prices(tickers), C.FRESHNESS_SYNTHETIC, None
 
@@ -419,15 +475,36 @@ class SectorSwingRunner:
             freshness = C.FRESHNESS_STALE_ALLOWED
         return prices, freshness, expected
 
+    def _refresh_positions(self, prices: pd.DataFrame) -> None:
+        """Re-evaluate every open position on the scan's prices, isolated per position."""
+        self.position_updates = []
+        for pos in self.positions:
+            try:
+                df = ticker_df(prices, pos.ticker)
+                if df is None or df.empty:
+                    raise ValueError("no price data")
+                self.position_updates.append((pos, evaluate_position(pos, df, self.params)))
+            except Exception:  # noqa: BLE001 — one bad position must not abort the scan
+                logger.exception("Position refresh failed for %s (id %s)", pos.ticker, pos.id)
+                self.position_updates.append((pos, None))
+
     def run(self) -> tuple[pd.DataFrame, dict]:
         prices, freshness, expected = self._load_prices()
+        portfolio = PortfolioState(
+            open_tickers=tuple(sorted({p.ticker for p in self.positions})),
+            week_start=week_start(self.scan_date),
+            week_realized_pnl=self.week_realized_pnl,
+        )
         result = scan_prices(
             prices,
             self.universe,
             params=self.params,
             equity=self.equity,
             risk_pct=self.risk_pct,
+            portfolio=portfolio,
         )
+        if not self.dry_run:
+            self._refresh_positions(prices)
         report = build_report(
             result,
             universe=self.universe,
