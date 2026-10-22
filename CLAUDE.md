@@ -26,6 +26,25 @@ is being decommissioned: never add Streamlit UI, build in React.
 - Don't add `plotly.js` to the frontend (unfixable critical transitive XSS
   via `maplibre-gl`). Run `npm audit` before adding any charting dependency.
 
+## Research integrity
+
+The point of this project is finding real edge, so every performance claim
+must be evidence, not narrative.
+
+- Measure signals with the `signal-eval` skill (tier vs same-universe
+  forward return, t-stat over dates). Log every test, failures included, in
+  `docs/research/LOG.md`.
+- Run the `quant-skeptic` agent on any backtest, metric, or "this works"
+  before reporting it or building on it.
+- Under ~30 distinct dates or ~100 signals, the answer is "inconclusive".
+- Known biases in this data: Yahoo-only daily bars, universes are today's
+  members (survivorship), Lynch fundamentals are not point-in-time, no
+  transaction costs anywhere yet. State which apply to any result.
+- Don't build UI, position tracking, or digests on a signal that hasn't
+  shown edge out-of-sample.
+- Read-only DB queries:
+  `docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on' quant-hub-db-dev psql -U quant -d quant_hub`
+
 ## Dev stack
 
 Always go through `scripts/run_env.sh` (sets compose project `quant-hub-dev`

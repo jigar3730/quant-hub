@@ -40,10 +40,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 30 5 * * 6 root . /etc/environment; quant-lynch-all --universes mid_cap_growth --no-email >> /app/logs/cron.log 2>&1
 
 # --- ML Forward-Return Labels (06:30 AM – 07:15 AM ET) ---
-0 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe most_actives --since "$(date -d '90 days ago' +%Y-%m-%d)" >> /app/logs/cron.log 2>&1
-12 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe large_cap_growth --since "$(date -d '90 days ago' +%Y-%m-%d)" >> /app/logs/cron.log 2>&1
-24 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe small_cap_growth --since "$(date -d '90 days ago' +%Y-%m-%d)" >> /app/logs/cron.log 2>&1
-36 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe mid_cap_growth --since "$(date -d '90 days ago' +%Y-%m-%d)" >> /app/logs/cron.log 2>&1
+0 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe most_actives --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
+12 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe large_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
+24 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe small_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
+36 7 * * 6 root . /etc/environment; quant-ml label --strategy launchpad --universe mid_cap_growth --since "$(date -d '90 days ago' +\%Y-\%m-\%d)" >> /app/logs/cron.log 2>&1
 
 # 08:15 AM ET — build weekly analytics payload
 15 8 * * 6 root . /etc/environment; quant-analytics weekly >> /app/logs/cron.log 2>&1

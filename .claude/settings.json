@@ -16,7 +16,8 @@
       "Bash(docker exec quant-hub-frontend-dev npx tsc *)",
       "Bash(docker exec quant-hub-frontend-dev npm run lint)",
       "Bash(curl -s http://localhost:5020/api/*)",
-      "Bash(curl -s http://localhost:5010/*)"
+      "Bash(curl -s http://localhost:5010/*)",
+      "Bash(docker exec -i -e PGOPTIONS='-c default_transaction_read_only=on' quant-hub-db-dev psql *)"
     ],
     "ask": [
       "Edit(./src/quant_hub/scoring/**)",
