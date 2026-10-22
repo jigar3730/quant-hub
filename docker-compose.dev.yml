@@ -19,8 +19,10 @@ services:
     environment:
       APP_ENV: dev
       LOG_LEVEL: WARNING
+      PYTHONDONTWRITEBYTECODE: "1"  # keep root-owned __pycache__ out of the bind-mounted repo
     volumes:
       - ./src:/app/src
+      - ./tests:/app/tests
       - ./data/universes.json:/app/data/universes.json
       - ./data/universes:/app/data/universes
       - quant-hub-data-dev:/app/data
@@ -35,6 +37,7 @@ services:
     environment:
       APP_ENV: dev
       LOG_LEVEL: WARNING
+      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - ./src:/app/src
       - ./data/universes.json:/app/data/universes.json

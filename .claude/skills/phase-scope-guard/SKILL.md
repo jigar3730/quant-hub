@@ -1,82 +1,64 @@
 ---
 name: phase-scope-guard
-description: Verify a change during the quant-hub modernization effort (Phase 1 API, Phase 2 frontend, Phase 3 migration) hasn't touched scan-rubric or scoring logic, then re-run the test suite to confirm the pass count is unchanged. Use before committing any Phase 1/2/3 work, or whenever asked to double-check scope on this effort.
+description: Verify a quant-hub change hasn't touched scan-rubric or scoring logic, then re-run the test suite and confirm the pass count didn't drop. Use before committing or merging any feature/phase branch (API, frontend, sector swing, positions, migrations), or whenever asked to double-check scope.
 ---
 
-# Modernization scope guard
+# Scope guard
 
-`docs/MODERNIZATION_AUDIT.md` lays out a 5-phase plan to decouple the frontend
-from Postgres and eventually retire the Streamlit dashboard. The user agreed
-to this specifically because they were worried an agent building the API or
-frontend might accidentally alter scan-rubric or scoring logic along the way.
-That boundary is a hard rule, not a suggestion — treat any violation as a
-stop-and-flag situation, not something to quietly work around.
+The user's standing worry is that feature work (API, frontend, swing scanner,
+etc.) silently alters scoring. That boundary is a hard rule: a violation means
+stop and flag, never work around it.
 
-## Forbidden paths
+## Forbidden paths (unless the user explicitly asked for that change)
 
-Phase 1/2/3 work must never modify:
+- `src/quant_hub/{scoring,factors,filters,regime,strategies,engine,lynch,report}/`
+- existing **write** methods in `src/quant_hub/infrastructure/postgres/repository.py`
+  (new read methods are fine)
 
-- `src/quant_hub/scoring/`
-- `src/quant_hub/factors/`
-- `src/quant_hub/filters/`
-- `src/quant_hub/regime/`
-- `src/quant_hub/strategies/`
-- `src/quant_hub/engine/`
-- `src/quant_hub/lynch/`
-- `src/quant_hub/report/`
-- any **write** method on a repository class in
-  `src/quant_hub/infrastructure/postgres/repository.py` (new read-only
-  methods are fine and expected; touching an existing write method, or
-  turning a read into something that mutates, is not)
+`.claude/settings.json` makes edits to these paths prompt; this skill is the
+check for anything that slipped through (e.g. shell edits).
 
-Additive, read-only work belongs in `src/quant_hub/api/`, `frontend/`,
-`pyproject.toml` (API deps), and new read methods on the repository classes.
+Note: `src/quant_hub/sector_swing/report.py` is **not** forbidden — only the
+top-level `report/` package is.
 
-## Before committing
+## Steps
 
-1. **Diff scope check** — compare the changed paths against the forbidden
-   list above:
+1. **Scope diff** against `main`, covering committed and uncommitted work:
 
    ```bash
-   git diff --stat <base>...HEAD   # or against the working tree if uncommitted
+   git diff --name-only main...HEAD; git diff --name-only HEAD; git ls-files -o --exclude-standard
    ```
 
-   If anything under a forbidden path shows up, stop. Don't commit. Explain
-   to the user exactly what changed and why it appears to cross the
-   boundary — it may be an accidental edit, or it may be a case the user
-   needs to explicitly approve as an exception.
+   Anything under a forbidden path: stop, don't commit, tell the user exactly
+   what changed.
 
-2. **Re-run the test suite** — this repo has no CI yet
-   (`docs/ARCHITECTURE_GAPS.md` H6), so this is the only regression check:
+2. **Tests**:
 
    ```bash
    docker exec quant-hub-dev pytest -q
    ```
 
-   Confirm the pass count matches the pre-change baseline (no new failures,
-   no tests silently removed/skipped). If you don't have a baseline count
-   from earlier in the session, run it once before starting the change and
-   once after, and compare.
+   Compare against a baseline from the start of the session (or from `main`:
+   `git stash -u && docker exec quant-hub-dev pytest -q; git stash pop`).
+   No new failures, no tests quietly deleted or skipped.
 
-3. **Rubric-focused subset** (faster, run this first when iterating) covers
-   the scoring/eligibility logic most directly:
+   Faster rubric subset while iterating:
 
    ```bash
-   docker exec quant-hub-dev pytest \
-     tests/unit/test_launchpad_rubric.py \
-     tests/unit/test_launchpad_ineligible_scores.py \
-     tests/unit/test_lynch.py \
-     tests/unit/test_lynch_service.py \
-     tests/unit/test_ticker_actionable.py \
-     -q
+   docker exec quant-hub-dev pytest -q tests/unit/test_launchpad_rubric.py \
+     tests/unit/test_launchpad_ineligible_scores.py tests/unit/test_lynch.py \
+     tests/unit/test_lynch_service.py tests/unit/test_ticker_actionable.py
    ```
 
-4. **Report back concisely**: paths touched, whether any forbidden path was
-   hit, and the before/after test pass count. This is the evidence the user
-   is relying on to trust the boundary held — don't skip it even when the
-   change feels obviously safe.
+3. **Frontend** (if `frontend/` changed):
+   `docker exec quant-hub-frontend-dev npx tsc -b && docker exec quant-hub-frontend-dev npm run lint`
 
-## Branch strategy reminder
+4. **Report**: paths touched, forbidden-path hits (expect "none"), and the
+   before/after pass count. The user relies on this evidence, so include it
+   even when the change is obviously safe.
 
-Each phase merges into `dev` (fast-forward, after this guard passes) before
-the next phase branches off `dev` — phases are not stacked on each other.
+## Branching
+
+Trunk is `main`. Each phase or feature gets one branch off `main` and one
+merge/PR back, after this guard passes. The old `dev` branch is stale; don't
+branch from it.

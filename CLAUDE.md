@@ -1,0 +1,82 @@
+# quant-hub
+
+Homelab research stack: Launchpad (technical scanner + ML), Lynch (fundamental
+screen), sector-ETF swing scanner. Results in Postgres, served by a read-only
+FastAPI (`src/quant_hub/api/`) to a React/Vite frontend (`frontend/`).
+Research only — **not** a trading bot. Streamlit (`src/quant_hub/dashboard/`)
+is being decommissioned: never add Streamlit UI, build in React.
+
+## Hard rules
+
+- **Everything runs in Docker.** The host has no Python deps; never run
+  `python`/`pip`/`pytest`/`npm` on the host. Never `pip install`/`npm install`
+  into a running container as the fix — change `pyproject.toml` /
+  `frontend/package.json` / Dockerfile so a clean rebuild reproduces it.
+- **Scoring is off-limits unless the user explicitly asks.** Don't modify
+  `src/quant_hub/{scoring,factors,filters,regime,strategies,engine,lynch,report}/`
+  or existing write methods in `infrastructure/postgres/repository.py`. Edits
+  there trigger a permission prompt (`.claude/settings.json`); if one fires
+  unexpectedly, stop and explain instead of approving around it. Run the
+  `phase-scope-guard` skill before committing.
+- **No fabricated trading numbers.** Entry/stop/target levels, position sizing,
+  or anything a user might act on needs explicit user sign-off on the
+  methodology first.
+- Never read or print `.env.dev` / `.env.stage` / `.env.prod` (real SMTP
+  credentials). Use the `*.example` files to learn the variable names.
+- Don't add `plotly.js` to the frontend (unfixable critical transitive XSS
+  via `maplibre-gl`). Run `npm audit` before adding any charting dependency.
+
+## Dev stack
+
+Always go through `scripts/run_env.sh` (sets compose project `quant-hub-dev`
+and layers the right files). Bare `docker compose` infers project `quant-hub`
+and silently targets nothing or creates orphan volumes.
+
+```bash
+./scripts/run_env.sh dev ps
+./scripts/run_env.sh dev up -d --build --no-deps quant-hub quant-hub-api   # after Dockerfile/crontab/pyproject change
+```
+
+| Container | Role | Host port |
+|---|---|---|
+| `quant-hub-dev` | CLI, cron, Streamlit (legacy) | 5002 |
+| `quant-hub-api-dev` | FastAPI, `--reload` | 5010 |
+| `quant-hub-frontend-dev` | Vite dev server, proxies `/api` | 5020 |
+| `quant-hub-db-dev` | Postgres | 5433 |
+
+`src/` and `tests/` are bind-mounted into `quant-hub-dev`, so edits are live.
+Containers run as root: anything that *creates* files in the repo from a
+container needs `--user "$(id -u):$(id -g)"` (see `dev-stack` skill).
+Cron runs 05:00–05:30 ET weekdays and 01:00–08:30 ET Saturday inside
+`quant-hub-dev` (`docker/crontab` is authoritative) — avoid recreating the
+container in those windows.
+
+## Verify
+
+```bash
+docker exec quant-hub-dev pytest -q                            # backend; must not lose passes
+docker exec quant-hub-dev ruff check /app/src/quant_hub/<path> # repo has pre-existing errors in forbidden paths — don't fix those
+docker exec quant-hub-frontend-dev npx tsc -b                  # frontend has no unit tests
+docker exec quant-hub-frontend-dev npm run lint                # 3 known warnings
+curl -s http://localhost:5020/api/healthz                      # same path the UI uses
+```
+
+Don't run `npm run build` in the frontend container (writes root-owned
+`dist/` into the repo). A PostToolUse hook runs ruff on every Python file you
+edit and reports violations back.
+
+## Code map
+
+- `src/quant_hub/cli/` — console entry points (listed in `pyproject.toml`)
+- `src/quant_hub/application/` — services; `infrastructure/postgres/` — repositories + `schema.sql`
+- `src/quant_hub/sector_swing/` — swing scanner (spec: `docs/sector_etf_scanner_spec.md`)
+- `src/quant_hub/api/` — read-only endpoints (contract: `docs/API_RUNBOOK.md`)
+- `frontend/src/` — React 19 + react-router v7 + TanStack; `lib/` holds API types/helpers
+- `tests/unit/` — pytest; `-m integration` tests need network and are skipped by default
+
+## Git
+
+- Trunk is `main`. One feature branch per phase/feature, merged to `main`
+  after `phase-scope-guard` passes. (`dev` is stale — don't branch from it.)
+- No CI exists; the container test run is the only regression gate.
+- Remote is `origin` on GitHub. Don't push without being asked.

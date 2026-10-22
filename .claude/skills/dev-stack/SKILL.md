@@ -1,140 +1,99 @@
 ---
 name: dev-stack
-description: Launch, check, and verify the quant-hub dev stack (Postgres, Phase 1 API, Phase 2 frontend) via Docker Compose. Use this whenever you need to run the app, confirm a frontend or API change works, typecheck/lint the frontend, or smoke-test an endpoint — instead of guessing docker compose invocations from scratch. Covers the "launching the app" step for /run in this repo.
+description: Launch, check, rebuild, and verify the quant-hub dev stack (Postgres, FastAPI, Vite frontend, cron/CLI container) via Docker Compose. Use whenever you need to run the app, confirm a frontend or API change works, install a dependency, rebuild after a Dockerfile/crontab/pyproject change, or smoke-test an endpoint. Covers the "launching the app" step for /run in this repo.
 ---
 
 # quant-hub dev stack
 
-Everything in this project runs in Docker — never start Postgres, the API, or the
-frontend dev server directly on the host (see the containerize-everything rule
-in project memory). This skill is the reference for doing that correctly.
+CLAUDE.md has the container table and basic verify commands. This skill covers
+the less common operations.
 
-## Compose invocation
+## Always use run_env.sh
 
-Always use the dev env file with both compose files layered, exactly like the
-Makefile does:
+`./scripts/run_env.sh dev <compose args>` sets `COMPOSE_PROJECT_NAME=quant-hub-dev`
+and layers `docker-compose.yml` + `docker-compose.dev.yml` with `.env.dev`.
+Never call `docker compose` directly for this stack — it infers project
+`quant-hub`, silently no-ops on stop/rm, and creates orphan volumes.
 
-```bash
-docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml <cmd>
-```
-
-`make dev-up` runs this with `up --build` in the foreground. For a background
-check/verify pass, prefer:
+Check state before starting anything; peer sessions may already have it up:
 
 ```bash
-docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d
+./scripts/run_env.sh dev ps
 ```
 
-**Check what's already running first** — `docker ps -a --filter name=quant-hub`.
-Another session (this repo has peer Claude Code sessions) may already have the
-stack up under these container names, and a second `up`/`run` against the same
-names will fail with "Container name already in use". If they're already
-running, just `docker exec` into them — don't restart the stack.
+If containers are running, `docker exec` into them — don't restart the stack.
 
-**Project-name mismatch — check `docker compose ls` before `stop`/`rm`/`build`.**
-Compose infers a project name from the current directory (`quant-hub` here)
-when no `-p`/`--project-name` is given, but the actually-running stack may have
-been started under a *different* project name (e.g. `quant-hub-dev`, if a peer
-session's checkout lives at a differently-named path). A `stop`/`rm`/`build`
-invoked with the wrong inferred project name doesn't error — it just silently
-no-ops (nothing to stop) or creates parallel, orphaned resources (a second
-`<project>_quant-hub-frontend-node-modules` volume) instead of touching the
-real running containers. Confirm the real project name first:
+## What needs what after a change
+
+| Changed | Action |
+|---|---|
+| `src/**`, `tests/**` | nothing — bind-mounted; API auto-reloads |
+| `frontend/src/**` | nothing — Vite HMR |
+| `pyproject.toml` deps/scripts, `docker/Dockerfile`, `docker/crontab` | `./scripts/run_env.sh dev up -d --build --no-deps quant-hub quant-hub-api` |
+| `docker-compose*.yml` | `./scripts/run_env.sh dev up -d --no-deps <service>` |
+| `docker/Dockerfile.frontend` (e.g. Node bump) | see "Frontend base-image change" |
+
+Avoid recreating `quant-hub-dev` during cron windows (weekdays 05:00–05:30 ET,
+Saturday 01:00–08:30 ET).
+
+## Writing into the repo from a container
+
+Containers run as root. Anything that creates files under a bind mount
+(`npm install`, scaffolding, codegen) must map the host UID:
 
 ```bash
-docker compose ls                              # shows the actual running project name(s)
-docker inspect quant-hub-frontend-dev --format '{{range .Mounts}}{{.Name}} -> {{.Destination}}{{"\n"}}{{end}}'  # confirms which volume a running container actually uses
+./scripts/run_env.sh dev run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp quant-hub-frontend <cmd>
 ```
 
-Then pass `-p <real-project-name>` on every compose command that targets the
-running stack (`stop`, `rm`, `build`, `up`, `run`) — including the UID-mapped
-`run` example below.
-
-| Container | Service | Port (host) |
-|---|---|---|
-| `quant-hub-db-dev` | Postgres | `${POSTGRES_PORT:-5433}` |
-| `quant-hub-dev` | Streamlit dashboard | `${DASHBOARD_PORT:-5002}` |
-| `quant-hub-api-dev` | Phase 1 FastAPI (read-only) | `${API_PORT:-5010}` |
-| `quant-hub-frontend-dev` | Phase 2 Vite dev server | `${FRONTEND_PORT:-5020}` |
-
-The frontend container proxies `/api/*` to `quant-hub-api:8000` internally
-(see `frontend/vite.config.ts`), so hitting `http://localhost:5020/api/...`
-from the host exercises the exact same path the React app uses.
-
-## Typecheck & lint the frontend
-
-Safe to run as the container's default user — these only write to the
-`quant-hub-frontend-node-modules` named volume, not the bind-mounted
-`./frontend` directory, so there's no host-ownership risk:
-
-```bash
-docker exec quant-hub-frontend-dev npx tsc -b
-docker exec quant-hub-frontend-dev npm run lint
-```
-
-## When a command writes into the bind-mounted repo
-
-Anything that scaffolds or installs into `./frontend` itself (not just the
-named `node_modules` volume) — `npm install`, `npm create`, codegen — must map
-the host UID/GID or the files come out root-owned and unwritable from the
-host:
-
-```bash
-docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml \
-  run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp quant-hub-frontend <cmd>
-```
-
-If you hit `EACCES` on a bind-mounted path because a prior container already
-left root-owned files, fix it with a root container chowning its own mount —
-not host-side `sudo chown` (see the docker-uid-mapping project memory).
-
-A simpler alternative for a one-off `npm install` into the *already-running*
-container: run it as the container's default **root** user (matches
-`node_modules`' existing ownership as a named volume, not a host bind mount —
-root there is harmless), then `chown` back just the two bind-mounted files it
-touched:
+Shortcut for a one-off frontend dependency (node_modules is a named volume, so
+root there is harmless) — then hand back the two bind-mounted files:
 
 ```bash
 docker exec quant-hub-frontend-dev npm install <package>
+docker exec quant-hub-frontend-dev npm audit --omit=dev
 docker exec quant-hub-frontend-dev chown "$(id -u):$(id -g)" /app/package.json /app/package-lock.json
 ```
 
-## Rebuilding after a Dockerfile.frontend change (e.g. a Node version bump)
+If you hit `EACCES` from earlier root-owned files, fix it from a root
+container (`docker exec <ctr> chown -R <uid>:<gid> <path>`), not host `sudo`.
 
-`node_modules` is a **named volume**, not baked into the image at runtime — it
-shadows whatever the image's own `npm ci` produces. Rebuilding the image alone
-is not enough after a base-image change (a Node major-version bump, say):
-the stale volume, seeded under the old Node version, stays mounted. Remove it
-so a fresh one seeds from the rebuilt image:
+## Frontend base-image change
+
+`node_modules` is a named volume that shadows the image's own install, so a
+rebuild alone keeps the stale modules:
 
 ```bash
-docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml stop quant-hub-frontend
-docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml rm -f quant-hub-frontend
+./scripts/run_env.sh dev rm -sf quant-hub-frontend
 docker volume rm quant-hub-dev_quant-hub-frontend-node-modules
-docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml build quant-hub-frontend
-docker compose -p quant-hub-dev --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d quant-hub-frontend
-docker exec quant-hub-frontend-dev node --version   # confirm the new version actually took
+./scripts/run_env.sh dev up -d --build --no-deps quant-hub-frontend
+docker exec quant-hub-frontend-dev node --version
 ```
 
-## Smoke-test real data through the API
+## Smoke-testing through the API
 
-Prefer curling through the frontend's proxy port so you're validating the
-same path the UI takes:
+Curl through the frontend proxy (port 5020) so you exercise the UI's path:
 
 ```bash
+curl -s http://localhost:5020/api/healthz
 curl -s "http://localhost:5020/api/scans/latest?strategy_id=launchpad&universe_id=<id>"
 curl -s "http://localhost:5020/api/scans/<run_id>/report"
 ```
 
-Other read-only endpoints: `/scans`, `/tickers/{ticker}/history`,
-`/command-center`, `/outcomes`, `/outcomes/status`, `/models`, `/healthz`
-(full contract in `docs/API_RUNBOOK.md`).
+Full endpoint contract: `docs/API_RUNBOOK.md`.
 
-## Backend Python tests
-
-The FastAPI/CLI/scoring test suite runs the same way — see the
-`phase-scope-guard` skill for when and why to run it during modernization work:
+## Running a scanner by hand
 
 ```bash
-docker exec quant-hub-dev pytest -q
+docker exec -e LOG_LEVEL=INFO quant-hub-dev quant-sector-swing
+docker exec quant-hub-dev quant-launchpad --tickers NVDA --cache --report json
 ```
+
+The container defaults to `LOG_LEVEL=WARNING`; pass `-e LOG_LEVEL=INFO` to see
+scan progress. Use `docker exec -i` when piping a script on stdin.
+
+## Runtime-checking React components
+
+There's no frontend test runner. Beyond `tsc -b` + lint, you can SSR-render a
+component via Vite's `ssrLoadModule` in the container (put the script in `/tmp`
+inside the container, not the repo). Don't run `npm run build` in the container
+— it writes root-owned `dist/` into the repo.

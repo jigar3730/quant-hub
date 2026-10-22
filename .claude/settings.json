@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch --show-current)",
+      "Bash(docker ps *)",
+      "Bash(docker compose ls)",
+      "Bash(./scripts/run_env.sh dev ps *)",
+      "Bash(./scripts/run_env.sh dev logs *)",
+      "Bash(docker exec quant-hub-dev pytest *)",
+      "Bash(docker exec quant-hub-dev ruff check *)",
+      "Bash(docker exec quant-hub-frontend-dev npx tsc *)",
+      "Bash(docker exec quant-hub-frontend-dev npm run lint)",
+      "Bash(curl -s http://localhost:5020/api/*)",
+      "Bash(curl -s http://localhost:5010/*)"
+    ],
+    "ask": [
+      "Edit(./src/quant_hub/scoring/**)",
+      "Edit(./src/quant_hub/factors/**)",
+      "Edit(./src/quant_hub/filters/**)",
+      "Edit(./src/quant_hub/regime/**)",
+      "Edit(./src/quant_hub/strategies/**)",
+      "Edit(./src/quant_hub/engine/**)",
+      "Edit(./src/quant_hub/lynch/**)",
+      "Edit(./src/quant_hub/report/**)",
+      "Edit(./src/quant_hub/infrastructure/postgres/repository.py)",
+      "Bash(./scripts/run_env.sh prod *)",
+      "Bash(./scripts/run_env.sh stage *)",
+      "Bash(git push *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.dev)",
+      "Read(./.env.stage)",
+      "Read(./.env.prod)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/ruff-check.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

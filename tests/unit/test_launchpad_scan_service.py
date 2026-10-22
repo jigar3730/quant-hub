@@ -1,5 +1,7 @@
 """Launchpad scan service smoke test."""
 
+import pytest
+
 from quant_hub.application.scan_service import ScanService
 from quant_hub.cli.launchpad_daily import run_daily_scan
 from quant_hub.universes.batch import list_universe_ids
@@ -46,6 +48,7 @@ def test_launchpad_batch_excludes_etf_universes(tmp_path):
     assert "sp500_index" in ids
 
 
+@pytest.mark.integration  # real uncached sp500 scan over the network (~2 min)
 def test_launchpad_daily_skips_etf_universe():
     # Unknown ETF-mode id is not required — synthetic skip via empty registry path:
     # run_daily_scan skips when eligibility_mode == etf for known universes.

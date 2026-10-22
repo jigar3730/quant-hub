@@ -1,6 +1,5 @@
 # Shared services. Always pair with docker-compose.{dev,stage,prod}.yml
 # and --env-file .env.<env> (see scripts/run_env.sh or the Makefile).
-version: "3.8"
 
 services:
   postgres:
