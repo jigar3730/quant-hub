@@ -61,3 +61,6 @@ ticker-dates), and the one candidate that looked good in-sample failed out-of-sa
 The 2022-26 holdout is now used; any new hypothesis must be pre-registered and judged on
 live scans from 2026-10-23 onward. The earlier 6-week live result (first table row) was also
 contaminated by sparse-history labels (fixed in e6f5473) and should not be cited.
+
+**Project decision (2026-10-22, user).** No strategy showed out-of-sample edge; development
+stopped. Summary and rationale: [CONCLUSION.md](CONCLUSION.md).

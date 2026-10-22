@@ -1,7 +1,12 @@
 # quant-hub
 
-Homelab research stack: Launchpad (technical scanner + ML), Lynch (fundamental
-screen), sector-ETF swing scanner. Results in Postgres, served by a read-only
+**Development stopped 2026-10-22: no edge found** (`docs/research/CONCLUSION.md`). Don't start
+new feature work; any resumption starts with a pre-registered hypothesis in `docs/research/LOG.md`.
+
+Homelab research stack, **Launchpad-only focus since 2026-10-22**: Launchpad (technical
+scanner + ML). Lynch is switched off (no cron, hidden in the UI, code dormant); the sector
+swing scanner was deleted after a backtest showed no edge (tag `archive/pre-launchpad-focus`).
+Results in Postgres, served by a read-only
 FastAPI (`src/quant_hub/api/`) to a React/Vite frontend (`frontend/`).
 Research only — **not** a trading bot. Streamlit (`src/quant_hub/dashboard/`)
 is being decommissioned: never add Streamlit UI, build in React.
@@ -88,7 +93,8 @@ edit and reports violations back.
 
 - `src/quant_hub/cli/` — console entry points (listed in `pyproject.toml`)
 - `src/quant_hub/application/` — services; `infrastructure/postgres/` — repositories + `schema.sql`
-- `src/quant_hub/sector_swing/` — swing scanner (spec: `docs/sector_etf_scanner_spec.md`)
+- `src/quant_hub/strategies/launchpad/`, `scoring/`, `factors/` — the Launchpad rubric (protected; see Hard rules)
+- `src/quant_hub/data/calendar.py` — NYSE sessions; the price cache requires the last completed session
 - `src/quant_hub/api/` — read-only endpoints (contract: `docs/API_RUNBOOK.md`)
 - `frontend/src/` — React 19 + react-router v7 + TanStack; `lib/` holds API types/helpers
 - `tests/unit/` — pytest; `-m integration` tests need network and are skipped by default
@@ -98,4 +104,9 @@ edit and reports violations back.
 - Trunk is `main`. One feature branch per phase/feature, merged to `main`
   after `phase-scope-guard` passes. (`dev` is stale — don't branch from it.)
 - No CI exists; the container test run is the only regression gate.
-- Remote is `origin` on GitHub. Don't push without being asked.
+- **Standing authorization (user, 2026-10-22): work autonomously end to end.**
+  Commit, merge feature branches into `main`, and push to `origin` without
+  asking — once `phase-scope-guard` passes and the tests are green. Make
+  routine design calls yourself and record them in the commit or
+  `docs/research/LOG.md`. Only stop for the hard rules above (scoring paths,
+  trading numbers a user might act on), prod/stage, Phase 4, or spending money.

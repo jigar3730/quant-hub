@@ -1,5 +1,10 @@
 # Quant Hub
 
+> **Status (2026-10-22): development stopped — no edge found.** Every strategy tested here
+> (sector swing, Launchpad rubric, Launchpad + momentum) failed to beat its benchmark
+> out-of-sample. See [docs/research/CONCLUSION.md](docs/research/CONCLUSION.md). Do not use this
+> for trading decisions.
+
 **Install here:** [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)
 
 **Do not do these three things** (they start an empty or colliding stack):
