@@ -4,6 +4,7 @@
 Development stops here. The code, Postgres history, and price caches are kept so the work can
 be audited or resumed; nothing in this repo should be used to make trading decisions.
 Full evidence and every test (failures included) are in [LOG.md](LOG.md).
+Lessons and a starter kit for the next project: [../RETROSPECTIVE.md](../RETROSPECTIVE.md).
 
 ## What was tested
 
